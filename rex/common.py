@@ -606,8 +606,8 @@ class DecisionModel(nn.Module):
             self.temperature = torch.empty_like(self.temperature, device="cpu")
         self.head_checkpointing = False
 
-    def forward(self, input_ids, attention_mask, marker_pos, marker_mask, qtype, detach_encoder: bool = False,
-                position_ids=None, option_ids=None):
+    def _contextualize(self, input_ids, attention_mask, qtype, detach_encoder: bool = False,
+                       position_ids=None, option_ids=None):
         if option_ids is None:
             h = self.encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
         else:
@@ -628,6 +628,9 @@ class DecisionModel(nn.Module):
                     h = checkpoint(layer, h, src_key_padding_mask=pad, use_reentrant=False)
                 else:
                     h = layer(h, src_key_padding_mask=pad)
+        return h
+
+    def _decide(self, h, attention_mask, marker_pos, marker_mask):
         idx = marker_pos.clamp(min=0)[:, :, None].expand(-1, -1, h.size(-1))
         m = torch.gather(h, 1, idx)
         logits = self.scorer(m).squeeze(-1).float()
@@ -656,6 +659,12 @@ class DecisionModel(nn.Module):
             act_input = act_input.to(self.act_head[0].weight.dtype)
         act_logits = self.act_head(act_input)
         return logits, act_logits
+
+    def forward(self, input_ids, attention_mask, marker_pos, marker_mask, qtype, detach_encoder: bool = False,
+                position_ids=None, option_ids=None):
+        h = self._contextualize(input_ids, attention_mask, qtype, detach_encoder=detach_encoder,
+                                position_ids=position_ids, option_ids=option_ids)
+        return self._decide(h, attention_mask, marker_pos, marker_mask)
 
 
 def _apply_rope_config(ecfg) -> None:
@@ -702,17 +711,45 @@ def build_model(cfg: Dict, encoder_dir: Optional[str] = None, pretrained: bool =
     from transformers import AutoConfig, AutoModel
 
     head_layers, n_act = cfg.get("head_layers", 2), len(cfg.get("act_costs", {})) + 1
+    is_rex = cfg.get("arch") == "rex"
     if not pretrained or (encoder_dir and os.path.exists(encoder_dir)):
         ecfg = AutoConfig.from_pretrained(encoder_dir or cfg["encoder"])
         _apply_rope_config(ecfg)
         with _no_init_weights():
             enc = AutoModel.from_config(ecfg, attn_implementation="sdpa")
+        if is_rex:
+            from .rex_model import RexDecisionModel
+            rex_cfg = cfg.get("rex", {})
+            return RexDecisionModel(
+                enc,
+                tools=rex_cfg.get("tools", []),
+                type_tokens=rex_cfg.get("type_tokens", {}),
+                tool_hidden=rex_cfg.get("tool_hidden"),
+                tool_dropout=rex_cfg.get("tool_dropout", 0.1),
+                tool_prior=rex_cfg.get("tool_prior"),
+                head_layers=head_layers,
+                n_act=n_act,
+                no_init=True,
+            )
         return DecisionModel(enc, head_layers, n_act, no_init=True)
     # Training-time Hub load of the base encoder; allow pinning it like the checkpoints.
     kw = {"attn_implementation": "sdpa"}
     if revision:
         kw["revision"] = revision
     enc = AutoModel.from_pretrained(cfg["encoder"], **kw)
+    if is_rex:
+        from .rex_model import RexDecisionModel
+        rex_cfg = cfg.get("rex", {})
+        return RexDecisionModel(
+            enc,
+            tools=rex_cfg.get("tools", []),
+            type_tokens=rex_cfg.get("type_tokens", {}),
+            tool_hidden=rex_cfg.get("tool_hidden"),
+            tool_dropout=rex_cfg.get("tool_dropout", 0.1),
+            tool_prior=rex_cfg.get("tool_prior"),
+            head_layers=head_layers,
+            n_act=n_act,
+        )
     return DecisionModel(enc, head_layers, n_act)
 
 

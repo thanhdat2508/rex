@@ -1,0 +1,22 @@
+{
+  "tools": [
+    "ip_reputation",
+    "device_fingerprint",
+    "auth_history",
+    "payment_graph",
+    "behavioral_jitter",
+    "network_trace",
+    "geo_ip_lookup",
+    "transaction_velocity"
+  ],
+  "type_tokens": {
+    "<TYPE_PROMO_ABUSE>": "promotion abuse: mass account creation farming vouchers and sign-up credits",
+    "<TYPE_CREDENTIAL_STUFFING>": "credential stuffing: automated distributed login attempts using leaked credential dumps",
+    "<TYPE_API_SCRAPING>": "api scraping: high-rate programmatic harvesting of catalog or user data",
+    "<TYPE_ACCOUNT_TAKEOVER>": "account takeover: unauthorized session hijacking and credential replacement",
+    "<TYPE_PAYMENT_FRAUD>": "payment fraud: unauthorized card testing chargebacks and stolen card usage"
+  },
+  "tool_hidden": null,
+  "tool_dropout": 0.1,
+  "tool_prior": 0.25
+}
