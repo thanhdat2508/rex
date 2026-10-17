@@ -1,10 +1,10 @@
-"""Regression: examples/server.py must forward the same per-call controls laya.serve does.
+"""Regression: examples/server.py must forward the same per-call controls rex.serve does.
 
 `laya/serve.py::BODY_CONTROLS` is the set of caller-side knobs the shipped `/v1/systemone`
 validates and forwards to the Router -- `model`, `max_len`, `head_max_len`, `task`, `lang`,
 `lang_guess`, `min_confidence` -- and it refuses `BODY_REFUSALS` (the hook surface that cannot
 cross an HTTP body) rather than silently dropping it. `laya/cli.py`, `laya/mcp/tools.py` and the
-`laya.integrations.*` wrappers each forward that same set.
+`rex.integrations.*` wrappers each forward that same set.
 
 The demo server did not. Its `PredictRequest` took only `model`/`task`/`lang`, and `BatchRequest`
 added the batch shape but nothing else, so a caller who asked for a per-call token budget, a soft
@@ -69,7 +69,7 @@ def main():
         print("SKIP: examples/server.py needs the serve extra -- pip install laya[serve]")
         return 0
 
-    from laya.serve import BODY_CONTROLS, BODY_REFUSALS
+    from rex.serve import BODY_CONTROLS, BODY_REFUSALS
 
     class RecordingRouter:
         """Answers like the Router does, and remembers how it was asked."""
@@ -97,14 +97,14 @@ def main():
     client = TestClient(demo.app, raise_server_exceptions=False)
     one = {"a": {"type": "noul", "instructions": "x"}}
 
-    # --- what the two surfaces forward is the same set, drawn from laya.serve ----------
+    # --- what the two surfaces forward is the same set, drawn from rex.serve ----------
     # PredictRequest's public fields must cover BODY_CONTROLS exactly: this file's own claim
     # to be "the demo of the shipped server" fails if it stops accepting a control core takes.
     per_call_set = set(BODY_CONTROLS)
     predict_fields = set(demo.PredictRequest.model_fields) - {"state", "questions"}
     batch_fields = set(demo.BatchRequest.model_fields) - {"states", "questions",
                                                           "batch_size", "sort_by_length"}
-    ok("PredictRequest accepts every key in laya.serve.BODY_CONTROLS",
+    ok("PredictRequest accepts every key in rex.serve.BODY_CONTROLS",
        per_call_set <= predict_fields,
        "BODY_CONTROLS=%r, PredictRequest fields=%r" % (sorted(per_call_set),
                                                         sorted(predict_fields)))
@@ -228,11 +228,11 @@ def main():
     finally:
         os.environ.pop("LAYA_MAX_TOKEN_BUDGET", None)
 
-    # --- type refusals, mirroring laya.serve's validators -------------------------
+    # --- type refusals, mirroring rex.serve's validators -------------------------
     # A JSON `true` where the Router expects a language code would become `"true"` through
     # core's `_english_from_code` -- a real, non-English code that decides the checkpoint.
     # `Optional[str]` in the field type also refuses a bool, so a plain status check cannot
-    # tell the two paths apart; the assertion below requires laya.serve's own wording in
+    # tell the two paths apart; the assertion below requires rex.serve's own wording in
     # the 422 body, which only fires when this file actually calls `_validate_language_param`.
     for key in ("lang", "lang_guess"):
         r = new_recorder()
@@ -241,7 +241,7 @@ def main():
         ok("%s: a JSON bool is refused before the Router is asked" % key,
            resp.status_code == 422 and not r.predict_calls,
            "%s, calls=%d" % (resp.status_code, len(r.predict_calls)))
-        ok("%s: the 422 detail is laya.serve's own wording, not pydantic's field error" % key,
+        ok("%s: the 422 detail is rex.serve's own wording, not pydantic's field error" % key,
            "language code string" in detail, detail[:180])
 
     r = new_recorder()
@@ -266,7 +266,7 @@ def main():
     r = new_recorder()
     resp = client.post("/predict", json={"state": "hello", "questions": one,
                                           "max_len": -1})
-    ok("a non-positive max_len is refused, matching laya.serve._validate_budget_param",
+    ok("a non-positive max_len is refused, matching rex.serve._validate_budget_param",
        resp.status_code == 422 and not r.predict_calls)
 
     # --- /predict/batch forwards the same set -------------------------------------
@@ -330,11 +330,11 @@ def main():
        not any("batch_size" in c[1] or "sort_by_length" in c[1] for c in r.predict_calls),
        str([c[1] for c in r.predict_calls][:1]))
 
-    # --- parity with laya.serve's refusal wording ---------------------------------
+    # --- parity with rex.serve's refusal wording ---------------------------------
     # The detail must be the shipped server's, not a paraphrase: a client that reads the
     # 422 body gets the same "install them where laya-serve runs" guidance from both.
     resp = client.post("/predict", json={"state": "hello", "questions": one, "hooks": []})
-    ok("the 422 detail is laya.serve's own wording, not a copy",
+    ok("the 422 detail is rex.serve's own wording, not a copy",
        resp.status_code == 422
        and "run inside the server process" in str(resp.json().get("detail", "")),
        str(resp.json())[:220])

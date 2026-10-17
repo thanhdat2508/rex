@@ -71,7 +71,7 @@ def read(rel: str) -> str:
 
 def dtype_names() -> List[str]:
     """Names `laya/agent.py` reads from the environment within a few lines of a dtype decision."""
-    lines = read(os.path.join("laya", "agent.py")).splitlines()
+    lines = read(os.path.join("rex", "agent.py")).splitlines()
     out = []
     for i, line in enumerate(lines):
         match = ENVIRON_GET.search(line)
@@ -101,7 +101,7 @@ EMPTY_RESOLVER = (r'os\.environ\.get\("{name}"(,\s*""\s*)?\)\s*\n'
 def empty_unsafe_reads(name: str) -> List[str]:
     """Every read of ``name`` in the package an empty value would not survive."""
     out: List[str] = []
-    for _dirpath, _dirs, _files in os.walk(os.path.join(ROOT, "laya")):
+    for _dirpath, _dirs, _files in os.walk(os.path.join(ROOT, "rex")):
         for _filename in _files:
             if not _filename.endswith(".py"):
                 continue
@@ -170,11 +170,11 @@ def env_blocks(text: str) -> Dict[str, Dict[str, str]]:
 names = dtype_names()
 
 # 1. the derived set is what this PR is about, so it must not be silently empty or renamed away.
-check_true("core/derives dtype names from laya/agent.py", len(names) >= 2, names)
+check_true("core/derives dtype names from rex/agent.py", len(names) >= 2, names)
 check("core/derives the CUDA and CPU dtype overrides", names, ["LAYA_CPU_AMP", "LAYA_CUDA_AMP"])
 for name in names:
     check_true("core/%s is read with os.environ.get" % name,
-               'os.environ.get("%s"' % name in read(os.path.join("laya", "agent.py")),
+               'os.environ.get("%s"' % name in read(os.path.join("rex", "agent.py")),
                "the name this file is enforcing is no longer how the core reads it")
 
 # 2. every Compose file that selects a device forwards every derived name, in every service.
@@ -385,7 +385,7 @@ NOTES.append("compose/%d of %d pinned defaults are off-row and cleared by a comm
 # 5. the exclusion this file relies on stays falsifiable: MPS's row gate is not forwarded because
 #    no Compose file here can select MPS. The day one does, this check fails and the decision has
 #    to be made again rather than quietly missing a name.
-agent_src = read(os.path.join("laya", "agent.py"))
+agent_src = read(os.path.join("rex", "agent.py"))
 mps_names = sorted(set(NAME.findall(agent_src)) - set(names))
 check_true("core/MPS names are the only runtime names excluded", mps_names == ["LAYA_MPS_AMP_MIN_ROWS"],
            mps_names)
@@ -412,7 +412,7 @@ check_true("docs/docker.md says why MPS is not forwarded",
 #    file" granularity. Per-service granularity would be wrong the other way: `LAYA_PORT` belongs
 #    to `laya-serve` and must not be demanded of the SDK service.
 package_read: set = set()
-for _dirpath, _dirs, _files in os.walk(os.path.join(ROOT, "laya")):
+for _dirpath, _dirs, _files in os.walk(os.path.join(ROOT, "rex")):
     for _filename in _files:
         if not _filename.endswith(".py"):
             continue
@@ -549,7 +549,7 @@ if server_doc:
         #     So each forwarded name is checked against its own row, and an empty default has to
         #     be a value the reader treats as "not asked for": the property check 3 pins for the
         #     dtype names, widened to the server table, where the empty form is the norm.
-        _serve_src = read(os.path.join("laya", "serve.py"))
+        _serve_src = read(os.path.join("rex", "serve.py"))
         _defaults = dict(re.findall(r"^(DEFAULT_[A-Z0-9_]+) = (\S+)$", _serve_src, re.M))
         _const_pinned = 0
         for _name, _cell in re.findall(r"^\| `(LAYA_[A-Z0-9_]+)` \| ([^|]+) \|", _body, re.M):

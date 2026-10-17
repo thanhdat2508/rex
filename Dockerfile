@@ -23,8 +23,8 @@ RUN pip install "torch==${TORCH_VERSION}" --index-url https://download.pytorch.o
 
 WORKDIR /src
 COPY pyproject.toml setup.py README.md LICENSE ./
-COPY laya/ ./laya/
-# The `serve` extra puts `laya-serve` (POST /v1/systemone, GET /health) in the image, so
+COPY rex/ ./rex/
+# The `serve` extra puts `rex-serve` (POST /v1/systemone, GET /health) in the image, so
 # the same image can run a one-shot request or serve the Jev-compatible API. It adds
 # fastapi and uvicorn only; torch was installed above.
 RUN pip install ".[serve]" && pip check

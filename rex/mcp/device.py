@@ -186,9 +186,11 @@ def router_agent(router: Any, name: str) -> Any | None:
     # same way); try the core normaliser for aliased inputs, without heavy
     # imports at module level.
     try:
-        from laya.router import normalise_name
-
-        key = normalise_name(name)
+        from rex.router import normalise_name
     except Exception:
-        return None
+        try:
+            from laya.router import normalise_name
+        except Exception:
+            return None
+    key = normalise_name(name)
     return agents.get(key) if key != name else None

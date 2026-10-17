@@ -34,9 +34,9 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.agent import Agent, _option_count  # noqa: E402
-from laya.common import build_sequence, unpermute_probs  # noqa: E402
-from laya.onnx_agent import ONNXAgent  # noqa: E402
+from rex.agent import Agent, _option_count  # noqa: E402
+from rex.common import build_sequence, unpermute_probs  # noqa: E402
+from rex.onnx_agent import ONNXAgent  # noqa: E402
 
 PASS, FAIL = [], []
 

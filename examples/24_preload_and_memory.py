@@ -14,7 +14,7 @@ from _common import STATE_EN, STATE_HI, banner, heading, laya, router, timed
 
 # The library's default, taken from a `Router` instance. Constructing one loads nothing: agents are
 # built lazily by `load()`, so this line costs no checkpoint and cannot drift from `laya/router.py`.
-DEFAULT_MAX_LOADED = laya.Router().max_loaded
+DEFAULT_MAX_LOADED = rex.Router().max_loaded
 
 banner("24", "Preload and memory", """
     A cold checkpoint build costs seconds; language detection costs microseconds. `Router` keeps

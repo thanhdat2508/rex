@@ -1,4 +1,4 @@
-"""Contract guard for laya.evidence: readiness evidence states over existing artifacts.
+"""Contract guard for rex.evidence: readiness evidence states over existing artifacts.
 
 Run: python tests/test_evidence.py
 """
@@ -9,8 +9,8 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya import evidence  # noqa: E402
-from laya import evals_cli  # noqa: E402
+from rex import evidence  # noqa: E402
+from rex import evals_cli  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -120,7 +120,7 @@ _BLOCK = (
     "tmp = tempfile.mkdtemp(); ckpt = os.path.join(tmp, 'c'); os.makedirs(ckpt)\n"
     "with open(os.path.join(ckpt, 'rl_agent_config.json'), 'w') as f:\n"
     "    json.dump({'training': {'laya_train_calibration': {'choice': {'items': 5, 'temperature': 1.0, 'issues': []}}}}, f)\n"
-    "from laya import evals_cli, evidence\n"
+    "from rex import evals_cli, evidence\n"
     "rc = evals_cli.main(['evidence', '--checkpoint', ckpt])\n"
     "res = evidence.inspect_checkpoint(ckpt)\n"
     "print('RC', rc, 'TORCH', 'torch' in sys.modules)\n"

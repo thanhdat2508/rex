@@ -19,7 +19,7 @@ from unittest.mock import Mock, patch
 # from here too: an installed `laya` would let the page and a stale default agree.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from laya.router import Router
+from rex.router import Router
 
 
 class MockAgent:
@@ -45,7 +45,7 @@ MAGNITUDE = re.compile(r"\b(?:thousands?|millions?|billions?|orders of magnitude
 
 
 def callee(call):
-    """`laya.Router` / `r.route` / `timed` -- a dotted name, so a rename cannot hide a call."""
+    """`rex.Router` / `r.route` / `timed` -- a dotted name, so a rename cannot hide a call."""
     parts, node = [], call.func
     while isinstance(node, ast.Attribute):
         parts.append(node.attr)

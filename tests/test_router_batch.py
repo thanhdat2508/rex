@@ -6,7 +6,7 @@ from time import sleep
 
 import pytest
 
-from laya.router import Router
+from rex.router import Router
 
 
 Q = {"intent": {"type": "noul", "instructions": "Relevant?"}}
@@ -18,7 +18,7 @@ def request(state, **overrides):
 
 @pytest.fixture
 def fake_agent(monkeypatch):
-    import laya.agent
+    import rex.agent
 
     built = []
     calls = []
@@ -40,7 +40,7 @@ def fake_agent(monkeypatch):
         def system_one(self, state, questions):
             return self.predict_batch([state], questions)[0]
 
-    monkeypatch.setattr(laya.agent, "Agent", Agent)
+    monkeypatch.setattr(rex.agent, "Agent", Agent)
     return built, calls
 
 
@@ -118,7 +118,7 @@ def test_evicted_checkpoint_is_unreferenced_when_it_is_evicted(monkeypatch):
     import gc
     import weakref
 
-    import laya.agent
+    import rex.agent
 
     refs = {}
     evicted_alive = []
@@ -136,7 +136,7 @@ def test_evicted_checkpoint_is_unreferenced_when_it_is_evicted(monkeypatch):
             gc.collect()
             evicted_alive.append((ctx.model, refs[ctx.model]() is not None))
 
-    monkeypatch.setattr(laya.agent, "Agent", Agent)
+    monkeypatch.setattr(rex.agent, "Agent", Agent)
     router = Router(max_loaded=1, default="english", hooks=[CheckFreed()])
     router.predict_batch([request("english text"), request("مرحبا")])
     assert evicted_alive == [("english", False)]
@@ -225,7 +225,7 @@ def test_route_batch_forwards_lang_guess(fake_agent):
     assert built == []
 
 def test_concurrent_batch_load_deduplicates(monkeypatch):
-    import laya.agent
+    import rex.agent
 
     built = []
     guard = Lock()
@@ -245,7 +245,7 @@ def test_concurrent_batch_load_deduplicates(monkeypatch):
         def system_one(self, state, questions):
             return self.predict_batch([state], questions)[0]
 
-    monkeypatch.setattr(laya.agent, "Agent", SlowAgent)
+    monkeypatch.setattr(rex.agent, "Agent", SlowAgent)
     router = Router(max_loaded=2, default="english")
     start = Barrier(8)
 
@@ -283,7 +283,7 @@ def test_equal_questions_with_different_option_order_score_separately(fake_agent
 
 def _lang_recording_router(monkeypatch, lang_temperatures):
     """A Router over a fake agent that records the `lang` each batch call received."""
-    import laya.agent
+    import rex.agent
 
     calls = []
 
@@ -301,7 +301,7 @@ def _lang_recording_router(monkeypatch, lang_temperatures):
             calls.append({"n": 1, "lang": overrides.get("lang")})
             return {"model": "fake", "answers": {}}
 
-    monkeypatch.setattr(laya.agent, "Agent", Agent)
+    monkeypatch.setattr(rex.agent, "Agent", Agent)
     return Router(max_loaded=1, default="english"), calls
 
 
@@ -341,7 +341,7 @@ def test_predict_and_predict_batch_pass_the_same_lang(monkeypatch):
 
 def _budget_recording_router(monkeypatch, hooks=(), agent=None):
     """A Router over a fake agent that records the token budget each forward pass received."""
-    import laya.agent
+    import rex.agent
 
     calls = []
 
@@ -359,7 +359,7 @@ def _budget_recording_router(monkeypatch, hooks=(), agent=None):
                           "head_max_len": overrides.get("head_max_len")})
             return {"model": "fake", "answers": {}, "usage": {}}
 
-    monkeypatch.setattr(laya.agent, "Agent", agent or Recording)
+    monkeypatch.setattr(rex.agent, "Agent", agent or Recording)
     return Router(max_loaded=1, default="english", hooks=list(hooks)), calls
 
 
@@ -425,7 +425,7 @@ def test_request_budget_does_not_change_routing(monkeypatch):
 
 def test_router_predict_and_predict_batch_min_confidence(monkeypatch):
     """`min_confidence` gates answers below threshold on both predict and predict_batch (#361)."""
-    import laya.agent
+    import rex.agent
 
     class Agent:
         def __init__(self, repo, *, device, token, subfolder):
@@ -443,7 +443,7 @@ def test_router_predict_and_predict_batch_min_confidence(monkeypatch):
         def predict_batch(self, states, questions, batch_size=None, **overrides):
             return [self.system_one(s, questions, **overrides) for s in states]
 
-    monkeypatch.setattr(laya.agent, "Agent", Agent)
+    monkeypatch.setattr(rex.agent, "Agent", Agent)
     router = Router(max_loaded=1, default="english")
 
     # Default min_confidence=None: no low_confidence flags
@@ -472,7 +472,7 @@ def test_router_predict_and_predict_batch_min_confidence(monkeypatch):
 
 def test_end_hooks_see_the_low_confidence_flag(monkeypatch):
     """`on_predict_end` sees `low_confidence` on both Router paths (#361 review)."""
-    import laya.agent
+    import rex.agent
 
     class Agent:
         def __init__(self, repo, *, device, token, subfolder):
@@ -490,7 +490,7 @@ def test_end_hooks_see_the_low_confidence_flag(monkeypatch):
         def predict_batch(self, states, questions, batch_size=None, **overrides):
             return [self.system_one(s, questions, **overrides) for s in states]
 
-    monkeypatch.setattr(laya.agent, "Agent", Agent)
+    monkeypatch.setattr(rex.agent, "Agent", Agent)
     seen = []
 
     class Record:
@@ -508,7 +508,7 @@ def test_end_hooks_see_the_low_confidence_flag(monkeypatch):
 
 def _sort_recording_router(monkeypatch, accepts_sort):
     """A Router whose attached agent records the sort_by_length it was called with."""
-    import laya.agent
+    import rex.agent
 
     calls = []
 
@@ -531,7 +531,7 @@ def _sort_recording_router(monkeypatch, accepts_sort):
         def system_one(self, state, questions):
             return self.predict_batch([state], questions)[0]
 
-    monkeypatch.setattr(laya.agent, "Agent", Agent)
+    monkeypatch.setattr(rex.agent, "Agent", Agent)
     return Router(max_loaded=1, default="english"), calls
 
 

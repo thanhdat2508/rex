@@ -10,8 +10,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import laya.integrations.langchain as langchain_module
-from laya.integrations.langchain import (
+import rex.integrations.langchain as langchain_module
+from rex.integrations.langchain import (
     _RUNNABLE_AVAILABLE,
     LayaEvaluator,
     LayaGuardrail,
@@ -736,9 +736,9 @@ else:
 
 
 # --------------------------------------------------------------- 6. LayaDecision
-from laya.integrations import langchain as langchain_module  # noqa: E402
-from laya.integrations.langchain import LayaDecision  # noqa: E402
-from laya.structured import DecisionResult, SchemaError, decide  # noqa: E402
+from rex.integrations import langchain as langchain_module  # noqa: E402
+from rex.integrations.langchain import LayaDecision  # noqa: E402
+from rex.structured import DecisionResult, SchemaError, decide  # noqa: E402
 
 DECISION_SCHEMA = {
     "type": "object",
@@ -788,8 +788,8 @@ check("decision/boolean planned as noul", asked["needs_human"]["type"], "noul")
 check("decision/state extracted", decision_agent.calls[0]["state"],
       "I was billed twice, is anyone going to help?")
 
-# The runnable is `laya.decide` over the same runner: byte-identical output is the contract.
-check("decision/parity with laya.decide", decision.invoke("some text"),
+# The runnable is `rex.decide` over the same runner: byte-identical output is the contract.
+check("decision/parity with rex.decide", decision.invoke("some text"),
       decide(decision_agent, "some text", schema=DECISION_SCHEMA))
 
 details = LayaDecision(DECISION_SCHEMA, return_details=True, agent=RecordingAgent()).invoke("x")
@@ -861,9 +861,9 @@ finally:
 # decision could not widen its own window or attach the cache/audit hook its siblings can. These
 # checks drive the whole control family through the bypass and read it back off the runner.
 import inspect  # noqa: E402
-from laya.agent import Agent  # noqa: E402
-from laya.integrations import _controls  # noqa: E402
-from laya.router import Router  # noqa: E402
+from rex.agent import Agent  # noqa: E402
+from rex.integrations import _controls  # noqa: E402
+from rex.router import Router  # noqa: E402
 
 DECISION_ALL_CONTROLS = {"max_len": 1024, "head_max_len": 512, "hooks": ["H"],
                          "on_predict_start": "S", "on_predict_end": "E",
@@ -976,11 +976,11 @@ except ImportError:
     PASS.append("decision/lcel skipped (langchain-core not installed)")
 
 # Exported from the package the way the other integration nodes are.
-import laya  # noqa: E402
-from laya.integrations import __all__ as integrations_all  # noqa: E402
+import rex  # noqa: E402
+from rex.integrations import __all__ as integrations_all  # noqa: E402
 
-check("decision/laya attribute", laya.LayaDecision, LayaDecision)
-check_true("decision/in laya.__all__", "LayaDecision" in laya.__all__)
+check("decision/laya attribute", rex.LayaDecision, LayaDecision)
+check_true("decision/in rex.__all__", "LayaDecision" in rex.__all__)
 check_true("decision/in integrations.__all__", "LayaDecision" in integrations_all)
 
 
@@ -1110,10 +1110,10 @@ finally:
 # `BODY_CONTROLS`, so they are safe to forward on the local and the remote path alike -- unlike
 # `task` / `lang_guess`, which are Router-only. A wrapper that drops them cannot route a
 # non-English state or measure the abstention gate it is supposed to honor.
-from laya.integrations import _controls  # noqa: E402
+from rex.integrations import _controls  # noqa: E402
 import inspect  # noqa: E402
-from laya.agent import Agent  # noqa: E402
-from laya.router import Router  # noqa: E402
+from rex.agent import Agent  # noqa: E402
+from rex.router import Router  # noqa: E402
 
 DECISION_CRITERIA = {"billing": "invoices", "tech": "bugs"}
 DECISION_NODES = (
@@ -1218,8 +1218,8 @@ finally:
 
 
 # --------------------------------------------------------------- 7. Prediction hooks
-from laya.integrations import langchain as langchain_module  # noqa: E402
-from laya.hooks import PredictContext  # noqa: E402
+from rex.integrations import langchain as langchain_module  # noqa: E402
+from rex.hooks import PredictContext  # noqa: E402
 
 
 class HookAgent:
@@ -1286,8 +1286,8 @@ for name, build in HOOK_NODES:
 # core instead of at the call site. Whether the hooks then run is core's contract, pinned by
 # tests/test_hooks.py; a mock runner that ignores its kwargs could not prove it either way.
 import inspect  # noqa: E402
-from laya.agent import Agent  # noqa: E402
-from laya.router import Router  # noqa: E402
+from rex.agent import Agent  # noqa: E402
+from rex.router import Router  # noqa: E402
 
 agent_params = set(inspect.signature(Agent.system_one).parameters)
 router_params = set(inspect.signature(Router.predict).parameters)

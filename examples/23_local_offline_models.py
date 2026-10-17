@@ -20,7 +20,7 @@ banner("23", "Where the weights come from: ./models or the Hub", """
     way; only where they are read from changes.
     """)
 
-print("   laya %s" % laya.__version__)
+print("   laya %s" % rex.__version__)
 
 heading("what each name resolves to")
 for name in MODELS:
@@ -68,9 +68,9 @@ print("   device: %s   tokens: %d in, %d out" %
 heading("Router(models=...) vs the default Router()")
 configured = router()
 print("   Router().models['english']       %r" % (configured.models["english"],))
-print("   DEFAULT_MODELS['english']        %r" % (laya.DEFAULT_MODELS["english"],))
+print("   DEFAULT_MODELS['english']        %r" % (rex.DEFAULT_MODELS["english"],))
 print("   Router().models['multilingual']  %r" % (configured.models["multilingual"],))
-print("   DEFAULT_MODELS['multilingual']   %r" % (laya.DEFAULT_MODELS["multilingual"],))
+print("   DEFAULT_MODELS['multilingual']   %r" % (rex.DEFAULT_MODELS["multilingual"],))
 print("""
    With a local copy the configured value is an absolute directory, so `Agent` never calls the
    hub. Without one it is the same Hub spec `DEFAULT_MODELS` uses, and the weights land in

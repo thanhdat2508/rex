@@ -8,11 +8,11 @@ demonstrates the sharpening honestly on a real prediction.
 
 from _common import banner, describe, device_line, load
 
-from laya.common import TEMP_MAX, TEMP_MIN, temp_bucket
-from laya import QTYPE_NAMES, QTYPES, render_options
+from rex.common import TEMP_MAX, TEMP_MIN, temp_bucket
+from rex import QTYPE_NAMES, QTYPES, render_options
 
 banner("34", "Calibration and temperature", """
-    Laya is trained with a strictly proper scoring rule -- `laya.common.proper_reward` combines
+    Laya is trained with a strictly proper scoring rule -- `rex.common.proper_reward` combines
     a log score, a spherical score and (for ordinal `score` questions) a ranked probability
     score. A proper rule is maximised in expectation only by reporting your honest beliefs, so
     the training signal pushes the head toward calibrated distributions rather than confident

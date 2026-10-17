@@ -3,8 +3,8 @@ import json
 
 import pytest
 
-from laya.evals import Dataset, EvalError, Example, evaluate
-from laya.evals_shortlist import SHORTLIST_REPORT_SCHEMA, evaluate_shortlist
+from rex.evals import Dataset, EvalError, Example, evaluate
+from rex.evals_shortlist import SHORTLIST_REPORT_SCHEMA, evaluate_shortlist
 
 
 QUESTION = {"intent": {"type": "choice", "instructions": "Which?",
@@ -106,7 +106,7 @@ def test_malformed_shortlist_metadata_fails(monkeypatch):
                 "shortlist": {"intent": {"labels": ["a", "a"], "k": 2, "n": 3,
                                          "passthrough": False, "scores": [1.0, 1.0]}}}
 
-    monkeypatch.setattr("laya.evals_shortlist.predict_shortlist", malformed)
+    monkeypatch.setattr("rex.evals_shortlist.predict_shortlist", malformed)
     with pytest.raises(EvalError, match="inconsistent shortlist metadata"):
         run(ChoiceAgent({"one": "a"}), Dataset([sample("one", "a", "ok")]), TableEmbed())
 
@@ -119,7 +119,7 @@ def test_dataset_bytes_are_recorded_when_path_is_supplied(tmp_path):
     report = evaluate_shortlist(ChoiceAgent({"one": "a"}), dataset, TableEmbed(), k=2,
                                 checkpoint_id="checkpoint@123", embedder_id="embedder@456",
                                 dataset_path=str(path))
-    from laya.evals import file_fingerprint
+    from rex.evals import file_fingerprint
 
     assert report.config["dataset_sha256"] == file_fingerprint(str(path))
     assert report.config["questions_sha256"]

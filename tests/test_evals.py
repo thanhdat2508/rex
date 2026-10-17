@@ -1,4 +1,4 @@
-"""Metric math, dataset parsing and regression comparison for laya.evals. No weights.
+"""Metric math, dataset parsing and regression comparison for rex.evals. No weights.
 
 Run: python -m pytest tests/test_evals.py -q
 """
@@ -12,9 +12,9 @@ import numpy as np
 
 import pytest
 
-import laya
-from laya import evals
-from laya.evals import (
+import rex
+from rex import evals
+from rex.evals import (
     ChoiceAccuracy,
     Dataset,
     EvalError,
@@ -95,7 +95,7 @@ def test_calibration_uses_answer_confidence():
 # operator the same. The shape that really arrives without the field is the strict Jev wire contract:
 # `LAYA_JEV_STRICT` drops it (`laya/serve.py::_project_jev_strict`, documented in docs/http-api.md).
 # So the stripped answers below are made by the server's own projector rather than hand-written -- a
-# hand copy could drift from what the server serves and this gate would still pass. `laya.serve`
+# hand copy could drift from what the server serves and this gate would still pass. `rex.serve`
 # imports with neither fastapi nor torch at module scope, which is why it is affordable here.
 
 _CONTRACT_PROBS = {"choice": [0.95, 0.03, 0.02], "score": [0.05, 0.90, 0.05], "noul": [0.13, 0.87]}
@@ -110,7 +110,7 @@ def _agent_answer(kind):
     `answer_confidence` = max(p) -- see laya/agent.py:1373, :1392, :1400."""
     p = _CONTRACT_PROBS[kind]
     argmax = max(range(len(p)), key=lambda i: p[i])
-    from laya.common import confidence_from_probs
+    from rex.common import confidence_from_probs
     conf = (round(max(p[1], 1.0 - p[1]), 4) if kind == "noul"
             else round(confidence_from_probs(np.asarray(p), len(p)), 4))
     answer = {"confidence": conf, "answer_confidence": round(float(p[argmax]), 4),
@@ -128,7 +128,7 @@ def _agent_answer(kind):
 def _contract_shapes():
     """`(full, strict)` -- the payload the agents publish, and the same payload put through the
     projector that serves the strict Jev contract."""
-    from laya.serve import _project_jev_strict
+    from rex.serve import _project_jev_strict
     full = {kind: _agent_answer(kind) for kind in _CONTRACT_PROBS}
     strict = _project_jev_strict({"model": "stub", "answers": dict(full),
                                   "usage": {"prompt_tokens": 1, "completion_tokens": 1}})["answers"]
@@ -206,7 +206,7 @@ def test_the_docs_name_the_fallback_and_refuse_to_call_the_shipped_number_calibr
             / "docs" / "evals.md").read_text(encoding="utf-8")
     prose = " ".join(page.split())
     assert "the calibrated probability Laya reports on every answer type" not in prose
-    assert "`laya.evals._answer_confidence`" in prose, "the page names the function it describes"
+    assert "`rex.evals._answer_confidence`" in prose, "the page names the function it describes"
     assert "then\n`max(p, 1 - p)`" in page or "then `max(p, 1 - p)`" in prose
     assert "LAYA_JEV_STRICT" in prose and "over-confident" in prose
     assert "## Which confidence a metric reads" in page, "the fallback needs a home, not a footnote"
@@ -469,7 +469,7 @@ def test_a_relative_rule_refuses_a_baseline_from_the_old_coverage_definition(tmp
     invalidate a baseline. A definition change is not a patch release, so this refuses on the
     key's ABSENCE.
     """
-    from laya import _eval_policy
+    from rex import _eval_policy
 
     policy = _eval_policy.load_policy(_write_gate_policy(
         tmp_path, {"slice": {"language": "zh"}, "metric": "selective_accuracy@50",
@@ -496,7 +496,7 @@ def test_the_refusal_is_limited_to_metrics_a_cut_can_move(tmp_path):
 
     Sweeping them into the refusal would break every committed baseline for no reason.
     """
-    from laya import _eval_policy
+    from rex import _eval_policy
 
     candidate = EvalReport(**_coverage_gate_report(0.10, evals.COVERAGE_METRIC_DEFINITION,
                                                    metric="ece"))
@@ -514,7 +514,7 @@ def test_the_refusal_is_limited_to_metrics_a_cut_can_move(tmp_path):
 
 def test_an_absolute_rule_needs_no_baseline_and_is_unaffected(tmp_path):
     """Only the relative comparison is across definitions; a `min` reads this run alone."""
-    from laya import _eval_policy
+    from rex import _eval_policy
 
     policy = _eval_policy.load_policy(_write_gate_policy(
         tmp_path, {"slice": {"language": "zh"}, "metric": "selective_accuracy@50",
@@ -533,7 +533,7 @@ def test_a_stale_candidate_is_refused_as_well_as_a_stale_baseline(tmp_path):
     this open, and it is the easier of the two to reach by accident: a CI artifact produced by a
     pinned older `laya`, or an archived report re-checked after the baseline was regenerated.
     """
-    from laya import _eval_policy
+    from rex import _eval_policy
 
     policy = _eval_policy.load_policy(_write_gate_policy(
         tmp_path, {"slice": {"language": "zh"}, "metric": "selective_accuracy@50",
@@ -584,7 +584,7 @@ def test_the_refusal_bounds_a_hostile_recorded_definition(tmp_path):
     attacker-controlled content on its way into a log. Five megabytes in the field produced a
     five-megabyte failure line before this was bounded.
     """
-    from laya import _eval_policy
+    from rex import _eval_policy
 
     policy = _eval_policy.load_policy(_write_gate_policy(
         tmp_path, {"slice": {"language": "zh"}, "metric": "selective_accuracy@50",
@@ -706,7 +706,7 @@ def test_selective_metrics_reach_the_report():
 
 
 def test_percentiles_use_nearest_rank():
-    from laya.evals import _percentiles
+    from rex.evals import _percentiles
 
     # Nearest-rank 95th percentile is the ceil(0.95 * n)-th smallest value (1-indexed).
     # `int(n * 0.95)` used to return the (0.95n + 1)-th value whenever n is a multiple of 20.
@@ -1203,7 +1203,7 @@ def test_min_confidence_and_sort_by_length_are_independent_controls():
 
 def test_cli_min_confidence_forwards_through_evaluate(monkeypatch, tmp_path):
     """The flag has to actually reach `evaluate`, not sit in the parser."""
-    from laya import evals_cli
+    from rex import evals_cli
 
     seen = {}
     real_evaluate = evals_cli.evals.evaluate
@@ -1221,7 +1221,7 @@ def test_cli_min_confidence_forwards_through_evaluate(monkeypatch, tmp_path):
 
 def test_cli_min_confidence_out_of_range_is_a_usage_error(monkeypatch, tmp_path, capsys):
     """A mistyped `--min-confidence 1.5` must exit 2 with core's message, not traceback."""
-    from laya import evals_cli
+    from rex import evals_cli
 
     _fake_router(monkeypatch, {})
     dataset = _write_dataset(tmp_path, [{"state": "s", "questions": Q, "expected": {"intent": "a"}}])
@@ -1233,7 +1233,7 @@ def test_cli_min_confidence_out_of_range_is_a_usage_error(monkeypatch, tmp_path,
 
 def test_cli_min_confidence_zero_is_accepted(monkeypatch, tmp_path):
     """A gate at zero is a legal ask; `if args.min_confidence` would drop it before the call."""
-    from laya import evals_cli
+    from rex import evals_cli
 
     seen = {}
     real_evaluate = evals_cli.evals.evaluate
@@ -1292,7 +1292,7 @@ def _timed_pair(monkeypatch, batch_size):
     Returns (report, runner): the runner's own `chunks` is the witness that the grouping the test
     asserts is the grouping the harness really issued.
     """
-    import laya.evals as evals_module
+    import rex.evals as evals_module
 
     dataset = Dataset([Example("s1", Q, {"intent": "a"}), Example("s2", Q, {"intent": "a"}),
                        Example("s3", Q, {"intent": "a"}), Example("s4", QWIDE, {"intent": "a"})])
@@ -1333,7 +1333,7 @@ def test_the_throughput_share_keeps_its_own_metric(monkeypatch):
 
 
 def test_a_latency_gate_cannot_pass_a_run_where_nothing_finished_in_time(monkeypatch):
-    from laya import evals_cli
+    from rex import evals_cli
 
     solo, _ = _timed_pair(monkeypatch, None)
     batched, _ = _timed_pair(monkeypatch, 8)
@@ -1374,7 +1374,7 @@ def test_timing_facts_record_what_the_harness_did(monkeypatch):
 
 def test_a_requested_batch_size_is_not_a_batched_run(monkeypatch):
     """The report records the grouping it achieved, so a runner that cannot batch cannot hide it."""
-    import laya.evals as evals_module
+    import rex.evals as evals_module
 
     class Untimed(StubRunner):
         pass
@@ -1396,7 +1396,7 @@ def test_a_batched_call_that_raises_is_still_recorded_as_batched(monkeypatch):
     one shared forward and lost it indistinguishable from a run that never shared a call at all --
     the one mode where `docs/evals.md` says the block has to be right.
     """
-    import laya.evals as evals_module
+    import rex.evals as evals_module
 
     class RaisingBatch(TimedRunner):
         def predict_batch(self, states, questions, model=None, batch_size=None):
@@ -1524,7 +1524,7 @@ def test_compare_fails_when_a_baseline_metric_is_missing():
 def test_a_nan_metric_fails_every_gate():
     """Every comparison with NaN is False, so a NaN metric used to pass --min, --max and the
     baseline comparison alike."""
-    from laya import evals_cli
+    from rex import evals_cli
 
     nan = float("nan")
     report = EvalReport(overall={"score_mae": nan, "mean_confidence": nan})
@@ -1543,7 +1543,7 @@ def test_a_nan_metric_fails_every_gate():
 
 
 def test_cli_rejects_a_nan_limit_or_tolerance(capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     with pytest.raises(EvalError, match="not a number"):
         evals_cli._parse_pairs(["choice_accuracy=nan"])
@@ -1583,7 +1583,7 @@ def test_evaluate_records_what_it_measured():
                                   "s2": {"intent": choice_answer("a")}}), dataset)
     config = report.config
     assert config["schema"] == evals.REPORT_SCHEMA
-    assert config["laya_version"] == laya.__version__
+    assert config["laya_version"] == rex.__version__
     assert len(config["questions_sha256"]) == 64, "the question schema is part of the identity"
 
     # Determinism: the identity must carry nothing time-bearing, or a re-run of the same dataset
@@ -1814,7 +1814,7 @@ def _write_dataset(tmp_path, rows):
 
 
 def test_cli_validate_and_dispatch(tmp_path):
-    from laya import cli, evals_cli
+    from rex import cli, evals_cli
 
     good = _write_dataset(tmp_path, [{"state": "s", "questions": Q, "expected": {"intent": "a"}}])
     assert evals_cli.main(["validate", good]) == 0
@@ -1838,7 +1838,7 @@ def test_cli_writes_redirected_output_as_utf8(tmp_path, monkeypatch):
     without the fix. Both entry points are checked because `laya eval` returns before the line
     that sets stdout in `cli.main`.
     """
-    from laya import cli, evals_cli
+    from rex import cli, evals_cli
 
     qid = "श्रेणी"
     dataset = _write_dataset(tmp_path, [{"state": "s", "questions": {qid: Q["intent"]},
@@ -1853,7 +1853,7 @@ def test_cli_writes_redirected_output_as_utf8(tmp_path, monkeypatch):
 
 
 def test_cli_compare_exit_codes(tmp_path):
-    from laya import evals_cli
+    from rex import evals_cli
 
     (tmp_path / "report.json").write_text(json.dumps({"overall": {"choice_accuracy": 0.80}}))
     (tmp_path / "baseline.json").write_text(json.dumps({"overall": {"choice_accuracy": 0.79}}))
@@ -1872,7 +1872,7 @@ def test_cli_separates_a_usage_error_from_a_quality_failure(tmp_path, capsys):
     not tell "my dataset is malformed" from "the model regressed" -- and a missing file escaped
     as a raw traceback, a third outcome the docs never mention.
     """
-    from laya import evals_cli
+    from rex import evals_cli
 
     report = tmp_path / "report.json"
     report.write_text(json.dumps({"overall": {"choice_accuracy": 0.80}}))
@@ -1914,7 +1914,7 @@ def _write_raw(tmp_path, name, text):
 
 
 def test_cli_compare_fails_on_an_empty_report(tmp_path, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     (tmp_path / "report.json").write_text(json.dumps({"overall": {}}))
     (tmp_path / "baseline.json").write_text(json.dumps({"overall": {"choice_accuracy": 0.79}}))
@@ -1925,7 +1925,7 @@ def test_cli_compare_fails_on_an_empty_report(tmp_path, capsys):
 
 
 def test_cli_rejects_a_malformed_tolerance():
-    from laya import evals_cli
+    from rex import evals_cli
 
     with pytest.raises(EvalError):
         evals_cli._parse_pairs(["choice_accuracy"])
@@ -1938,7 +1938,7 @@ def test_cli_run_records_the_run_identity(monkeypatch, tmp_path):
     read the result as a diff. That only works if the report carries the dataset's bytes and the
     question schema, not just the path, and if it records the gate the numbers came out of.
     """
-    from laya import evals_cli
+    from rex import evals_cli
 
     _patch_router(monkeypatch)
     dataset = _write_dataset(tmp_path, RUN_ROWS)
@@ -1947,7 +1947,7 @@ def test_cli_run_records_the_run_identity(monkeypatch, tmp_path):
                            "--tolerance", "choice_accuracy=0.02", "--json", str(out)]) == 0
     config = json.loads(out.read_text(encoding="utf-8"))["config"]
     assert config["schema"] == evals.REPORT_SCHEMA
-    assert config["laya_version"] == laya.__version__
+    assert config["laya_version"] == rex.__version__
     assert config["dataset"] == dataset, "the path stays a name; the hash carries the bytes"
     assert config["dataset_sha256"] == evals.file_fingerprint(dataset)
     assert config["questions_sha256"] == evals.questions_fingerprint(evals.Dataset.from_jsonl(dataset))
@@ -1964,7 +1964,7 @@ def test_cli_run_refuses_a_baseline_from_a_different_dataset(monkeypatch, tmp_pa
     promoted was never measured on the data the gate claims to have validated. A pass here is
     arithmetic, not evidence.
     """
-    from laya import evals_cli
+    from rex import evals_cli
 
     _patch_router(monkeypatch)
     original = _write_dataset(tmp_path, RUN_ROWS)
@@ -1990,7 +1990,7 @@ def test_cli_run_still_accepts_a_baseline_with_no_identity(monkeypatch, tmp_path
     comes from `research/eval/` and has no `config.schema`. A key missing on one side is unknown,
     not a conflict -- otherwise this change would break the repo's own CI on its first run.
     """
-    from laya import evals_cli
+    from rex import evals_cli
 
     _patch_router(monkeypatch)
     dataset = _write_dataset(tmp_path, RUN_ROWS)
@@ -2003,7 +2003,7 @@ def test_cli_run_still_accepts_a_baseline_with_no_identity(monkeypatch, tmp_path
 
 
 def test_cli_compare_refuses_two_different_runs(tmp_path, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     report = {"config": {"schema": evals.REPORT_SCHEMA, "dataset_sha256": "a" * 64,
                          "questions_sha256": "q" * 64},
@@ -2044,7 +2044,7 @@ def test_questions_fingerprint_covers_labels():
          "true": "approved: the customer asked for money back"}))
     assert custom != default, "a change in `labels` left the fingerprint unchanged"
     # And the change is real: these are not two spellings of one thing.
-    from laya.common import _resolve_noul_labels
+    from rex.common import _resolve_noul_labels
     assert _resolve_noul_labels() != _resolve_noul_labels(
         {"false": "denied: no money was requested",
          "true": "approved: the customer asked for money back"})
@@ -2079,7 +2079,7 @@ def test_a_top_level_schema_on_the_candidate_still_refuses(tmp_path, capsys):
     So the *same* disagreement was refused when the candidate stated it in `config` and passed
     when it stated it at the top level.
     """
-    from laya import evals_cli
+    from rex import evals_cli
 
     def write(name, doc):
         (tmp_path / name).write_text(json.dumps(doc), encoding="utf-8")
@@ -2123,7 +2123,7 @@ def _patch_router(monkeypatch, answers=None):
     Returns the list the stand-in appends to when it is constructed, so a test can show a bad flag
     fails before anything loads.
     """
-    import laya
+    import rex
 
     built: list = []
 
@@ -2144,7 +2144,7 @@ def _overall(stdout):
 
 
 def test_cli_score_within_publishes_the_documented_metric(monkeypatch, tmp_path, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     _patch_router(monkeypatch)
     dataset = _write_dataset(tmp_path, RUN_ROWS)
@@ -2156,7 +2156,7 @@ def test_cli_score_within_publishes_the_documented_metric(monkeypatch, tmp_path,
 
 
 def test_cli_score_within_is_repeatable_per_column(monkeypatch, tmp_path, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     _patch_router(monkeypatch)
     dataset = _write_dataset(tmp_path, RUN_ROWS)
@@ -2167,7 +2167,7 @@ def test_cli_score_within_is_repeatable_per_column(monkeypatch, tmp_path, capsys
 
 
 def test_cli_score_within_gate_decides_on_the_number(monkeypatch, tmp_path, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     _patch_router(monkeypatch)
     dataset = _write_dataset(tmp_path, RUN_ROWS)
@@ -2180,7 +2180,7 @@ def test_cli_score_within_gate_decides_on_the_number(monkeypatch, tmp_path, caps
 
 
 def test_cli_score_within_without_score_rows_says_so(monkeypatch, tmp_path, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     _patch_router(monkeypatch)
     rows = [row for row in RUN_ROWS if row["state"] in ("intent", "flag")]
@@ -2193,7 +2193,7 @@ def test_cli_score_within_without_score_rows_says_so(monkeypatch, tmp_path, caps
 
 
 def test_cli_rejects_an_unusable_tolerance_before_loading_a_checkpoint(monkeypatch, tmp_path, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     built = _patch_router(monkeypatch)
     dataset = _write_dataset(tmp_path, RUN_ROWS)
@@ -2209,7 +2209,7 @@ def test_cli_rejects_an_unusable_tolerance_before_loading_a_checkpoint(monkeypat
 
 
 def test_cli_records_the_requested_tolerances(monkeypatch, tmp_path):
-    from laya import evals_cli
+    from rex import evals_cli
 
     _patch_router(monkeypatch)
     dataset = _write_dataset(tmp_path, RUN_ROWS)
@@ -2225,7 +2225,7 @@ def test_docs_and_the_cli_name_the_same_flags():
     import argparse
     from pathlib import Path
 
-    from laya import evals_cli
+    from rex import evals_cli
 
     page = (Path(__file__).resolve().parent.parent / "docs" / "evals.md").read_text(encoding="utf-8")
     registered: set = set()
@@ -2262,16 +2262,16 @@ SHA = "55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851"
 
 
 def _fake_router(monkeypatch, recorded):
-    """Replace `laya.Router` with a weight-free stand-in that records how `_cmd_run` built it.
+    """Replace `rex.Router` with a weight-free stand-in that records how `_cmd_run` built it.
 
     It validates checkpoint names the way `Router.__init__` does, by calling the same
     `normalise_name`, so the fake refuses a typo for the real reason.
     """
-    import laya
+    import rex
 
     class FakeRouter:
         def __init__(self, device=None, preload=None, revision=None, revisions=None):
-            from laya.router import normalise_name
+            from rex.router import normalise_name
             recorded.update(device=device, preload=preload, revision=revision,
                             revisions={normalise_name(k): v for k, v in (revisions or {}).items()})
 
@@ -2287,7 +2287,7 @@ def _fake_router(monkeypatch, recorded):
 
 
 def test_cli_forwards_the_pin_and_records_the_commit_that_answered(tmp_path, monkeypatch):
-    from laya import evals_cli
+    from rex import evals_cli
 
     recorded = {}
     _fake_router(monkeypatch, recorded)
@@ -2302,7 +2302,7 @@ def test_cli_forwards_the_pin_and_records_the_commit_that_answered(tmp_path, mon
 
 
 def test_cli_bare_revision_pins_every_checkpoint(tmp_path, monkeypatch):
-    from laya import evals_cli
+    from rex import evals_cli
 
     recorded = {}
     _fake_router(monkeypatch, recorded)
@@ -2315,7 +2315,7 @@ def test_cli_bare_revision_pins_every_checkpoint(tmp_path, monkeypatch):
 
 def test_cli_records_an_unpinned_run_too(tmp_path, monkeypatch):
     """The default branch is what an unpinned baseline was taken on; the report must say so."""
-    from laya import evals_cli
+    from rex import evals_cli
 
     recorded = {}
     _fake_router(monkeypatch, recorded)
@@ -2327,7 +2327,7 @@ def test_cli_records_an_unpinned_run_too(tmp_path, monkeypatch):
 
 
 def test_cli_rejects_a_typo_in_a_pinned_checkpoint_name(tmp_path, monkeypatch, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     recorded = {}
     _fake_router(monkeypatch, recorded)
@@ -2344,7 +2344,7 @@ def test_cli_rejects_a_typo_in_a_pinned_checkpoint_name(tmp_path, monkeypatch, c
 
 def test_cli_accepts_a_checkpoint_alias_in_a_pin(tmp_path, monkeypatch):
     """`Router` owns the alias table, so `en=` must reach it rather than be second-guessed here."""
-    from laya import evals_cli
+    from rex import evals_cli
 
     recorded = {}
     _fake_router(monkeypatch, recorded)
@@ -2390,7 +2390,7 @@ def _write_gate_policy(tmp_path, rule):
 
 
 def test_cli_slice_gate_catches_regression_hidden_by_overall_gain(tmp_path, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     baseline = tmp_path / "baseline.json"
     candidate = tmp_path / "candidate.json"
@@ -2410,7 +2410,7 @@ def test_cli_slice_gate_catches_regression_hidden_by_overall_gain(tmp_path, caps
 
 
 def test_slice_gate_requires_scored_evidence_on_both_sides(tmp_path):
-    from laya import _eval_policy
+    from rex import _eval_policy
 
     policy = _eval_policy.load_policy(_write_gate_policy(
         tmp_path, {"slice": {"language": "zh"}, "metric": "choice_accuracy",
@@ -2433,7 +2433,7 @@ def test_slice_gate_requires_scored_evidence_on_both_sides(tmp_path):
 
 
 def test_slice_gate_absolute_and_increase_direction(tmp_path):
-    from laya import _eval_policy
+    from rex import _eval_policy
 
     candidate = _slice_gate_report(171, 12)
     report = EvalReport(**candidate)
@@ -2458,7 +2458,7 @@ def test_slice_gate_absolute_and_increase_direction(tmp_path):
 
 
 def test_slice_gate_ece_requires_boolean_correct_evidence(tmp_path):
-    from laya import _eval_policy
+    from rex import _eval_policy
 
     candidate = _slice_gate_report(171, 12)
     candidate["slices"]["language"]["zh"]["ece"] = 0.2
@@ -2477,7 +2477,7 @@ def test_slice_gate_ece_requires_boolean_correct_evidence(tmp_path):
 
 
 def test_slice_gate_counts_each_tagged_answer_once_and_accepts_boundary(tmp_path):
-    from laya import _eval_policy
+    from rex import _eval_policy
 
     candidate = _slice_gate_report(171, 12)
     for case in candidate["cases"]:
@@ -2514,7 +2514,7 @@ def test_slice_gate_counts_each_tagged_answer_once_and_accepts_boundary(tmp_path
      "max_drop": -0.1},
 ])
 def test_cli_rejects_malformed_slice_policy_before_loading(monkeypatch, tmp_path, rule):
-    from laya import evals_cli
+    from rex import evals_cli
 
     built = _patch_router(monkeypatch)
     dataset = _write_dataset(tmp_path, RUN_ROWS)
@@ -2524,7 +2524,7 @@ def test_cli_rejects_malformed_slice_policy_before_loading(monkeypatch, tmp_path
 
 
 def test_cli_relative_slice_rule_requires_baseline_before_loading(monkeypatch, tmp_path):
-    from laya import evals_cli
+    from rex import evals_cli
 
     built = _patch_router(monkeypatch)
     dataset = _write_dataset(tmp_path, RUN_ROWS)
@@ -2536,7 +2536,7 @@ def test_cli_relative_slice_rule_requires_baseline_before_loading(monkeypatch, t
 
 
 def test_cli_rejects_invalid_policy_json_and_version(monkeypatch, tmp_path):
-    from laya import evals_cli
+    from rex import evals_cli
 
     built = _patch_router(monkeypatch)
     dataset = _write_dataset(tmp_path, RUN_ROWS)
@@ -2550,7 +2550,7 @@ def test_cli_rejects_invalid_policy_json_and_version(monkeypatch, tmp_path):
 
 
 def test_cli_run_slice_gate_and_saved_compare_share_policy(monkeypatch, tmp_path, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     # Choice answers without confidence keep this gate-wiring test weight-free.
     def answer(label):
@@ -2577,7 +2577,7 @@ def test_cli_run_slice_gate_and_saved_compare_share_policy(monkeypatch, tmp_path
 
 
 def test_cli_compare_reports_a_different_recorded_gate_policy(tmp_path, capsys):
-    from laya import evals_cli
+    from rex import evals_cli
 
     baseline = tmp_path / "baseline.json"
     candidate = tmp_path / "candidate.json"
@@ -2605,7 +2605,7 @@ def test_cli_compare_reports_a_different_recorded_gate_policy(tmp_path, capsys):
 
 
 def test_slice_gate_fails_closed_on_identity_or_skipped_cases(tmp_path):
-    from laya import _eval_policy
+    from rex import _eval_policy
 
     candidate = _slice_gate_report(171, 12)
     base = _slice_gate_report(162, 18)
@@ -2633,7 +2633,7 @@ def test_slice_gate_fails_closed_on_identity_or_skipped_cases(tmp_path):
     (["en=" + SHA, SHA], (SHA, {"en": SHA})),     # both forms at once: Router lets the pair win
 ])
 def test_parse_revisions_accepts_both_forms(pairs, expected):
-    from laya import evals_cli
+    from rex import evals_cli
 
     assert evals_cli._parse_revisions(pairs) == expected
 
@@ -2645,7 +2645,7 @@ def test_parse_revisions_accepts_both_forms(pairs, expected):
     ("abc", None),
 ])
 def test_parse_revisions_rejects_half_a_pair(pair, fragment):
-    from laya import evals_cli
+    from rex import evals_cli
 
     if fragment is None:
         assert evals_cli._parse_revisions([pair]) == (pair, {})
@@ -2656,7 +2656,7 @@ def test_parse_revisions_rejects_half_a_pair(pair, fragment):
 
 
 def test_parse_revisions_rejects_two_different_bare_commits():
-    from laya import evals_cli
+    from rex import evals_cli
 
     with pytest.raises(EvalError) as exc:
         evals_cli._parse_revisions(["abc", "def"])

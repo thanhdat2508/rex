@@ -43,7 +43,7 @@ import textwrap
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.common import build_head, build_sequence, render_options, state_room, window_budget  # noqa: E402
+from rex.common import build_head, build_sequence, render_options, state_room, window_budget  # noqa: E402
 
 PASS, FAIL, SKIPPED = [], [], []
 

@@ -31,8 +31,8 @@ import numpy as np  # noqa: E402
 import torch  # noqa: E402
 from transformers import AutoConfig  # noqa: E402
 
-import laya  # noqa: E402
-from laya.common import _apply_rope_config  # noqa: E402
+import rex  # noqa: E402
+from rex.common import _apply_rope_config  # noqa: E402
 
 QUESTIONS = {
     "department": {"type": "choice", "instructions": "Which department should handle this request?",
@@ -160,7 +160,7 @@ def main():
         if not rope_ok:
             failures.append("%s rope theta" % name)
 
-        agent = laya.load(path, device="cpu")
+        agent = rex.load(path, device="cpu")
         first, first_decisions = run(agent)
         second, _ = run(agent)                   # noise floor: identical input, same weights
         floor = max(compare("", a, b)[0] for a, b in zip(first, second))

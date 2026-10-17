@@ -9,8 +9,8 @@ import json
 import math
 import time
 
-from _common import laya, banner, device_line, heading, load
-from laya.common import QTYPES, temp_bucket
+from _common import rex, banner, device_line, heading, load
+from rex.common import QTYPES, temp_bucket
 
 banner("40", "Caching and monitoring", """
     The model is stateless and deterministic, so the same state and the same question
@@ -28,7 +28,7 @@ banner("40", "Caching and monitoring", """
 
 agent = load("english")
 device_line(agent)
-QUESTIONS = laya.triage_questions()
+QUESTIONS = rex.triage_questions()
 
 # --- Part A: an in-memory answer cache -----------------------------------------------------
 def cache_key(state, questions):

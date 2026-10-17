@@ -6,7 +6,7 @@ Run: python tests/test_mcp.py
 Skips cleanly (exit 0) when the mcp package is not installed, so the core
 install keeps working.
 
-Device and preload-list tests follow the laya.serve environment contract
+Device and preload-list tests follow the rex.serve environment contract
 (LAYA_DEVICE / LAYA_PRELOAD / LAYA_MODELS / LAYA_THREADS / LAYA_AUTO_TASK /
 LAYA_DEFAULT_MODEL).
 """
@@ -28,9 +28,9 @@ except ImportError:
     print("SKIP: mcp extra not installed (pip install 'laya[mcp]')")
     sys.exit(0)
 
-from laya.mcp.device import agent_device, device_report, env_device, resolve_device, router_agent  # noqa: E402
-from laya.mcp.server import _models_from_env, server as mcp_server  # noqa: E402
-from laya.mcp.tools import (  # noqa: E402
+from rex.mcp.device import agent_device, device_report, env_device, resolve_device, router_agent  # noqa: E402
+from rex.mcp.server import _models_from_env, server as mcp_server  # noqa: E402
+from rex.mcp.tools import (  # noqa: E402
     BATCH_ITEM_OVERRIDES,
     PRESETS,
     PRESET_ALIASES,
@@ -96,7 +96,7 @@ def test_device():
         else:
             os.environ["LAYA_DEVICE"] = old
     ok("device/fallback", resolve_device(None) in ("cuda", "mps", "xpu", "cpu"))
-    # laya.serve contract: LAYA_DEVICE is normalised to what torch's device parser accepts --
+    # rex.serve contract: LAYA_DEVICE is normalised to what torch's device parser accepts --
     # the device type is lower-cased, the optional index is left alone -- and the same string is
     # both handed to torch and reported by `resolve_device`.
     old_dev = os.environ.get("LAYA_DEVICE")
@@ -259,12 +259,12 @@ def test_schema():
 def test_model_names():
     """`model` is core's registry, not a second list kept here.
 
-    The names and aliases live in `laya.router`, and `router.predict(model=...)` runs whatever
+    The names and aliases live in `rex.router`, and `router.predict(model=...)` runs whatever
     arrives through `normalise_name` a few lines after `validate_model` sees it. So any name core
     resolves has to survive this layer, and it has to come back canonical: the `routing.model` a
     caller reads should not depend on how the checkpoint was spelled in the request.
     """
-    from laya.router import DEFAULT_MODELS, _ALIASES, normalise_name
+    from rex.router import DEFAULT_MODELS, _ALIASES, normalise_name
 
     for name in sorted(DEFAULT_MODELS):
         ok("model/canonical_%s" % name, validate_model(name) == name)
@@ -302,11 +302,11 @@ def test_presets():
     caller's lone string under it. Nothing else about the state is touched: more than one key is the
     caller's shape, and guessing there would be a worse failure than the honest one.
     """
-    import laya
-    from laya.presets import state_field
+    import rex
+    from rex.presets import state_field
 
     def build(attr):
-        return getattr(laya, attr)()
+        return getattr(rex, attr)()
 
     class StateRouter(FakeRouter):
         def predict(self, state, questions, **kwargs):
@@ -658,20 +658,20 @@ def test_real_device():
 # --- contract on the private Router._agents name (no weights, no network) ----
 
 def test_private_contract():
-    # Why this test exists: laya.mcp.device.router_agent reads the private
+    # Why this test exists: rex.mcp.device.router_agent reads the private
     # Router._agents mapping, because it is the only side-effect-free way to
     # read a loaded agent's real device. If the core ever renames _agents,
     # the device would silently disappear from the laya_status/laya_predict
     # answers: every other test in this file uses fakes that carry their own
     # _agents attribute, so only a test built on a real Router would notice.
     # A rename must break CI loudly instead of degrading the answers silently.
-    import laya
+    import rex
 
     # A real Router with preload=False (the default) loads nothing on
     # construction: no checkpoint build, no download (downloads only happen
     # inside load()/preload()). If that ever changed, this line would fail
     # here rather than on the network.
-    r = laya.Router()
+    r = rex.Router()
     ok("contract/no_download_on_construct", list(r.loaded) == [], repr(list(r.loaded)))
 
     class MpsDevice:  # torch.device-like: a .type attribute
@@ -814,10 +814,10 @@ def test_shortlist():
        repr(out["routing"]))
     ok("shortlist/passthrough_latency", isinstance(out["latency_ms"], float))
 
-    # Default k comes from laya.shortlist: a choice smaller than it passes through.
+    # Default k comes from rex.shortlist: a choice smaller than it passes through.
     # Read from the library rather than copied, so raising DEFAULT_SHORTLIST_K cannot
     # make this assert a stale value against a tool layer that moved correctly.
-    from laya.shortlist import DEFAULT_SHORTLIST_K
+    from rex.shortlist import DEFAULT_SHORTLIST_K
 
     router = ShortlistRouter({"english": ShortlistAgent()})
     three = {"dept": {"type": "choice", "instructions": "pick",
@@ -1212,7 +1212,7 @@ DECIDE_SCHEMA = {
 class TypeEchoRouter(FakeRouter):
     """FakeRouter that also answers with the real payload shape: the `type`
     key and a probabilities dict keyed by option/level, like system_one does,
-    so laya.structured's per-field probabilities are exercised."""
+    so rex.structured's per-field probabilities are exercised."""
 
     def predict(self, state, questions, **kwargs):
         out = super().predict(state, questions, **kwargs)
@@ -1225,7 +1225,7 @@ class TypeEchoRouter(FakeRouter):
 
 
 def test_decide():
-    import laya
+    import rex
 
     router = TypeEchoRouter()
     out = laya_decide(STATE, DECIDE_SCHEMA, router=router)
@@ -1247,7 +1247,7 @@ def test_decide():
 
     # Same values the core decide() returns for the same runner: the tool is a
     # thin MCP surface over the documented schema projection, not a second one.
-    core = laya.decide(router, STATE, schema=DECIDE_SCHEMA)
+    core = rex.decide(router, STATE, schema=DECIDE_SCHEMA)
     ok("decide/parity_with_core", out["values"] == core, "tool=%r core=%r" % (out["values"], core))
 
     # Score projection follows the argmax of the distribution, offset by minimum.
@@ -1498,7 +1498,7 @@ class ControlAgent:
 
 def test_controls_validation():
     """Each control is checked the way core checks it, and refused in this layer's words."""
-    from laya.router import DEFAULT_MODELS, _ALIASES
+    from rex.router import DEFAULT_MODELS, _ALIASES
 
     ok("task/none_is_unset", validate_task(None) is None)
     for name in sorted(DEFAULT_MODELS):
@@ -1510,7 +1510,7 @@ def test_controls_validation():
         ok("task/alias_%s" % alias, validate_task(alias) == alias, repr(validate_task(alias)))
     # What the sweep really protects: every name core's registry holds is accepted here, so this
     # layer can never be narrower than `router.predict(task=...)` the way a copied list was.
-    from laya.router import normalise_name
+    from rex.router import normalise_name
 
     for alias in sorted(_ALIASES):
         ok("task/resolves_%s" % alias, normalise_name(validate_task(alias)) == _ALIASES[alias],
@@ -1682,7 +1682,7 @@ def test_controls_route():
     ok("route/bad_lang_no_call", router.route_calls == [], repr(router.route_calls))
     # No budget on a route: there is no forward pass to size, so the parameter does not exist.
     try:
-        laya_route(STATE, QUESTIONS, max_len=512, router=ControlRouter())
+        laya_route(STATE, QUESTIONS, router=ControlRouter(), **{"max_len": 512})
         ok("route/no_budget_param", False, "accepted max_len")
     except TypeError:
         ok("route/no_budget_param", True)
@@ -1945,14 +1945,14 @@ def test_lang_guess_control():
     # Cross-surface drift guard: lang_guess is a real core routing control (serve forwards it as a
     # body control; the batch item overrides already name it) and Router.route/predict accept it, so
     # this layer can never advertise a keyword core would reject.
-    from laya import serve as serve_mod
+    from rex import serve as serve_mod
 
     ok("drift/langguess_in_body_controls", "lang_guess" in serve_mod.BODY_CONTROLS,
        repr(serve_mod.BODY_CONTROLS))
     ok("drift/langguess_in_batch_overrides", "lang_guess" in BATCH_ITEM_OVERRIDES,
        repr(BATCH_ITEM_OVERRIDES))
     for method in ("route", "predict"):
-        params = inspect.signature(getattr(__import__("laya.router", fromlist=["Router"]).Router,
+        params = inspect.signature(getattr(__import__("rex.router", fromlist=["Router"]).Router,
                                            method)).parameters
         ok("drift/router_%s_accepts_langguess" % method, "lang_guess" in params,
            repr(sorted(params)))
@@ -1964,7 +1964,7 @@ def test_min_confidence_control():
     #567 forwarded every other per-call control (task/lang/max_len/head_max_len) to these tools,
     but not this one: a client could pin a checkpoint and size its budget over the wire, yet could
     not ask Laya to abstain on an unsure answer -- even though `min_confidence` is a validated
-    keyword of `Agent.predict`, `Router.predict`/`predict_batch` and `laya.decide` on `main`.
+    keyword of `Agent.predict`, `Router.predict`/`predict_batch` and `rex.decide` on `main`.
     """
     import inspect
 
@@ -2051,9 +2051,9 @@ def test_min_confidence_control():
     ok("decide/zero_is_no_abstention", zero["values"] == plain["values"], repr(zero["values"]))
 
     # The tool is a thin surface over the documented core abstention, not a second projection.
-    import laya
+    import rex
 
-    core = laya.decide(router, STATE, schema=DECIDE_SCHEMA, min_confidence=0.9)
+    core = rex.decide(router, STATE, schema=DECIDE_SCHEMA, min_confidence=0.9)
     ok("decide/abstention_parity_with_core", abstained["values"] == core,
        "tool=%r core=%r" % (abstained["values"], core))
 
@@ -2105,7 +2105,7 @@ def test_question_validation_matches_the_agent():
     router: no weights, and the core guard is the oracle rather than a second hand-written
     copy of the rules.
     """
-    from laya.agent import Agent
+    from rex.agent import Agent
 
     def core_rejects(qid, qdef):
         try:
@@ -2223,13 +2223,13 @@ def test_a_bad_question_is_a_caller_error_not_a_server_fault():
     """
     import json as _json
 
-    from laya.mcp import server as server_mod
+    from rex.mcp import server as server_mod
 
     class ValidatingAgent:
         """The real guard, no checkpoint: what `Agent.system_one` runs before encoding."""
 
         def predict(self, state, questions, **kwargs):
-            from laya.agent import Agent
+            from rex.agent import Agent
             for qid, qdef in questions.items():
                 Agent._check_question(qid, qdef)
             return {"answers": {qid: {"type": "noul", "noul": 0.5, "noul_label": None}
@@ -2277,7 +2277,7 @@ def test_timeout_removed():
     # functions no longer accept a timeout argument.
     import inspect
 
-    import laya.mcp.tools as tools_mod
+    import rex.mcp.tools as tools_mod
 
     for fn in (laya_predict, laya_route, laya_preset, laya_shortlist,
                laya_predict_batch, laya_route_batch, laya_decide):
@@ -2390,15 +2390,15 @@ def test_models_from_env():
 def test_auto_task_env():
     """LAYA_AUTO_TASK must reach the Router the MCP server builds, as it does the serve one.
 
-    README's MCP section says these variables follow the contract at the top of laya.serve, so the
-    check is built through both surfaces' real builders -- `laya.mcp.server._ensure_router()` and
-    `laya.serve.build_router()` -- rather than by reading a flag off a hand-made Router.
+    README's MCP section says these variables follow the contract at the top of rex.serve, so the
+    check is built through both surfaces' real builders -- `rex.mcp.server._ensure_router()` and
+    `rex.serve.build_router()` -- rather than by reading a flag off a hand-made Router.
     `Router.route()` delegates to the private `_route`, documented as deciding "without loading or
     running anything", so no checkpoint is downloaded here.
     """
-    import laya.mcp.server as mcp_mod  # the module, not the MCPServer instance
-    from laya.router import _TYPED_DECISION_WORKFLOWS
-    from laya.serve import build_router
+    import rex.mcp.server as mcp_mod  # the module, not the MCPServer instance
+    from rex.router import _TYPED_DECISION_WORKFLOWS
+    from rex.serve import build_router
 
     state = {"body": "I was charged twice, please refund the duplicate"}
     schemas = {name: {qid: {"type": "choice", "options": ["yes", "no"]}
@@ -2456,17 +2456,17 @@ def test_auto_task_env():
 def test_default_model_env():
     """LAYA_DEFAULT_MODEL has to reach both servers' Routers, with one meaning.
 
-    README's MCP section says these variables follow the contract at the top of laya.serve, so
-    both halves are built through the real builders -- `laya.mcp.server._ensure_router()` and
-    `laya.serve.build_router()` -- and read off the Router each one actually returns. The
+    README's MCP section says these variables follow the contract at the top of rex.serve, so
+    both halves are built through the real builders -- `rex.mcp.server._ensure_router()` and
+    `rex.serve.build_router()` -- and read off the Router each one actually returns. The
     variable itself is the routing fallback README prescribes for a mostly-non-English deployment
     (`Router(default="multilingual")`), which until now only examples/server.py could be told.
     The one place the two surfaces part is what an unresolvable name costs: serve refuses to
     start, a stdio server has no startup to refuse, so MCP has to carry the same words in a
     tool error.
     """
-    import laya.mcp.server as mcp_mod  # the module, not the MCPServer instance
-    from laya.serve import build_router
+    import rex.mcp.server as mcp_mod  # the module, not the MCPServer instance
+    from rex.serve import build_router
 
     saved = {k: os.environ.get(k)
              for k in ("LAYA_DEFAULT_MODEL", "LAYA_PRELOAD", "LAYA_AUTO_TASK")}
@@ -2485,7 +2485,7 @@ def test_default_model_env():
 
         # Unset / empty / blank mean "whatever the Router's own default is", read off the
         # signature rather than restated, so this cannot drift the next time it moves.
-        from laya.router import Router as _Router
+        from rex.router import Router as _Router
         _stock = inspect.signature(_Router.__init__).parameters["default"].default
         for label, value, want in (
                 ("unset", None, _stock),
@@ -2592,10 +2592,10 @@ def test_server_registration():
 
 
 def test_server_shortlist_k_default():
-    """The shortlist tool's advertised `k` default must be `laya.shortlist`'s.
+    """The shortlist tool's advertised `k` default must be `rex.shortlist`'s.
 
     `laya/mcp/server.py` registers the tool with `k: int = 20` written out as a literal,
-    because the module stays importable without numpy -- `laya.shortlist` imports numpy at
+    because the module stays importable without numpy -- `rex.shortlist` imports numpy at
     module level, so deriving the default from it would put numpy on the MCP server's import
     path. The literal is therefore necessary, and necessary hand-copies get a drift gate.
 
@@ -2606,8 +2606,8 @@ def test_server_shortlist_k_default():
     """
     import inspect
 
-    from laya.mcp import server as server_mod
-    from laya.shortlist import DEFAULT_SHORTLIST_K
+    from rex.mcp import server as server_mod
+    from rex.shortlist import DEFAULT_SHORTLIST_K
 
     params = inspect.signature(server_mod.laya_shortlist_tool).parameters
     ok("server/shortlist_k_default", params["k"].default == DEFAULT_SHORTLIST_K,
@@ -2642,8 +2642,8 @@ def test_shortlist_metadata_keys_are_documented():
     root = Path(__file__).resolve().parents[1]
     # `encoding="utf-8"` on every read below, for the reason recorded at the README read in the
     # batch-shape gate: `Path.read_text()` and `open()` default to the locale encoding, which is
-    # cp1252 on the Windows runner, and these pages and `laya/shortlist.py` carry UTF-8.
-    with open(root / "laya" / "shortlist.py", encoding="utf-8") as f:
+    # cp1252 on the Windows runner, and these pages and `rex/shortlist.py` carry UTF-8.
+    with open(root / "rex" / "shortlist.py", encoding="utf-8") as f:
         shortlist_src = f.read()
     # Scoped to predict_shortlist's own body: predict_tournament also builds a `meta[qid]` dict,
     # and a module-wide walk would depend on which one ast.walk happens to reach first.
@@ -2659,7 +2659,7 @@ def test_shortlist_metadata_keys_are_documented():
             break
     ok("shortlist/meta_keys read from the AST",
        meta_keys == ["labels", "scores", "k", "n", "passthrough"],
-       "AST read %r from laya/shortlist.py" % (meta_keys,))
+       "AST read %r from rex/shortlist.py" % (meta_keys,))
 
     # Each key needs a concept word on the page; the paraphrase never uses the raw key names.
     REQUIRED = {
@@ -2719,7 +2719,7 @@ def test_cli_mcp_page_tool_argument_rows():
     """
     import inspect
 
-    from laya.mcp import server as server_mod
+    from rex.mcp import server as server_mod
 
     page = (Path(__file__).resolve().parents[1] / "docs" / "cli-mcp.md").read_text(encoding="utf-8")
 

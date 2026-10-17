@@ -77,7 +77,7 @@ PROBE = ("label typo", {
 def entropy_confidence(probs):
     """1 - H/log(k) over a reported distribution: `confidence`'s definition, recomputed by hand.
 
-    Same formula as `laya.common.confidence_from_probs`, and the published probabilities are
+    Same formula as `rex.common.confidence_from_probs`, and the published probabilities are
     rounded to 4 dp while the agent computed the field from unrounded ones, so the recomputation
     is compared against the reported field rather than substituted for it. A wide-but-ordered
     distribution therefore reads as a LOW confidence here, which is the point the score guidance

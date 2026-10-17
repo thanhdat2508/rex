@@ -47,7 +47,10 @@ def get_available_presets() -> dict[str, dict[str, Any]]:
     about. Builders are resolved through ``laya`` at call time, the way ``laya.mcp.server`` resolves
     them, so a preset added in a newer version shows up here as soon as it is importable.
     """
-    import laya
+    try:
+        import rex as laya
+    except Exception:
+        import laya
 
     aliases: dict[str, list[str]] = {}
     for alias, target in PRESET_ALIASES.items():
@@ -256,7 +259,7 @@ def validate_model(model: Any) -> str:
         return AUTO
     if isinstance(model, str) and model.strip().lower() == AUTO:
         return AUTO
-    from laya.router import normalise_name
+    from ..router import normalise_name
 
     try:
         return normalise_name(model)
@@ -276,7 +279,7 @@ def validate_task(task: Any) -> str | None:
     """
     if task is None:
         return None
-    from laya.router import normalise_name
+    from ..router import normalise_name
 
     # The remap is core's own expression, copied rather than relied upon through the alias table:
     # `Router._route` turns task="typed_decisions" (the underscore form the CLI and the question ids
@@ -711,7 +714,7 @@ def laya_shortlist(
             "laya_predict with head_max_len raised, or run the MCP server without LAYA_BASE_URL.",
         )
     # Lazy: keeps numpy/shortlist out of module import for laya.mcp.tools.
-    from laya.shortlist import (
+    from ..shortlist import (
         DEFAULT_SHORTLIST_K,
         cached_embed_fn,
         embed_fn_from_agent,
@@ -1236,7 +1239,7 @@ def laya_decide(
     """
     # Lazy: keeps laya.structured (pure Python, but a module import is still a
     # module import) out of this module's import-time surface.
-    from laya.structured import SchemaError, decide
+    from ..structured import SchemaError, decide
 
     state_d = validate_state(state)
     model_name = validate_model(model)

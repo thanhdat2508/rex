@@ -1,5 +1,5 @@
 import unittest
-from laya.router import Router
+from rex.router import Router
 
 class MockAgent:
     def __init__(self, name):

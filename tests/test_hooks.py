@@ -2,7 +2,7 @@
 
 The Agent path uses the same weight-free fake as `test_batch.py` (the real `predict_batch`
 with `_encode_state` / `_forward` / `_decode_answers` stubbed). The Router path patches
-`laya.agent.Agent` so a model build never touches the Hub.
+`rex.agent.Agent` so a model build never touches the Hub.
 
 Run: python tests/test_hooks.py
 """
@@ -18,10 +18,10 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import laya.agent as _agent_mod  # noqa: E402
-from laya.agent import Agent  # noqa: E402
-from laya.hooks import normalise_hooks  # noqa: E402
-from laya.router import RouteDecision, Router  # noqa: E402
+import rex.agent as _agent_mod  # noqa: E402
+from rex.agent import Agent  # noqa: E402
+from rex.hooks import normalise_hooks  # noqa: E402
+from rex.router import RouteDecision, Router  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -599,7 +599,7 @@ check("budget/default does not pass override kwargs", True, True)
 
 
 # --------------------------------------------------------------- context semantics
-from laya.hooks import PredictContext  # noqa: E402
+from rex.hooks import PredictContext  # noqa: E402
 
 _c1 = PredictContext(states=[], questions={})
 _c2 = PredictContext(states=[], questions={})
@@ -1216,7 +1216,7 @@ check("concurrency/hooks_concurrent=False serialises", conc.max_active, 1)
 
 
 # --------------------------------------------------------------- ONNXAgent parity
-from laya.onnx_agent import ONNXAgent  # noqa: E402
+from rex.onnx_agent import ONNXAgent  # noqa: E402
 
 o = ONNXAgent.__new__(ONNXAgent)
 o.model_id = "convaiinnovations/laya-onnx"
@@ -1253,7 +1253,7 @@ check("onnx/skip short-circuits",
 
 
 # --------------------------------------------------------------- BaseHook
-from laya import BaseHook  # noqa: E402
+from rex import BaseHook  # noqa: E402
 
 
 class OnlyEnd(BaseHook):
@@ -1278,7 +1278,7 @@ check("BaseHook/no-op instance is harmless", f._forward_calls, [2])
 
 
 # --------------------------------------------------------------- process-wide defaults
-from laya import hooks as _hooks  # noqa: E402
+from rex import hooks as _hooks  # noqa: E402
 
 log = []
 _hooks.set_default_hooks(on_predict_end=lambda ctx: log.append("default"))
@@ -1392,8 +1392,8 @@ check("defaults/fire once per request", events, [("default", "start", "router"),
 # --------------------------------------------------------------- async hooks
 import asyncio  # noqa: E402
 
-from laya import AsyncHook  # noqa: E402
-from laya.hooks import run_coroutine_sync  # noqa: E402
+from rex import AsyncHook  # noqa: E402
+from rex.hooks import run_coroutine_sync  # noqa: E402
 
 calls = []
 
@@ -1491,7 +1491,7 @@ check("timeout/fast hook unaffected", len(res), 1)
 # --------------------------------------------------------------- input validation and context
 import contextvars  # noqa: E402
 
-from laya.hooks import validate_timeout  # noqa: E402
+from rex.hooks import validate_timeout  # noqa: E402
 
 check_raises("timeout/zero is rejected", ValueError, lambda: validate_timeout(0))
 check_raises("timeout/negative is rejected", ValueError, lambda: validate_timeout(-0.5))
@@ -1706,11 +1706,11 @@ check_raises("router_batch/predict_batch rejects positional hooks", TypeError,
 # `docs/hooks/patterns.md`, and `docs/hooks/errors.md` all said the opposite; only the primer
 # and the module docstring drifted. The gate drives the real behaviour and bans the pre-fix
 # wording in both places, so the page cannot regress to the sentence that made callers type
-# `laya.load(..., hooks=[lambda ctx: None])` and hit a TypeError at construction.
+# `rex.load(..., hooks=[lambda ctx: None])` and hit a TypeError at construction.
 from pathlib import Path as _P  # noqa: E402
 
 _hook_index = _P(__file__).resolve().parents[1] / "docs" / "hooks" / "index.md"
-_hooks_mod = _P(__file__).resolve().parents[1] / "laya" / "hooks.py"
+_hooks_mod = _P(__file__).resolve().parents[1] / "rex" / "hooks.py"
 _index_text = _hook_index.read_text(encoding="utf-8")
 _hooks_text = _hooks_mod.read_text(encoding="utf-8")
 
@@ -1718,9 +1718,9 @@ check_true("docs_hooks/index.md drops the 'hooks=/on_predict_start=/on_predict_e
            "Both are passed to `hooks=` / `on_predict_start=` /" not in _index_text)
 check_true("docs_hooks/index.md scopes plain callable to on_predict_start=/on_predict_end=",
            "Pass a plain callable as `on_predict_start=` or `on_predict_end=`" in _index_text)
-check_true("laya/hooks.py docstring drops 'a hook is either a plain callable'",
+check_true("rex/hooks.py docstring drops 'a hook is either a plain callable'",
            "A hook is either a plain callable" not in _hooks_text)
-check_true("laya/hooks.py docstring names the single-event parameters as the plain-callable path",
+check_true("rex/hooks.py docstring names the single-event parameters as the plain-callable path",
            "plain callable is only accepted on the single-event" in _hooks_text)
 
 # Live driver: `normalise_hooks` on the two paths.

@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.integrations.llamaindex import (
+from rex.integrations.llamaindex import (
     LayaMultiSelector,
     LayaQueryRouter,
     LayaSingleSelector,
@@ -50,7 +50,7 @@ class _DemoAgent:
 
 _agent = None
 try:
-    from laya import Router
+    from rex import Router
     r = Router()
     # Test if models/dependencies are present
     r.predict("test", {"test": {"type": "choice", "instructions": "test", "criteria": {"a": "a"}}})

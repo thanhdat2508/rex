@@ -53,7 +53,7 @@ for name, criteria in VARIANTS:
     question = {"refund": {"type": "noul", "instructions": INSTRUCTIONS}}
     if criteria is not None:
         question["refund"]["criteria"] = criteria
-    for option in laya.render_options({"t": "noul", "ins": INSTRUCTIONS, "crit": criteria}):
+    for option in rex.render_options({"t": "noul", "ins": INSTRUCTIONS, "crit": criteria}):
         print("     %s" % option)
     for state_name, state in STATES:
         answer = agent.predict(state, question)["answers"]["refund"]

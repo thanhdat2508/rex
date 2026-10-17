@@ -33,9 +33,9 @@ sys.path.insert(0, ROOT)          # repository root; <root>/laya/email.py must n
 
 import torch  # noqa: E402
 
-import laya  # noqa: E402
-from laya.common import DecisionModel  # noqa: E402
-from laya.router import Router  # noqa: E402
+import rex  # noqa: E402
+from rex.common import DecisionModel  # noqa: E402
+from rex.router import Router  # noqa: E402
 
 FAILS = []
 STATE = {"body": "I was charged twice for invoice 4411. Please refund the duplicate today."}
@@ -107,7 +107,7 @@ def main():
 
     # ------------------------------------------------------------ 1. steady state
     head("1. Repeated inference on one agent")
-    agent = laya.load(models["multilingual"], device=device)
+    agent = rex.load(models["multilingual"], device=device)
     print("   device: %s   baseline RSS %.0f MB" % (agent.device, rss_mb()))
     first = agent.predict(STATE, QUESTIONS)
     reference = json.dumps(first["answers"], sort_keys=True)
@@ -171,7 +171,7 @@ def main():
         name = "multilingual" if i % 2 == 0 else "english"
         r.load(name)                       # evicts the other checkpoint
         r.predict(STATE, QUESTIONS, model=name)
-        agents = _live(laya.Agent)
+        agents = _live(rex.Agent)
         models_live = _live(DecisionModel)
         live_counts.append((i + 1, agents, models_live, name, rss_mb()))
         print("   cycle %d: loaded %-14s RSS %7.0f MB   live agents %d  live models %d"
@@ -191,8 +191,8 @@ def main():
     gc.collect()
     report("unload() clears the router", r.loaded == [], "loaded=%s" % r.loaded)
     report("nothing survives unload()",
-           _live(laya.Agent) == 0 and _live(DecisionModel) == 0,
-           "live agents %d, live models %d" % (_live(laya.Agent), _live(DecisionModel)))
+           _live(rex.Agent) == 0 and _live(DecisionModel) == 0,
+           "live agents %d, live models %d" % (_live(rex.Agent), _live(DecisionModel)))
     print("   after unload()+gc: RSS %.0f MB (allocator retains freed pages; objects are gone)"
           % rss_mb())
 
@@ -213,13 +213,13 @@ def main():
         except Exception as e:  # noqa: BLE001
             errors.append("%s: %s" % (type(e).__name__, str(e)[:120]))
 
-    primary = laya.load(models["multilingual"], device=device)
+    primary = rex.load(models["multilingual"], device=device)
     ref = json.dumps(primary.predict(STATE, QUESTIONS)["answers"], sort_keys=True)
     attempts = [primary.device.type] + (["cpu"] if primary.device.type != "cpu" else [])
     for attempt_device in attempts:
         if primary.device.type != attempt_device:
             print("   the %s pass failed; retrying on cpu" % primary.device.type)
-            primary = laya.load(models["multilingual"], device="cpu")
+            primary = rex.load(models["multilingual"], device="cpu")
         results, errors = [], []
         threads = [threading.Thread(target=worker, args=(primary, results, errors))
                    for _ in range(args.threads)]

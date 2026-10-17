@@ -15,8 +15,8 @@ os.environ.setdefault("USE_TORCH", "1")
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import laya
-from laya.router import Router
+import rex
+from rex.router import Router
 
 
 def head(t):
@@ -26,7 +26,7 @@ def head(t):
 head("Testing guard behavior on document-shaped text (issue #781)")
 
 r = Router(device="cpu", max_loaded=1)
-gq = laya.guard_questions()
+gq = rex.guard_questions()
 
 # Test cases from issue #781 public reproduction data
 test_cases = [

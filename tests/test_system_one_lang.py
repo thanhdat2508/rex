@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Union
 import pytest
-from laya.agent import Agent
+from rex.agent import Agent
 
 class DummyAgent(Agent):
     def __init__(self):
@@ -42,14 +42,14 @@ def test_system_one_lang_parameter_passthrough():
 # A `__main__` block does not execute under `python -m pytest tests/test_system_one_lang.py`, which
 # is how this file is run in CI, so the earlier version of these checks asserted nothing there; and
 # loading `convaiinnovations/laya` would have made the suite depend on a download. The parsing is
-# `laya.common.resolve_lang_temperatures`, which `Agent` and `ONNXAgent` both call, so exercising
+# `rex.common.resolve_lang_temperatures`, which `Agent` and `ONNXAgent` both call, so exercising
 # it covers both backends without weights.
 
 BASE_TEMPERATURE = (1.0, 1.5, 2.0)
 
 
 def _resolve(raw):
-    from laya.common import resolve_lang_temperatures
+    from rex.common import resolve_lang_temperatures
     return resolve_lang_temperatures(raw, BASE_TEMPERATURE)
 
 
@@ -100,7 +100,7 @@ def test_lang_temperatures_still_clamps_an_override():
 
 def test_lang_temperatures_result_is_what_both_backends_store():
     """The shape `resolve_lang_temperatures` returns is assigned to `lang_temperatures` verbatim."""
-    from laya.agent import Agent as _Agent
+    from rex.agent import Agent as _Agent
     import inspect
     for cls in (_Agent,):
         src = inspect.getsource(cls.__init__)

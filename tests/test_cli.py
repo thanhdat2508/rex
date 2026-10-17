@@ -6,7 +6,7 @@ from contextlib import redirect_stderr, redirect_stdout
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya import cli  # noqa: E402
+from rex import cli  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -89,9 +89,9 @@ check("flags: --model forwarded", stub.route_calls[0][1]["model"] == "english")
 
 # ------------------------------------------------- --model is core's registry, not a copy of it
 # `choices=` compared strings exactly, so the flag knew three spellings while the router it feeds
-# has always resolved a dozen more. The names and aliases are imported from `laya.router` rather
+# has always resolved a dozen more. The names and aliases are imported from `rex.router` rather
 # than written out, so this sweep follows the registry instead of drifting from it.
-from laya.router import DEFAULT_MODELS, _ALIASES  # noqa: E402
+from rex.router import DEFAULT_MODELS, _ALIASES  # noqa: E402
 
 
 def parse_model(argv):
@@ -365,7 +365,7 @@ check("batch: redirected stdout is written as utf-8", code == 0
 # by writing Python. These run the real parser and the real `run_batch` over a recording router.
 import inspect as _inspect  # noqa: E402
 
-from laya.router import Router as _CoreRouter  # noqa: E402
+from rex.router import Router as _CoreRouter  # noqa: E402
 
 many = os.path.join(tmp, "four.txt")
 with open(many, "w", encoding="utf-8") as handle:
@@ -564,15 +564,15 @@ for value in ("abc", ""):
 
 # --------------------------------------------------------------- --min-confidence (#361's gate)
 # The gate itself is core's: `Router.predict` and `Router.predict_batch` both run the argument
-# through `laya.confidence.check_min_confidence` and then `flag_low_confidence`, which marks an
+# through `rex.confidence.check_min_confidence` and then `flag_low_confidence`, which marks an
 # answer and keeps it. What this section covers is the CLI's half -- the flag reaches the call, an
 # unset flag is not sent as `None`, a value outside core's range is refused in core's words,
 # routing refuses the flag instead of exiting 0 having ignored it, and the mark a gated run
 # produces is printed to a terminal rather than only reachable through --json.
 import inspect  # noqa: E402
 
-from laya import Router as _Router  # noqa: E402
-from laya.confidence import check_min_confidence as _core_check  # noqa: E402
+from rex import Router as _Router  # noqa: E402
+from rex.confidence import check_min_confidence as _core_check  # noqa: E402
 
 
 class GatedRouter(QuestionRecorder):

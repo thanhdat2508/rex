@@ -4,7 +4,7 @@ Routes each incoming item, answers a general triage set on the language-appropri
 checkpoint, then hands the same state to `typed-decisions` for a specialist action.
 """
 
-from _common import laya, banner, heading, router
+from _common import rex, banner, heading, router
 
 banner("38", "A multi-checkpoint pipeline", """
     One `predict()` is one checkpoint answering one question set. Real traffic often needs
@@ -24,7 +24,7 @@ banner("38", "A multi-checkpoint pipeline", """
     while the specialist stage does not.
     """)
 
-GENERAL = laya.triage_questions()
+GENERAL = rex.triage_questions()
 
 # These five ids are the real `customer_service` signature from `laya/router.py`. Router
 # matches on the id set alone, which is what selects the fine-tuned checkpoint; the wording

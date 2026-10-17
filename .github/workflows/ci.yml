@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: laya-ts
+        working-directory: rex-ts
     strategy:
       fail-fast: false
       matrix:
@@ -39,7 +39,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: laya-ts/package-lock.json
+          cache-dependency-path: rex-ts/package-lock.json
       - run: npm ci
       - name: Unit tests
         run: npm test -- --run
@@ -85,8 +85,8 @@ jobs:
           python -m pip install --upgrade pip
           # CPU-only torch keeps the job under a minute instead of pulling CUDA wheels
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          # `mcp` so laya[mcp] resolution and the laya.mcp layer are both exercised, and
-          # `serve` because laya.serve and examples/server.py both import fastapi -- without
+          # `mcp` so rex[mcp] resolution and the rex.mcp layer are both exercised, and
+          # `serve` because rex.serve and examples/server.py both import fastapi -- without
           # it every test that touches them skips itself silently and passes.
           # `langchain` for the same reason: without langchain-core the runnables fall back
           # to their plain-object path, so tests/test_langchain.py never checks the real
@@ -96,7 +96,7 @@ jobs:
           pip install pytest
 
       - name: Import check
-        run: python -c "import laya; print(laya.__version__); print(sorted(laya.__all__))"
+        run: python -c "import rex; print(rex.__version__); print(sorted(rex.__all__))"
 
       # The install above is what makes tests/test_langchain.py run on real Runnables, and
       # nothing proves it took: with langchain-core missing, the checks inside that file's
@@ -104,9 +104,9 @@ jobs:
       # Assert the install took before the shared list runs test_langchain_real_mode.py.
       - name: LangChain integration runs on the real base class
         run: |
-          python -c "from laya.integrations.langchain import RunnableSerializable; \
+          python -c "from rex.integrations.langchain import RunnableSerializable; \
             assert RunnableSerializable is not object, \
-            'langchain-core is missing: laya.integrations.langchain fell back to a plain object, ' \
+            'langchain-core is missing: rex.integrations.langchain fell back to a plain object, ' \
             'so the LangChain suites in this job test a shape no install produces'"
 
       # The canonical suite list lives in `scripts/test_suites.py`, which the release gate invokes
@@ -143,7 +143,7 @@ jobs:
       - name: Quantized-export tests
         run: python tests/test_onnx_quantize.py
 
-  # The eval harness needs numpy and laya only, so it stays a separate, weight-free job: metric
+  # The eval harness needs numpy and rex only, so it stays a separate, weight-free job: metric
   # math, dataset parsing, the CLI and the API guard. The real-checkpoint gate is the scheduled
   # `evals` workflow, which needs weights and network.
   evals:
@@ -181,7 +181,7 @@ jobs:
       # The offline research suites. Each claims a CI consumer and had none: `test_laya_eval.py`
       # says in its own docstring that it "runs in CI next to the other suites", while
       # `test_presentation_checks.py` and `test_act_head_eval.py` guard the eval harness's own
-      # presentation and act-head math. They need only `laya` and numpy, so they belong here
+      # presentation and act-head math. They need only `rex` and numpy, so they belong here
       # rather than in the weekly weight lane. `test_metamorphic` is invoked as a module: run as a
       # script its `research` import fails (`No module named 'research'`).
       - name: Offline research eval suites
@@ -192,7 +192,7 @@ jobs:
           python research/evals/test_act_head_eval.py
 
       - name: Fixture dataset validates
-        run: laya-evals validate research/evals/fixture.jsonl
+        run: rex-evals validate research/evals/fixture.jsonl
 
   # Every workflow in this repo ran on ubuntu-latest only, so a test that fails off Linux was
   # invisible until a user hit it -- which is what happened to tests/test_download.py (#140).
@@ -229,7 +229,7 @@ jobs:
       # bash on this runner so the quoting rules match the Linux job; the default shell on a
       # Windows runner is PowerShell, where `python -c "...; ..."` is not the same command.
       - name: Import check
-        run: python -c "import laya; print(laya.__version__); print(sorted(laya.__all__))"
+        run: python -c "import rex; print(rex.__version__); print(sorted(rex.__all__))"
         shell: bash
 
       # Same suites as the Linux job. Guarded with -f so a suite added by another open branch
@@ -285,9 +285,9 @@ jobs:
       - name: Integrations run on their real base classes
         run: |
           python -c "import mcp, httpx, langchain_core"
-          python -c "from laya.integrations.langchain import RunnableSerializable; \
+          python -c "from rex.integrations.langchain import RunnableSerializable; \
             assert RunnableSerializable is not object, \
-            'langchain-core is missing: laya.integrations.langchain fell back to a plain object'"
+            'langchain-core is missing: rex.integrations.langchain fell back to a plain object'"
           python tests/test_langchain_real_mode.py
         shell: bash
 
@@ -306,19 +306,12 @@ jobs:
           python-version: "3.11"
       - run: pip install ruff
       - name: Ruff
-        # Two invocations, because the SDK script directories carry pre-existing F401/F811
-        # import debt that is not worth churning in an unrelated change. They DO get `F82`,
-        # the undefined-name group, which is a real bug class rather than style: a
-        # `verify_snapshot(..., name)` whose enclosing parameter was `name_or_path` reached
-        # review in this repository, and it would have raised `NameError` on every Hugging
-        # Face download and failed all four .NET parity cells. ruff finds it in under a
-        # second. Widen the second list to the first's rule set once that debt is paid.
         run: |
-          ruff check laya/ --select=E9,F63,F7,F82,F401,F811 --line-length=120
-          ruff check laya-java/scripts/ laya-dotnet/tools/ laya-ts/scripts/ \
+          ruff check rex/ --select=E9,F63,F7,F82,F401,F811 --line-length=120
+          ruff check rex-ts/scripts/ \
             --select=E9,F63,F7,F82 --line-length=120
       - name: Byte-compile every module
-        run: python -m compileall -q laya/ tests/
+        run: python -m compileall -q rex/ tests/
 
   typescript-sdk:
     name: TypeScript SDK (node${{ matrix.node }})

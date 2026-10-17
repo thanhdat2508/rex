@@ -11,8 +11,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.agent import Agent  # noqa: E402
-from laya.common import _reuse_question_tokens, build_sequence  # noqa: E402
+from rex.agent import Agent  # noqa: E402
+from rex.common import _reuse_question_tokens, build_sequence  # noqa: E402
 
 
 class Tokenizer:

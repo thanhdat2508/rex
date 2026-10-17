@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.integrations.crewai import (
+from rex.integrations.crewai import (
     CrewAgent,
     CrewTask,
     LayaCrewRouter,
@@ -61,7 +61,7 @@ class _DemoAgent:
 
 _agent = None
 try:
-    from laya import Router
+    from rex import Router
     r = Router()
     r.predict("test", {"test": {"type": "choice", "instructions": "test", "criteria": {"a": "a"}}})
     _agent = r

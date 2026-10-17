@@ -16,11 +16,11 @@ import torch.nn as nn
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.agent import (  # noqa: E402
+from rex.agent import (  # noqa: E402
     MPS_AMP_MIN_ROWS_DEFAULT, Agent, _BATCH_AUTOCAST_CACHE, _amp_context, _cpu_amp_dtype,
     _cuda_amp_dtype, _mps_amp_min_rows,
 )
-from laya.common import DecisionModel, build_sequence, serialize_state  # noqa: E402
+from rex.common import DecisionModel, build_sequence, serialize_state  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -401,7 +401,7 @@ import inspect  # noqa: E402
 import re  # noqa: E402
 import textwrap  # noqa: E402
 
-import laya.agent as laya_agent  # noqa: E402
+import rex.agent as laya_agent  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EX35 = "examples/35_device_selection_and_latency.py"

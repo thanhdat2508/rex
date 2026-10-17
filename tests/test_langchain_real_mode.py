@@ -27,7 +27,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.integrations.langchain import (
+from rex.integrations.langchain import (
     LayaEvaluator,
     LayaGuardrail,
     LayaRouter,
@@ -74,7 +74,7 @@ def outcome(fn):
 
 if not _RUNNABLE_AVAILABLE or RunnableSerializable is object:
     print("FAIL: 1")
-    print("FAILED: langchain-core is not installed, so laya.integrations.langchain fell back to "
+    print("FAILED: langchain-core is not installed, so rex.integrations.langchain fell back to "
           "`RunnableSerializable = object`. Install the extra this suite is for: "
           "pip install -e \".[langchain]\" (docs/langchain.md: pip install \"laya[langchain]\")")
     sys.exit(1)

@@ -4,7 +4,7 @@ A hook on `hooks=` is an object implementing any subset of the lifecycle methods
 a plain callable is only accepted on the single-event `on_predict_start=` / `on_predict_end=`
 parameters, because `hooks=` reads for method names and a bare function has none. Hooks are
 configured on `Agent` / `Router` and can be overridden per call. Everything here is pure
-Python: importing `laya` must not start pulling torch.
+Python: importing `rex` must not start pulling torch.
 """
 from __future__ import annotations
 
@@ -199,7 +199,7 @@ def normalise_hooks(
 
 _DEFAULT_HOOKS: List[Any] = []
 _DEFAULT_HOOKS_LOCK = threading.Lock()
-_SKIP_DEFAULTS = contextvars.ContextVar("laya_skip_default_hooks", default=False)
+_SKIP_DEFAULTS = contextvars.ContextVar("rex_skip_default_hooks", default=False)
 
 
 def default_hooks() -> List[Any]:
@@ -270,7 +270,7 @@ def _background_loop() -> asyncio.AbstractEventLoop:
         if _BACKGROUND_LOOP is None or not _BACKGROUND_LOOP.is_running():
             _BACKGROUND_LOOP = asyncio.new_event_loop()
             thread = threading.Thread(target=_BACKGROUND_LOOP.run_forever, daemon=True,
-                                      name="laya-async-hooks")
+                                      name="rex-async-hooks")
             thread.start()
         return _BACKGROUND_LOOP
 
@@ -318,13 +318,13 @@ class AsyncHook:
     plain callables that return awaitables. Each event is run with `run_coroutine_sync`, so it
     works whether the caller is synchronous or already inside an event loop.
 
-        from laya import AsyncHook
+        from rex import AsyncHook
 
         class Remote(BaseHook):
             async def on_predict_end(self, ctx):
                 await ship(ctx.results)
 
-        agent = laya.load("convaiinnovations/laya", hooks=[AsyncHook(Remote())])
+        agent = rex.load("convaiinnovations/laya", hooks=[AsyncHook(Remote())])
 
     Pass `loop` to funnel every coroutine onto a specific loop; otherwise a background loop is
     started on demand when the caller already has one.
@@ -499,12 +499,12 @@ def _call_hook(method: Any, ctx: PredictContext, timeout: Optional[float]) -> No
         except BaseException as exc:  # noqa: BLE001 -- re-raised on the caller thread
             box.append(exc)
 
-    thread = threading.Thread(target=runner, daemon=True, name="laya-hook-timeout")
+    thread = threading.Thread(target=runner, daemon=True, name="rex-hook-timeout")
     thread.start()
     thread.join(timeout)
     if thread.is_alive():
         # The thread keeps running: Python cannot interrupt it. The timeout bounds the request.
-        raise TimeoutError("laya: hook %s exceeded %gs" % (_hook_name(method), timeout))
+        raise TimeoutError("rex: hook %s exceeded %gs" % (_hook_name(method), timeout))
     if box:
         raise box[0]
 
@@ -541,7 +541,7 @@ def dispatch(
             if raise_errors:
                 raise
             warnings.warn(
-                "laya: hook %s.%s failed: %s" % (type(hook).__name__, event, exc),
+                "rex: hook %s.%s failed: %s" % (type(hook).__name__, event, exc),
                 RuntimeWarning,
                 stacklevel=2,
             )

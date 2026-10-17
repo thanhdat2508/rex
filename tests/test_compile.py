@@ -15,11 +15,11 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya._compile import compile_model, independent_dims, _fx_config  # noqa: E402
-from laya.agent import Agent, _pad_cuda_compile_batch  # noqa: E402
-from laya.common import DecisionModel  # noqa: E402
+from rex._compile import compile_model, independent_dims, _fx_config  # noqa: E402
+from rex.agent import Agent, _pad_cuda_compile_batch  # noqa: E402
+from rex.common import DecisionModel  # noqa: E402
 
-# `torch.fx.experimental._config` only exists where duck sizing does; `laya._compile` degrades
+# `torch.fx.experimental._config` only exists where duck sizing does; `rex._compile` degrades
 # to a no-op without it, so the tests that observe the setting skip rather than assert on a
 # knob this torch does not have.
 fx_config = _fx_config()
@@ -192,8 +192,8 @@ def test_constructor_warms_only_the_active_compiled_path():
     import tempfile
     from pathlib import Path
     from unittest.mock import patch
-    import laya.agent as module
-    from laya import load
+    import rex.agent as module
+    from rex import load
 
     model = tiny_model()
     events = []
@@ -255,8 +255,8 @@ def test_missing_compiler_preserves_wrapper_and_warns_only_during_automatic_warm
     from unittest.mock import patch
     from torch._inductor.exc import InvalidCxxCompiler
     from torch._dynamo.eval_frame import OptimizedModule
-    import laya.agent as module
-    from laya import load
+    import rex.agent as module
+    from rex import load
 
     attempts = []
 
@@ -324,7 +324,7 @@ def test_persistent_cache_is_opt_in_and_respects_the_environment():
     import tempfile
     from pathlib import Path
     from unittest.mock import patch
-    from laya._compile import configure_cache
+    from rex._compile import configure_cache
 
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -358,7 +358,7 @@ def test_persistent_cache_is_opt_in_and_respects_the_environment():
 
 def test_cuda_graph_step_marks_each_forward_and_releases_after_failure():
     from unittest.mock import patch
-    from laya._compile import cuda_graph_step
+    from rex._compile import cuda_graph_step
 
     with patch("torch.compiler.cudagraph_mark_step_begin") as mark:
         try:

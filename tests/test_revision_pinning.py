@@ -16,14 +16,14 @@ os.environ.setdefault("USE_TF", "0")
 os.environ.setdefault("USE_TORCH", "1")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from laya.agent import Agent  # noqa: E402
-from laya.revisions import (  # noqa: E402
+from rex.agent import Agent  # noqa: E402
+from rex.revisions import (  # noqa: E402
     PINNED_REVISIONS,
     resolve_revision,
     snapshot_revision,
     verify_digests,
 )
-from laya.router import Router, _digests_from_env, _merge_expected_digests  # noqa: E402
+from rex.router import Router, _digests_from_env, _merge_expected_digests  # noqa: E402
 
 
 class _StopLoad(Exception):
@@ -39,12 +39,12 @@ def _capturing_snapshot(captured):
 
 class PublicApiTests(unittest.TestCase):
     def test_pinned_revisions_is_importable_from_the_package_root(self):
-        """`from laya import PINNED_REVISIONS` is what the checkpoint-integrity guide tells
+        """`from rex import PINNED_REVISIONS` is what the checkpoint-integrity guide tells
         operators to use, and laya-ts already exports its mirror from the package root."""
-        import laya
+        import rex
 
-        self.assertIn("PINNED_REVISIONS", laya.__all__)
-        self.assertIs(laya.PINNED_REVISIONS, PINNED_REVISIONS)
+        self.assertIn("PINNED_REVISIONS", rex.__all__)
+        self.assertIs(rex.PINNED_REVISIONS, PINNED_REVISIONS)
 
     def test_pins_are_usable_revision_strings(self):
         # Not asserting a 40-hex shape: `resolve_revision` and the checkpoint-integrity guide both
@@ -72,7 +72,7 @@ class ResolveRevisionTests(unittest.TestCase):
     def test_reviewed_finds_the_pin_whatever_case_the_repo_is_spelled_in(self):
         """Hugging Face resolves repo ids case-insensitively, so the pin lookup must too.
 
-        `laya.load("ConvaiInnovations/Laya")` under `LAYA_REVISION=reviewed` is the same
+        `rex.load("ConvaiInnovations/Laya")` under `LAYA_REVISION=reviewed` is the same
         repository as the table's lowercase key. An exact-match lookup called it unpinned and
         refused the load -- reporting a missing reviewed SHA for one that exists, the
         opposite of what this control is for.
@@ -189,7 +189,7 @@ class RouterRevisionTests(unittest.TestCase):
         self.assertEqual(Router().revisions, {})
 
     def test_router_forwards_only_the_selected_per_model_revision(self):
-        import laya.agent
+        import rex.agent
 
         captured = []
 
@@ -197,7 +197,7 @@ class RouterRevisionTests(unittest.TestCase):
             def __init__(self, repo, **kwargs):
                 captured.append((repo, kwargs))
 
-        with patch.object(laya.agent, "Agent", FakeAgent):
+        with patch.object(rex.agent, "Agent", FakeAgent):
             router = Router(revision="default", revisions={"multilingual": "multi-sha"})
             router.load("english")
             router.load("multi")
@@ -206,7 +206,7 @@ class RouterRevisionTests(unittest.TestCase):
         self.assertEqual(captured[1][1]["revision"], "multi-sha")
 
     def test_router_omits_revision_when_none_is_configured(self):
-        import laya.agent
+        import rex.agent
 
         captured = {}
 
@@ -214,7 +214,7 @@ class RouterRevisionTests(unittest.TestCase):
             def __init__(self, repo, **kwargs):
                 captured.update(kwargs)
 
-        with patch.object(laya.agent, "Agent", FakeAgent):
+        with patch.object(rex.agent, "Agent", FakeAgent):
             Router().load("english")
 
         self.assertNotIn("revision", captured)
@@ -240,13 +240,13 @@ class RouterAgentKwargsTests(unittest.TestCase):
     def _fake_agent():
         """(module holding Agent, the fake, the list each build is appended to).
 
-        `check_agent_kwargs` reads the option names out of whatever `laya.agent.Agent` currently
+        `check_agent_kwargs` reads the option names out of whatever `rex.agent.Agent` currently
         is, so the stand-in has to carry the real signature or these tests would be refused before
         they ever reached a build.
         """
         import inspect
 
-        import laya.agent
+        import rex.agent
 
         captured = []
 
@@ -256,7 +256,7 @@ class RouterAgentKwargsTests(unittest.TestCase):
 
             __init__.__signature__ = inspect.signature(Agent.__init__)
 
-        return laya.agent, FakeAgent, captured
+        return rex.agent, FakeAgent, captured
 
     def test_agent_kwargs_reach_the_agent_build(self):
         module, fake, captured = self._fake_agent()
@@ -319,7 +319,7 @@ class RouterAgentKwargsTests(unittest.TestCase):
         """The anti-drift check: this file must not grow its own list of checkpoint options."""
         import inspect
 
-        from laya.router import _ROUTER_OWNED_AGENT_ARGS, check_agent_kwargs
+        from rex.router import _ROUTER_OWNED_AGENT_ARGS, check_agent_kwargs
 
         owned = set(_ROUTER_OWNED_AGENT_ARGS)
         accepted = set(inspect.signature(Agent.__init__).parameters) - {"self"} - owned
@@ -346,7 +346,7 @@ class RouterDigestTests(unittest.TestCase):
     """`Router(sha256_digests=...)` is the per-checkpoint sibling of `revisions`."""
 
     def _capture(self):
-        import laya.agent
+        import rex.agent
 
         captured: list = []
 
@@ -354,7 +354,7 @@ class RouterDigestTests(unittest.TestCase):
             def __init__(self, repo, **kwargs):
                 captured.append(kwargs)
 
-        return patch.object(laya.agent, "Agent", FakeAgent), captured
+        return patch.object(rex.agent, "Agent", FakeAgent), captured
 
     def test_router_normalises_digest_keys_like_revision_keys(self):
         router = Router(sha256_digests={"ml": {"w.bin": "a" * 64}, "typed": None})
@@ -455,7 +455,7 @@ class RouterDigestEndToEndTests(unittest.TestCase):
     def test_nested_environment_pins_both_checkpoints(self):
         """The shape a server with two resident checkpoints has to write.
 
-        Before this, `LAYA_SHA256_DIGESTS` was read only by `laya.revisions`, which treats every
+        Before this, `LAYA_SHA256_DIGESTS` was read only by `rex.revisions`, which treats every
         key as a path -- so a model-named map failed with `cannot verify 'english': no such file`
         on the *first* checkpoint and the flat map refused the second one.
         """
@@ -516,14 +516,14 @@ class RouterEnvDigestTests(unittest.TestCase):
     `serve.build_router()` builds its Router from the environment and nothing else, so the
     environment is the only channel a container, a compose stack or a `services.laya-serve`
     host has. These pin down which shape `Router` takes over and which it leaves to
-    `laya.revisions`, without weights: the `Agent` builds are captured, not run.
+    `rex.revisions`, without weights: the `Agent` builds are captured, not run.
     """
 
     ENGLISH = {"model.safetensors": "a" * 64}
     MULTI = {"model.safetensors": "b" * 64}
 
     def _capture(self):
-        import laya.agent
+        import rex.agent
 
         captured: list = []
 
@@ -531,7 +531,7 @@ class RouterEnvDigestTests(unittest.TestCase):
             def __init__(self, repo, **kwargs):
                 captured.append(kwargs)
 
-        return patch.object(laya.agent, "Agent", FakeAgent), captured
+        return patch.object(rex.agent, "Agent", FakeAgent), captured
 
     def _env(self, value):
         return patch.dict(os.environ, {"LAYA_SHA256_DIGESTS": value})
@@ -583,7 +583,7 @@ class RouterEnvDigestTests(unittest.TestCase):
         self.assertIn("LAYA_SHA256_DIGESTS", str(cm.exception))
 
     def test_unparseable_environment_is_not_this_layers_error(self):
-        # `laya.revisions.verify_digests` owns the message a malformed value gets; a Router
+        # `rex.revisions.verify_digests` owns the message a malformed value gets; a Router
         # that repeated it would be a second copy of a rule it does not enforce.
         for value in ("", "   ", "{not json", "[]", '"digests"', "{}"):
             with self._env(value):
@@ -621,7 +621,7 @@ class RouterDigestPrecedenceTests(unittest.TestCase):
         """Agent stand-in carrying the real signature, so `check_agent_kwargs` still applies."""
         import inspect
 
-        import laya.agent
+        import rex.agent
 
         captured: list = []
 
@@ -631,7 +631,7 @@ class RouterDigestPrecedenceTests(unittest.TestCase):
 
             __init__.__signature__ = inspect.signature(Agent.__init__)
 
-        return patch.object(laya.agent, "Agent", FakeAgent), captured
+        return patch.object(rex.agent, "Agent", FakeAgent), captured
 
     def _env(self, per_model):
         return patch.dict(os.environ, {"LAYA_SHA256_DIGESTS": json.dumps(per_model)})
@@ -838,7 +838,7 @@ class RouterRevisionFallbackTests(unittest.TestCase):
     def _capture(self):
         import inspect
 
-        import laya.agent
+        import rex.agent
 
         captured: list = []
 
@@ -848,7 +848,7 @@ class RouterRevisionFallbackTests(unittest.TestCase):
 
             __init__.__signature__ = inspect.signature(Agent.__init__)
 
-        return patch.object(laya.agent, "Agent", FakeAgent), captured
+        return patch.object(rex.agent, "Agent", FakeAgent), captured
 
     def _load(self, name="english", env="", **router_kwargs):
         capture, captured = self._capture()
@@ -911,7 +911,7 @@ class ReviewGapTests(unittest.TestCase):
     def test_a_blank_revision_suppresses_the_environment_through_agent(self):
         """`(revision or env).strip()`: a truthy-but-blank argument wins the `or`, then strips away.
 
-        The Router drops a blank before it reaches here, and that is tested. `Agent`/`laya.load` do
+        The Router drops a blank before it reaches here, and that is tested. `Agent`/`rex.load` do
         not, so a config line that ends up whitespace silently loses the deployment's pin and gets
         huggingface_hub's default. Undocumented and untested before: the mutant that makes a blank
         behave like an absent value survived every lane. Pinned as the behaviour that exists, so a

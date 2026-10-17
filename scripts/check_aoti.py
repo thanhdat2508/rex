@@ -34,7 +34,7 @@ def main():
     if not torch.cuda.is_available() or not shutil.which("g++"):
         print("SKIP: CUDA and a C++ compiler are required")
         return
-    from laya.common import DecisionModel, QTYPES, build_sequence
+    from rex.common import DecisionModel, QTYPES, build_sequence
 
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -46,7 +46,7 @@ def main():
     if args.model:
         if not Path(args.model).is_dir():
             ap.error("--model must be an existing local checkpoint directory")
-        from laya.agent import Agent
+        from rex.agent import Agent
         agent = Agent(args.model, device="cuda", compile=False)
         model = agent.model.eval()
     else:
@@ -54,7 +54,7 @@ def main():
         cfg = ModernBertConfig(vocab_size=128, hidden_size=64, intermediate_size=128,
                                num_hidden_layers=1, num_attention_heads=4, max_position_embeddings=512,
                                pad_token_id=0, bos_token_id=1, eos_token_id=2, cls_token_id=1, sep_token_id=2,
-                               reference_compile=False, attn_implementation="sdpa")
+                               **{"reference_compile": False, "attn_implementation": "sdpa"})
         model = DecisionModel(ModernBertModel(cfg), head_layers=1, dropout=0).cuda().eval()
 
     cases = []

@@ -40,9 +40,7 @@ except ImportError as exc:  # mcp extra not installed
         "pip install 'laya[mcp]'"
     ) from exc
 
-# laya.serve only imports os/typing at module level, so reusing its helpers
-# keeps one meaning for LAYA_PRELOAD / LAYA_THREADS / LAYA_DEFAULT_MODEL across the package.
-from laya.serve import _apply_thread_limit, _default_model_option, _env_bool
+from ..serve import _apply_thread_limit, _default_model_option, _env_bool
 
 from .device import env_device
 from .tools import (
@@ -60,13 +58,16 @@ from .tools import (
 )
 
 try:
-    _LAYA_VERSION = _metadata.version("laya")
+    _REX_VERSION = _metadata.version("rex")
 except Exception:  # running from a source checkout without install metadata
-    import laya as _laya
+    try:
+        import rex as _rex
+    except Exception:
+        import laya as _rex
 
-    _LAYA_VERSION = getattr(_laya, "__version__", "")
+    _REX_VERSION = getattr(_rex, "__version__", "")
 
-server = MCPServer("laya", version=_LAYA_VERSION)
+server = MCPServer("rex", version=_REX_VERSION)
 
 _ROUTER: Any = None
 _ROUTER_LOCK = threading.Lock()
@@ -175,9 +176,12 @@ def _ensure_router() -> Any:
             _ROUTER = router
             return router
         try:
-            from laya import Router
-        except Exception as exc:
-            raise ToolError("internal_error", f"cannot import laya: {exc}") from exc
+            from ..router import Router
+        except Exception:
+            try:
+                from rex import Router
+            except Exception as exc:
+                raise ToolError("internal_error", f"cannot import Router: {exc}") from exc
         try:
             _apply_thread_limit()
             router = Router(device=env_device(),
@@ -204,11 +208,14 @@ def _router_or_error() -> Any:
 
 
 def _preset_builder(attr_name: str) -> dict:
-    import laya
+    try:
+        import rex as _lib
+    except Exception:
+        import laya as _lib
 
-    builder = getattr(laya, attr_name, None)
+    builder = getattr(_lib, attr_name, None)
     if builder is None:
-        raise ToolError("internal_error", f"laya.{attr_name} is not available in this version")
+        raise ToolError("internal_error", f"{attr_name} is not available in this version")
     return builder()
 
 
