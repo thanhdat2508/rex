@@ -1,12 +1,17 @@
 """Rex model architecture: RexDecisionModel, ToolHead, and checkpoint utilities."""
 import math
 from contextlib import nullcontext
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
 
 from .common import DecisionModel
+
+# Default hyperparameters for Dynamic Margin Gating and Budget Allocation
+DEFAULT_S_MIN: float = 0.35
+DEFAULT_DELTA_MARGIN: float = 0.15
+DEFAULT_BUDGET_CAPS: tuple[int, int, int] = (3, 2, 1)
 
 
 class ToolHead(nn.Module):
@@ -85,6 +90,75 @@ class ToolHead(nn.Module):
         h = self.act(h)
         h = self.dropout(h)
         return self.proj_out(h).float()
+
+    def select_tools(
+        self,
+        h_cls: torch.Tensor,
+        round_idx: int,
+        tool_mask: Optional[torch.Tensor] = None,
+        s_min: float = DEFAULT_S_MIN,
+        delta_margin: float = DEFAULT_DELTA_MARGIN,
+        budget_caps: tuple[int, ...] = DEFAULT_BUDGET_CAPS,
+    ) -> List[int]:
+        """Select parallel tools using Sigmoid + Dynamic Margin Gating + Descending Budget Cap.
+
+        Parameters
+        ----------
+        h_cls : torch.Tensor
+            Hidden state of [CLS] token, shape [d] or [1, d].
+        round_idx : int
+            Current investigation round (1-indexed, e.g. 1, 2, 3).
+        tool_mask : Optional[torch.Tensor]
+            Boolean availability mask of shape [n_tools] or [1, n_tools].
+            False denotes tool is disabled by PoE hard masking.
+        s_min : float
+            Absolute confidence floor threshold (default 0.35).
+        delta_margin : float
+            Relative tolerance margin below top-1 score (default 0.15).
+        budget_caps : tuple[int, ...]
+            Descending budget limits per round (default 3, 2, 1).
+
+        Returns
+        -------
+        List[int]
+            Indices of selected tools.
+        """
+        if h_cls.dim() == 1:
+            h_cls = h_cls.unsqueeze(0)
+
+        logits = self.forward(h_cls).squeeze(0)  # [n_tools]
+
+        if tool_mask is not None:
+            mask = tool_mask.squeeze(0) if tool_mask.dim() == 2 else tool_mask
+            logits = logits.masked_fill(~mask, -1e4)
+
+        # Layer 1: Independent Sigmoid Scoring
+        scores = torch.sigmoid(logits)
+
+        # Layer 2: Dynamic Margin Gating
+        sorted_scores, sorted_indices = torch.sort(scores, descending=True)
+        top_1_score = sorted_scores[0].item()
+
+        # If top tool falls below s_min floor or is masked out (-1e4 -> sigmoid ~ 0), return empty
+        if top_1_score < s_min or torch.isinf(sorted_scores[0]):
+            return []
+
+        selected_indices = [sorted_indices[0].item()]
+
+        # Determine round-dependent budget cap K_t
+        cap_idx = max(0, min(round_idx - 1, len(budget_caps) - 1))
+        budget_cap = budget_caps[cap_idx]
+
+        # Scan runners-up within budget
+        max_scan = min(budget_cap, len(sorted_scores))
+        for i in range(1, max_scan):
+            score_i = sorted_scores[i].item()
+            if score_i >= s_min and (top_1_score - score_i) <= delta_margin:
+                selected_indices.append(sorted_indices[i].item())
+            else:
+                break
+
+        return selected_indices
 
 
 class RexDecisionModel(DecisionModel):
@@ -221,6 +295,263 @@ class RexDecisionModel(DecisionModel):
             "act_logits": act_logits,
             "h_cls": h_cls,
         }
+
+    def select_tools(
+        self,
+        h_cls: torch.Tensor,
+        round_idx: int,
+        tool_mask: Optional[torch.Tensor] = None,
+        s_min: float = DEFAULT_S_MIN,
+        delta_margin: float = DEFAULT_DELTA_MARGIN,
+    ) -> List[str]:
+        """Select tools by name using the internal ToolHead gating pipeline (Step 5.1).
+
+        Parameters
+        ----------
+        h_cls : torch.Tensor
+            Contextualized [CLS] hidden state, shape [d] or [1, d].
+        round_idx : int
+            Current turn index (1-indexed, e.g. 1, 2, 3).
+        tool_mask : Optional[torch.Tensor]
+            Optional boolean mask [n_tools] disabling refuted tool branches.
+        s_min : float
+            Absolute confidence floor threshold.
+        delta_margin : float
+            Relative runner-up tolerance margin.
+
+        Returns
+        -------
+        List[str]
+            List of approved tool names to execute in parallel.
+        """
+        indices = self.tool_head.select_tools(
+            h_cls,
+            round_idx=round_idx,
+            tool_mask=tool_mask,
+            s_min=s_min,
+            delta_margin=delta_margin,
+        )
+        return [self.tools[idx] for idx in indices]
+
+    def derive_tool_mask(
+        self,
+        current_alive: Dict[str, bool],
+        tool_hyp_mapping: Dict[str, List[str]],
+    ) -> torch.Tensor:
+        """Derive boolean tool availability tensor [n_tools] from hypothesis survival state (Step 5.3)."""
+        from .rex_poe import HardMaskingManager
+
+        manager = HardMaskingManager()
+        mask_list = manager.compute_tool_mask(self.tools, current_alive, tool_hyp_mapping)
+        device = self.tool_head.proj_in.weight.device
+        return torch.tensor(mask_list, dtype=torch.bool, device=device)
+
+    def evaluate_falsification(
+        self,
+        observations: Dict[str, Any],
+        current_alive: Dict[str, bool],
+        rules: Dict[str, List[Any]],
+    ) -> Dict[str, bool]:
+        """Evaluate observation telemetry against Popperian falsification criteria (Step 5.2)."""
+        from .rex_poe import PoEFalsificationEngine
+
+        engine = PoEFalsificationEngine()
+        return engine.evaluate(observations, current_alive, rules)
+
+    def compute_verdict_probabilities(
+        self,
+        verdict_logits: torch.Tensor,
+        hyp_alive: Optional[Dict[str, bool]] = None,
+        hyp_keys: Optional[List[str]] = None,
+    ) -> Dict[str, float]:
+        """Compute normalized softmax probabilities over surviving hypotheses with hard logit masking (Step 5.3).
+
+        Parameters
+        ----------
+        verdict_logits : torch.Tensor
+            Verdict logits of shape [K] or [1, K].
+        hyp_alive : Optional[Dict[str, bool]]
+            Survival status per hypothesis key. Eliminated hypotheses receive -1e4 logit masking.
+        hyp_keys : Optional[List[str]]
+            Hypothesis names corresponding to logit indices.
+
+        Returns
+        -------
+        Dict[str, float]
+            Probability distribution summing to 1.0 across active hypotheses.
+        """
+        if verdict_logits.dim() == 2:
+            verdict_logits = verdict_logits.squeeze(0)
+
+        k = verdict_logits.size(0)
+        keys = hyp_keys or [f"H_{i}" for i in range(k)]
+
+        masked_logits = verdict_logits.clone()
+        if hyp_alive is not None:
+            for idx, key in enumerate(keys):
+                if not hyp_alive.get(key, True):
+                    masked_logits[idx] = -1e4
+
+        probs = torch.softmax(masked_logits, dim=-1)
+        return {key: float(probs[idx].item()) for idx, key in enumerate(keys)}
+
+    def investigate(
+        self,
+        tok: Any,
+        type_token: str,
+        instruction: str,
+        hypotheses: Dict[str, str],
+        rules: Dict[str, List[Any]],
+        tool_hyp_mapping: Dict[str, List[str]],
+        tool_dispatcher: Callable[[List[str]], Dict[str, Any]],
+        initial_state: Union[str, dict, list] = "",
+        max_rounds: int = 3,
+        s_min: float = DEFAULT_S_MIN,
+        delta_margin: float = DEFAULT_DELTA_MARGIN,
+    ) -> Any:
+        """Execute an autonomous multi-round investigation loop directly within the model (Step 5.4).
+
+        Parameters
+        ----------
+        tok : Any
+            Tokenizer configured with type tokens.
+        type_token : str
+            Domain event identifier (e.g. '<TYPE_PROMO_ABUSE>').
+        instruction : str
+            Core question or incident investigation prompt.
+        hypotheses : Dict[str, str]
+            Hypothesis name -> physical description mapping, ending with 'H_novel'.
+        rules : Dict[str, List[FalsificationRule]]
+            Falsification rules per hypothesis.
+        tool_hyp_mapping : Dict[str, List[str]]
+            Tool name -> list of supporting hypotheses.
+        tool_dispatcher : Callable[[List[str]], Dict[str, Any]]
+            Callback executing selected tools and returning observation telemetry.
+        initial_state : Union[str, dict, list]
+            Initial incident telemetry state.
+        max_rounds : int
+            Maximum exploration rounds before forced termination (default 3).
+        s_min : float
+            Confidence floor for tool gating (default 0.35).
+        delta_margin : float
+            Relative runner-up margin (default 0.15).
+
+        Returns
+        -------
+        InvestigationResult
+            Detailed verdict, probability distribution, round traces, and escalation status.
+        """
+        import json
+        from .rex_format import collate_rex, encode_rex_input
+        from .rex_poe import InvestigationResult, RoundTrace, TerminationReason
+
+        hyp_keys = list(hypotheses.keys())
+        current_alive = {k: True for k in hyp_keys}
+        state_t = initial_state if isinstance(initial_state, str) else json.dumps(initial_state, ensure_ascii=False)
+        traces: List[RoundTrace] = []
+        final_verdict_logits: Optional[torch.Tensor] = None
+        term_reason = TerminationReason.MAX_ROUNDS_REACHED
+
+        for round_idx in range(1, max_rounds + 1):
+            # 1. Derive tool availability mask from current hypothesis survival state
+            tool_mask_tensor = self.derive_tool_mask(current_alive, tool_hyp_mapping)
+            tool_mask_list = tool_mask_tensor.tolist()
+
+            # 2. Format token sequence for the current investigation round
+            encoded = encode_rex_input(
+                tok,
+                type_token=type_token,
+                instruction=instruction,
+                hypotheses=hypotheses,
+                state=state_t,
+                alive=current_alive,
+                tool_mask=tool_mask_list,
+            )
+            pad_id = getattr(tok, "pad_token_id", 0) or 0
+            batch = collate_rex([encoded], pad_token_id=pad_id)
+
+            # Move batch tensors to model device
+            device = self.tool_head.proj_in.weight.device
+            batch_on_device = {k: v.to(device) for k, v in batch.items()}
+
+            # 3. Model forward pass
+            with torch.no_grad():
+                outputs = self.rex_forward(**batch_on_device)
+
+            h_cls = outputs["h_cls"]
+            final_verdict_logits = outputs["verdict_logits"]
+
+            # 4. Tool selection via Dynamic Margin Gating
+            selected_tools = self.select_tools(
+                h_cls,
+                round_idx=round_idx,
+                tool_mask=tool_mask_tensor,
+                s_min=s_min,
+                delta_margin=delta_margin,
+            )
+
+            # Check if tool list is empty (short-circuit to verdict)
+            if not selected_tools:
+                term_reason = TerminationReason.EMPTY_TOOL_SELECTION
+                break
+
+            # 5. Dispatch selected tools to retrieve observation telemetry
+            observations = tool_dispatcher(selected_tools)
+            traces.append(
+                RoundTrace(
+                    round_idx=round_idx,
+                    selected_tools=selected_tools,
+                    observations=observations,
+                    active_hypotheses=[k for k, v in current_alive.items() if v],
+                )
+            )
+
+            # 6. Apply Popperian falsification to eliminate refuted hypotheses
+            current_alive = self.evaluate_falsification(observations, current_alive, rules)
+
+            # 7. Check convergence criteria
+            active_count = sum(1 for v in current_alive.values() if v)
+            known_active_count = sum(1 for k, v in current_alive.items() if k != "H_novel" and v)
+
+            if known_active_count == 0:
+                # All cataloged hypotheses eliminated; only H_novel remains -> escalate
+                term_reason = TerminationReason.ALL_CATALOGED_ELIMINATED
+                break
+
+            if active_count == 1:
+                # Exactly one hypothesis remains -> single survivor found
+                term_reason = TerminationReason.SINGLE_SURVIVOR
+                break
+
+            if round_idx == max_rounds:
+                term_reason = TerminationReason.MAX_ROUNDS_REACHED
+                break
+
+            # 8. Append observations to running state for subsequent rounds
+            obs_str = json.dumps(observations, ensure_ascii=False)
+            state_t = f"{state_t}\n{obs_str}".strip()
+
+        # Compute final verdict probabilities
+        if final_verdict_logits is None:
+            raise RuntimeError("Model did not execute any forward pass during investigation.")
+
+        probs = self.compute_verdict_probabilities(
+            final_verdict_logits,
+            hyp_alive=current_alive,
+            hyp_keys=hyp_keys,
+        )
+
+        winner = max(probs.items(), key=lambda kv: kv[1])[0]
+        is_escalated = (term_reason == TerminationReason.ALL_CATALOGED_ELIMINATED) or (winner == "H_novel")
+
+        return InvestigationResult(
+            predicted_hypothesis=winner,
+            probabilities=probs,
+            rounds_executed=len(traces) if traces else 1,
+            termination_reason=term_reason,
+            is_escalated=is_escalated,
+            traces=traces,
+        )
 
 
 def rex_config(model: RexDecisionModel, base_cfg: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
