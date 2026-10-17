@@ -3,7 +3,7 @@
 Weight-free checks: the distributed script keeps its process-group / shard
 orchestration but delegates item construction, encoding, collation, the RLCD
 loss, the calibration holdout, record building and temperature fitting to
-`laya.train` / `laya.common` / `laya.calibrate`.
+`rex.train` / `rex.common` / `rex.calibrate`.
 
 Run: python tests/test_kaggle_ddp_convergence.py
 """
@@ -22,9 +22,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 
-from laya.calibrate import fit_temperature_map  # noqa: E402
-from laya.common import TEMP_MAX, TEMP_MIN, collate_items  # noqa: E402
-from laya.train import sigma_at, split_calibration  # noqa: E402
+from rex.calibrate import fit_temperature_map  # noqa: E402
+from rex.common import TEMP_MAX, TEMP_MIN, collate_items  # noqa: E402
+from rex.train import sigma_at, split_calibration  # noqa: E402
 
 NOTEBOOK = Path(__file__).resolve().parents[1] / "notebooks" / "laya_finetune_typed_decisions_2xT4_kaggle.ipynb"
 

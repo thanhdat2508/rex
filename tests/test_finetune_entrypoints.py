@@ -81,7 +81,7 @@ def test_mps_train_delegates_to_laya_train(tmp_path):
         no_checkpointing=False,
         device="cpu",
     )
-    with mock.patch("laya.train.finetune", side_effect=fake_finetune):
+    with mock.patch("rex.train.finetune", side_effect=fake_finetune):
         mps.train(args, str(tmp_path / "model"), str(tmp_path / "rows.jsonl"), None)
     cfg = calls["config"]
     assert cfg.epochs == 3
@@ -133,7 +133,7 @@ def test_mps_train_wrapper_config_parity_and_bucket_map_removed(tmp_path):
         (ckpt / "rl_agent_config.json").write_text(json.dumps(make_cfg()), encoding="utf-8")
         return {"train_items": 1, "calibration_items": 0, "temperature": [1.0, 1.0, 1.0], "output_dir": str(out), "calibration": {"choice": {"items": 0}, "score": {"items": 0}, "noul": {"items": 12}}}
     args = argparse.Namespace(epochs=1, micro_batch=2, grad_accum=16, calib_max=400, output_dir=str(out), no_checkpointing=False, device="cpu")
-    with mock.patch("laya.train.finetune", side_effect=fake_finetune):
+    with mock.patch("rex.train.finetune", side_effect=fake_finetune):
         mps.train(args, str(tmp_path/"model"), str(tmp_path/"rows.jsonl"), None)
     for path in [out / "rl_agent_config.json", ckpt / "rl_agent_config.json"]:
         cfg = json.loads(path.read_text())

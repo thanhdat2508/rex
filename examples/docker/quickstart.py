@@ -5,7 +5,7 @@ from pathlib import Path
 
 import torch
 
-from laya import Router, load
+from rex import Router, load
 
 
 def main():

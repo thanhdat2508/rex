@@ -10,7 +10,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.integrations.llamaindex import (
+from rex.integrations.llamaindex import (
     LayaLowConfidenceError,
     LayaMultiSelector,
     LayaQueryRouter,
@@ -395,19 +395,19 @@ with patch("urllib.request.build_opener") as mock_build_opener:
 
 # --------------------------------------------------------------- 6. Per-call decision controls
 #
-# `laya.integrations.langchain` has forwarded `max_len` / `head_max_len` and the five hook
+# `rex.integrations.langchain` has forwarded `max_len` / `head_max_len` and the five hook
 # arguments since #530 / #532; this surface forwarded only `model`, so a RAG pipeline choosing
 # between more tools than the default head budget fits could not widen its own window. The rule
 # now lives in one module the three integrations import, and the lists below are read out of it
 # rather than written out again here -- a control added to `._controls` without reaching this file
 # fails here. Three classes, three `_execute_decision` call sites, so every surface is driven.
 import inspect
-from laya.agent import Agent
-from laya.integrations import _controls
-from laya.integrations import crewai as crewai_module
-from laya.integrations import langchain as langchain_module
-from laya.integrations import llamaindex as llamaindex_module
-from laya.router import Router
+from rex.agent import Agent
+from rex.integrations import _controls
+from rex.integrations import crewai as crewai_module
+from rex.integrations import langchain as langchain_module
+from rex.integrations import llamaindex as llamaindex_module
+from rex.router import Router
 
 CONTROLS = (tuple(_controls.PREDICT_CONTROLS) + tuple(_controls.DECISION_CONTROLS)
             + tuple(_controls.HOOK_CONTROLS))
@@ -572,7 +572,7 @@ check_true("controls/forwards the caller's objects",
 
 # --------------------------------------------------------------- Confidence source
 # Every gate in this module reads the same number: the calibrated `answer_confidence`
-# core gates on, never the entropy `confidence` (see `laya.confidence`). The two are on
+# core gates on, never the entropy `confidence` (see `rex.confidence`). The two are on
 # different scales, so they must not be interchangeable here.
 
 

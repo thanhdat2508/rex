@@ -1,10 +1,10 @@
 """Example 25 -- the email preset, from raw mail to verdict.
 
-`laya.email_state()` turns a raw message into a state, and `laya.email_questions()` asks
+`rex.email_state()` turns a raw message into a state, and `rex.email_questions()` asks
 the five typed questions that make up an email triage decision.
 """
 
-from _common import laya, banner, describe, device_line, heading, load
+from _common import rex, banner, describe, device_line, heading, load
 
 banner("25", "Preset: email phishing and triage", """
     The email preset is two helpers that fit together:
@@ -46,7 +46,7 @@ MESSAGES = [
 
 agent = load("english")
 device_line(agent)
-EMAIL = laya.email_questions()
+EMAIL = rex.email_questions()
 print("   question ids: %s" % ", ".join(EMAIL))
 
 
@@ -61,7 +61,7 @@ def verdict(answers):
 
 records = []
 for label, subject, body, sender in MESSAGES:
-    state = laya.email_state(subject, body, sender)
+    state = rex.email_state(subject, body, sender)
     result = agent.predict(state, EMAIL)
     answers = result["answers"]
     records.append((label, answers, result))

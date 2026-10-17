@@ -65,7 +65,7 @@ def read(path: str) -> str:
 
 
 DOCS = os.path.join("docs", "structured.md")
-MODULE = os.path.join("laya", "structured.py")
+MODULE = os.path.join("rex", "structured.py")
 
 SUBSET_HEADER = "| JSON schema | Laya question | Returned value |"
 PROP_HEADER = "| property schema | message |"
@@ -120,8 +120,8 @@ def run_cell(text: str, extra: Optional[Dict[str, Any]] = None) -> Any:
 # against the code that builds them, per path, and the true two-key sentence in `README.md` (empty
 # questions) is kept as the control that proves this is not one blanket rule.
 
-AGENT_PY = os.path.join("laya", "agent.py")
-ONNX_PY = os.path.join("laya", "onnx_agent.py")
+AGENT_PY = os.path.join("rex", "agent.py")
+ONNX_PY = os.path.join("rex", "onnx_agent.py")
 EXAMPLE03 = os.path.join("examples", "03_reading_the_result.py")
 README = "README.md"
 
@@ -135,7 +135,7 @@ def _own_nodes(func: ast.AST) -> List[ast.AST]:
     return [n for n in ast.walk(func) if id(n) not in skip]
 
 
-def usage_shape(path: str) -> Tuple[str, List[str], List[str], List[str]]:
+def usage_shape(path: str) -> Tuple[List[str], List[str], List[str]]:
     """(keys always built, keys added only sometimes, keys with no questions).
 
     All three from the one function holding the `usage = {...}` literal: `predict_long` also builds
@@ -269,15 +269,15 @@ def matches(literal: str, message: str) -> bool:
 
 def main() -> int:
     check_true("docs/structured.md exists", os.path.exists(DOCS), "missing")
-    check_true("laya/structured.py exists", os.path.exists(MODULE), "missing")
+    check_true("rex/structured.py exists", os.path.exists(MODULE), "missing")
     if FAIL:
         return report()
 
     text = read(DOCS)
     tree = ast.parse(read(MODULE))
     sys.path.insert(0, os.getcwd())
-    import laya
-    import laya.structured as S
+    import rex
+    import rex.structured as S
 
     code_keys = property_keys(tree)
     literals = error_messages(tree)
@@ -464,13 +464,13 @@ def main() -> int:
 
     # ---------------------------------------------------------------------- the API table
     def resolve(name: str) -> Any:
-        """What a documented name refers to: `laya.x`, `agent.x`/`router.x`, or the module's own."""
+        """What a documented name refers to: `rex.x`, `agent.x`/`router.x`, or the module's own."""
         parts = name.split(".")
-        if parts[0] == "laya":
-            obj: Any = laya
+        if parts[0] in ("rex", "laya"):
+            obj: Any = rex
             rest = parts[1:]
         elif parts[0] in ("agent", "router"):
-            obj = laya.Agent if parts[0] == "agent" else laya.Router
+            obj = rex.Agent if parts[0] == "agent" else rex.Router
             rest = parts[1:]
         else:
             obj, rest = S, parts

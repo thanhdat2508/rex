@@ -11,7 +11,7 @@ from transformers import AutoConfig, AutoModel
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.common import DecisionModel
+from rex.common import DecisionModel
 
 
 def _tiny_model(head_layers: int = 1, n_act: int = 2) -> DecisionModel:

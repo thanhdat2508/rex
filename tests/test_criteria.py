@@ -17,7 +17,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.common import ece_score, render_criterion, render_options  # noqa: E402
+from rex.common import ece_score, render_criterion, render_options  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -173,7 +173,7 @@ parsed = json.loads(render_options(
 check("emitted json round-trips", parsed, {"a": 1})
 
 # public labels reach the renderer through Agent._to_internal without changing caller data
-from laya.agent import Agent  # noqa: E402
+from rex.agent import Agent  # noqa: E402
 
 public_labels = {"true": "A", "false": "B"}
 public_question = {"type": "noul", "instructions": "Is this true?", "labels": public_labels}
@@ -196,10 +196,10 @@ check("agent/leaves boolean criteria unchanged", boolean_criteria, {True: "yes",
 
 # --------------------------------------------------------------- CPU-fallback warning (#9 follow-up)
 # The warning must fire only when a fallback actually happened -- not merely because the machine
-# has CUDA. `laya.load(path, device="cpu")` on a GPU box is a deliberate choice, not a problem.
+# has CUDA. `rex.load(path, device="cpu")` on a GPU box is a deliberate choice, not a problem.
 import inspect  # noqa: E402
 
-from laya import agent as _agent  # noqa: E402
+from rex import agent as _agent  # noqa: E402
 
 _src = inspect.getsource(_agent.Agent.__init__)
 check_true("fallback/flag is initialised", "fell_back_from = fell_back_why = None" in _src)
@@ -221,9 +221,9 @@ check_true("fallback/no bare cuda probe for the warning",
 import torch  # noqa: E402
 from transformers import AutoConfig, AutoModel  # noqa: E402
 
-from laya.agent import Agent  # noqa: E402
-from laya.common import DecisionModel  # noqa: E402
-from laya.router import Router  # noqa: E402
+from rex.agent import Agent  # noqa: E402
+from rex.common import DecisionModel  # noqa: E402
+from rex.router import Router  # noqa: E402
 
 
 # `_to_internal` serialises non-string `instructions` with json.dumps. The default
@@ -582,7 +582,7 @@ check_true("good/usage counted input tokens", out["usage"]["input_tokens"] > 0, 
 # --------------------------------------------------------------- build_sequence left truncation
 # With no room left for the state, `st[-0:]` kept all of it: the closing [SEP] was replaced by the
 # *first* state token, i.e. the wrong end of the state and an unterminated sequence.
-from laya.common import build_sequence  # noqa: E402
+from rex.common import build_sequence  # noqa: E402
 
 
 class _SeqTok:
@@ -613,7 +613,7 @@ for room, kept in [(0, []), (2, ["two", "three"]), (10, ["one", "two", "three"])
 import ast  # noqa: E402
 
 _common_src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                "laya", "common.py")
+                                "rex", "common.py")
 with open(_common_src_path) as _common_f:
     _common_src = _common_f.read()
 _criterion_doc = ""

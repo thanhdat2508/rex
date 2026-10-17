@@ -25,9 +25,9 @@ from tokenizers import Tokenizer  # noqa: E402
 from tokenizers.models import WordLevel  # noqa: E402
 from transformers import BertConfig, BertModel, PreTrainedTokenizerFast  # noqa: E402
 
-from laya import load  # noqa: E402
-from laya.calibrate import fit_temperature_map, records_from_labeled  # noqa: E402
-from laya.common import DecisionModel, QTYPES, TEMP_MIN, TEMP_MAX  # noqa: E402
+from rex import load  # noqa: E402
+from rex.calibrate import fit_temperature_map, records_from_labeled  # noqa: E402
+from rex.common import DecisionModel, QTYPES, TEMP_MIN, TEMP_MAX  # noqa: E402
 
 
 def _config_only_save_checkpoint(model, tok, cfg, path):
@@ -89,8 +89,8 @@ def _temperature_fitters():
     is the one shape these share; a fit that stops clamping is reported by the non-empty
     assertion in the test rather than passing unnoticed.
 
-    Entry points that call `laya.train.finetune` are absent by design: their fit is
-    `laya.calibrate.fit_one_temperature`, which ends in `clamp_temperature(fitted, TEMP_MIN,
+    Entry points that call `rex.train.finetune` are absent by design: their fit is
+    `rex.calibrate.fit_one_temperature`, which ends in `clamp_temperature(fitted, TEMP_MIN,
     TEMP_MAX)` -- the same bounds, held by tests/test_calibrate.py. Their delegation is held
     by tests/test_finetune_entrypoints.py.
     """
@@ -243,7 +243,7 @@ class CalibrationPersistenceTests(unittest.TestCase):
         # `torch.clamp(..., 0.1, 10.0)` beside it, so a fit either of them persisted could
         # land outside `[TEMP_MIN, TEMP_MAX]` and be re-clamped when the checkpoint is loaded
         # -- the calibration measured during training is then not the one that gets served.
-        # All three now reach `laya.calibrate`, so what the tree sweep below still walks is a
+        # All three now reach `rex.calibrate`, so what the tree sweep below still walks is a
         # fit that copies the old pattern. Derived from the tree rather than listed, so a
         # script that copies it is held too.
         fitters = _temperature_fitters()
@@ -254,7 +254,7 @@ class CalibrationPersistenceTests(unittest.TestCase):
         notebook_src = _runnable_source(
             "notebooks/laya_finetune_typed_decisions_2xT4_kaggle.ipynb")
         self.assertIn("fit_temperature_map", notebook_src,
-                      "the notebook no longer reaches laya.calibrate")
+                      "the notebook no longer reaches rex.calibrate")
         self.assertNotIn("fit_one_temp", notebook_src,
                          "the notebook owns a private fit again")
 

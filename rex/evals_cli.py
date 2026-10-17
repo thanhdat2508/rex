@@ -160,8 +160,8 @@ def _score_within(tolerances: Optional[Sequence[float]]) -> List[evals.Evaluator
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="laya-evals",
-                                     description="Evaluate a Laya checkpoint on a labelled dataset.")
+    parser = argparse.ArgumentParser(prog="rex-evals",
+                                     description="Evaluate a Rex checkpoint on a labelled dataset.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     validate = sub.add_parser("validate", help="check a dataset file without running a model")
@@ -352,14 +352,17 @@ def _cmd_run(args) -> int:
     else:
         if args.calibration:
             raise EvalError("--calibration requires --onnx; for the torch Router calibrate via fit_temperatures")
-        import laya
+        try:
+            import rex as _rex
+        except Exception:
+            import laya as _rex
         try:
             pins: Dict[str, Any] = {}
             if revision is not None:
                 pins["revision"] = revision
             if revisions:
                 pins["revisions"] = revisions
-            router = laya.Router(device=args.device, preload=False, **pins)
+            router = _rex.Router(device=args.device, preload=False, **pins)
         except ValueError as exc:
             # `Router` already rejects a checkpoint name it does not know -- normalising case,
             # surrounding spaces and aliases on the way -- with the option list in the message.

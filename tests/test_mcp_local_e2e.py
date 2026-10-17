@@ -1,6 +1,6 @@
 """End-to-end local test for the MCP stdio server: real weights, real handshake.
 
-Launches ``python -m laya.mcp.server`` as a subprocess and speaks MCP over
+Launches ``python -m rex.mcp.server`` as a subprocess and speaks MCP over
 stdin/stdout (newline-delimited JSON-RPC), exactly like a real MCP client.
 Exercises laya_predict, laya_predict_batch, laya_route, laya_route_batch, laya_decide,
 laya_preset, laya_shortlist and laya_status against the
@@ -96,9 +96,9 @@ class McpStdioClient:
 
 def main():
     import mcp  # noqa: F401  (extra required)
-    import laya
+    import rex
 
-    client = McpStdioClient([sys.executable, "-m", "laya.mcp.server"])
+    client = McpStdioClient([sys.executable, "-m", "rex.mcp.server"])
     try:
         result = client.request(
             "initialize",
@@ -316,7 +316,7 @@ def main():
                repr(payload.get("loaded")))
 
             # laya_preset: the guard workflow end-to-end (preset builder -> predict -> answers).
-            guard_questions = laya.guard_questions()
+            guard_questions = rex.guard_questions()
             result = client.request(
                 "tools/call",
                 {"name": "laya_preset",

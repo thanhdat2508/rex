@@ -38,7 +38,7 @@ async function runNpm(args, cwd) {
 }
 
 test("the packed module installs and works in an external ESM TypeScript project", async (t) => {
-  const workDir = await mkdtemp(join(tmpdir(), "laya-ts-package-"));
+  const workDir = await mkdtemp(join(tmpdir(), "rex-ts-package-"));
   t.after(() => rm(workDir, { force: true, recursive: true, maxRetries: 3, retryDelay: 100 }));
 
   const packDir = join(workDir, "pack");
@@ -70,7 +70,7 @@ test("the packed module installs and works in an external ESM TypeScript project
   for (const path of paths) {
     assert.match(path, /^(README\.md|LICENSE|package\.json|dist\/|scripts\/)/);
     // `files` whitelists all of `scripts/`, so the `__pycache__` left by running
-    // `scripts/export_onnx.py` used to ship. `laya-ts/.npmignore` keeps it out; this pins that.
+    // `scripts/export_onnx.py` used to ship. `rex-ts/.npmignore` keeps it out; this pins that.
     assert(!path.includes("__pycache__"), `packed artifact includes bytecode: ${path}`);
     assert(!path.endsWith(".pyc"), `packed artifact includes bytecode: ${path}`);
   }
@@ -83,7 +83,7 @@ test("the packed module installs and works in an external ESM TypeScript project
   const tarball = join(packDir, packed.filename);
   await writeFile(
     join(consumerDir, "package.json"),
-    JSON.stringify({ name: "laya-ts-package-consumer", private: true, type: "module" }),
+    JSON.stringify({ name: "rex-ts-package-consumer", private: true, type: "module" }),
   );
   await runNpm(
     [
@@ -107,7 +107,7 @@ test("the packed module installs and works in an external ESM TypeScript project
   await writeFile(
     join(consumerDir, "runtime.mjs"),
     `import assert from "node:assert/strict";
-import { Agent, VERSION } from "laya-ts";
+import { Agent, VERSION } from "rex-ts";
 
 let encoderCalls = 0;
 let headCalls = 0;
@@ -148,7 +148,7 @@ assert.equal(headCalls, 1);
   type QuestionDef,
   type SessionProvider,
   type SystemOneResult,
-} from "laya-ts";
+} from "rex-ts";
 
 const provider: SessionProvider = {
   async runEncoder(batch) {

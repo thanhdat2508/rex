@@ -6,7 +6,7 @@ tickets (English, German, Hindi) so the policy visibly branches.
 """
 import json
 
-from _common import laya, banner, describe, router
+from _common import rex, banner, describe, router
 
 banner("41", "Production triage service", """
     This is the capstone: everything the earlier examples showed, wired into one call path.
@@ -79,7 +79,7 @@ TICKETS = [
                 "कृपया आज ही ठीक करें।"},
 ]
 
-QUESTIONS = laya.triage_questions()
+QUESTIONS = rex.triage_questions()
 r = router(max_loaded=2)          # english + multilingual stay resident after first use
 
 records = []

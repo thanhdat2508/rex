@@ -2,7 +2,7 @@
 
 `OnnxRunner` adapts a single-checkpoint `ONNXAgent` to the harness contract (predict /
 predict_batch with an optional per-example model). Weight-free throughout: the agent is a fake,
-and the CLI end-to-end tests monkeypatch `laya.onnx_agent.ONNXAgent` -- importing that module
+and the CLI end-to-end tests monkeypatch `rex.onnx_agent.ONNXAgent` -- importing that module
 needs only numpy, onnxruntime is loaded inside its constructor -- so the real wiring from
 `main(["run", ..., "--onnx", ...])` down to the written report JSON is exercised without
 onnxruntime or a checkpoint download.
@@ -16,9 +16,9 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya import evals_cli  # noqa: E402
-from laya.evals import EvalError  # noqa: E402
-from laya.evals_cli import OnnxRunner  # noqa: E402
+from rex import evals_cli  # noqa: E402
+from rex.evals import EvalError  # noqa: E402
+from rex.evals_cli import OnnxRunner  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -137,18 +137,18 @@ with open(dataset, "w") as f:
                         "questions": Q, "expected": {"intent": "billing"}}) + "\n")
 report_path = os.path.join(tmp, "report.json")
 
-import laya.onnx_agent as onnx_agent_module  # noqa: E402  (numpy-only at import time)
+import rex.onnx_agent as onnx_agent_module  # noqa: E402  (numpy-only at import time)
 
 _real_onnx_agent = onnx_agent_module.ONNXAgent
 try:
     onnx_agent_module.ONNXAgent = _FakeAgent
-    rc = evals_cli.main(["run", dataset, "--onnx", os.path.join(tmp, "laya.onnx"),
+    rc = evals_cli.main(["run", dataset, "--onnx", os.path.join(tmp, "rex.onnx"),
                          "--model", "english-ckpt", "--json", report_path])
     check("cli/run --onnx exits 0 on a passing dataset", rc, 0)
     with open(report_path) as f:
         report = json.load(f)
     check("cli/report records the onnx export path",
-          report["config"]["onnx"], os.path.join(tmp, "laya.onnx"))
+          report["config"]["onnx"], os.path.join(tmp, "rex.onnx"))
     check("cli/report omits calibration when unset", "calibration" not in report["config"], True)
     check("cli/report keeps the forced checkpoint", report["config"]["model"], "english-ckpt")
     check("cli/metrics are computed from the ONNX answers",
@@ -161,7 +161,7 @@ try:
     # --calibration with --onnx is forwarded to ONNXAgent and recorded in report config
     calib_file = os.path.join(tmp, "calib.json")
     calib_report_path = os.path.join(tmp, "report_calib.json")
-    rc = evals_cli.main(["run", dataset, "--onnx", os.path.join(tmp, "laya.onnx"),
+    rc = evals_cli.main(["run", dataset, "--onnx", os.path.join(tmp, "rex.onnx"),
                          "--model", "english-ckpt", "--calibration", calib_file,
                          "--json", calib_report_path])
     check("cli/run --onnx --calibration exits 0", rc, 0)
@@ -171,12 +171,12 @@ try:
           calib_report["config"]["calibration"], calib_file)
 
     # --model omitted: the export's checkpoint defaults to the english bundle repo.
-    rc = evals_cli.main(["run", dataset, "--onnx", "laya.onnx"])
+    rc = evals_cli.main(["run", dataset, "--onnx", "rex.onnx"])
     check("cli/run without --model still scores", rc, 0)
 
     # batching reaches the runner's predict_batch through the harness
     onnx_agent_module.ONNXAgent = _BatchAgent
-    rc = evals_cli.main(["run", dataset, "--onnx", "laya.onnx", "--model", "ckpt",
+    rc = evals_cli.main(["run", dataset, "--onnx", "rex.onnx", "--model", "ckpt",
                          "--batch-size", "2"])
     check("cli/--batch-size runs the ONNX batch path", rc, 0)
 
@@ -184,7 +184,7 @@ try:
     # report is the witness: `sort_by_length_sent` is what the harness put on the wire, not what
     # the command line said, so a flag that parsed and was dropped fails here by name.
     grouped_path = os.path.join(tmp, "grouped.json")
-    rc = evals_cli.main(["run", dataset, "--onnx", "laya.onnx", "--model", "ckpt",
+    rc = evals_cli.main(["run", dataset, "--onnx", "rex.onnx", "--model", "ckpt",
                          "--batch-size", "2", "--sort-by-length", "--json", grouped_path])
     check("cli/--sort-by-length scores the same dataset", rc, 0)
     with open(grouped_path) as f:
@@ -203,7 +203,7 @@ try:
         row = json.loads(open(dataset).readline())
         row["model"] = "some-other-checkpoint"
         f.write(json.dumps(row) + "\n")
-    rc = evals_cli.main(["run", mismatch, "--onnx", "laya.onnx"])
+    rc = evals_cli.main(["run", mismatch, "--onnx", "rex.onnx"])
     # Asking for a different checkpoint than the ONNX export serves is a caller mistake, so
     # exit 2 (docs/evals.md:28), not the 1 a quality failure uses.
     check("cli/foreign per-example model exits 2", rc, 2)

@@ -27,9 +27,9 @@ sys.path.insert(0, ROOT)          # repository root; <root>/laya/email.py must n
 
 import torch  # noqa: E402
 
-import laya  # noqa: E402
-from laya.common import build_sequence  # noqa: E402
-from laya.router import Router  # noqa: E402
+import rex  # noqa: E402
+from rex.common import build_sequence  # noqa: E402
+from rex.router import Router  # noqa: E402
 
 FAILS = []
 
@@ -81,7 +81,7 @@ def main():
 
     # ------------------------------------------------------------ 1. many questions, one pass
     head("1. One forward pass answering many questions")
-    en = laya.load(models["english"], device=device)
+    en = rex.load(models["english"], device=device)
     many = {"q%02d" % i: {"type": "noul", "instructions": "Does the message mention item %d?" % i}
             for i in range(12)}
     t0 = time.perf_counter()
@@ -131,7 +131,7 @@ def main():
     head("4. Long-context truncation (per sequence)")
     long_text = "We were billed twice for invoice 4411 and nobody has replied. " * 300
     for name in ("english", "multilingual"):
-        agent = en if name == "english" else laya.load(models["multilingual"], device=device)
+        agent = en if name == "english" else rex.load(models["multilingual"], device=device)
         max_len, head_len = agent.cfg["max_len"], agent.cfg["head_max_len"]
         lengths = [len(build_sequence(agent.tok, {"body": long_text}, agent._to_internal(mixed[qid]),
                                       max_len, head_len)[0]) for qid in mixed]
@@ -146,7 +146,7 @@ def main():
 
     # ------------------------------------------------------------ 5. multilingual breadth
     head("5. Multilingual: scripts and long context")
-    ml = laya.load(models["multilingual"], device=device)
+    ml = rex.load(models["multilingual"], device=device)
     for label, text in [("german", "Ich wurde zweimal fuer Rechnung 4411 belastet, bitte erstatten Sie den Betrag."),
                         ("chinese", "发票4411被重复扣款，请今天退款。"),
                         ("arabic", "تم خصم المبلغ مرتين للفاتورة 4411، يرجى رد المبلغ اليوم."),
@@ -169,7 +169,7 @@ def main():
         r.load(n)
     report("max_loaded=2 evicts least-recently-used", r.loaded == ["multilingual", "typed-decisions"],
            "loaded=%s" % r.loaded)
-    spare = laya.load(models["english"], device=device)
+    spare = rex.load(models["english"], device=device)
     r.attach("english", spare)
     report("attach() registers an existing agent", "english" in r.loaded, "loaded=%s" % r.loaded)
     del spare
@@ -182,13 +182,13 @@ def main():
         if dev == "mps" and not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
             print("   SKIP mps not available on this machine")
             continue
-        agent = laya.load(models["multilingual"], device=dev)
+        agent = rex.load(models["multilingual"], device=dev)
         try:
             a = agent.predict({"message": "Ich wurde zweimal belastet, bitte erstatten."}, triage)["answers"]
             report("device=%r runs (resolved to %s)" % (dev, agent.device.type),
                    agent.device.type == dev and shapes_ok(a, triage)[0])
             if dev == "mps":
-                cpu = laya.load(models["multilingual"], device="cpu")
+                cpu = rex.load(models["multilingual"], device="cpu")
                 same = (json.dumps(cpu.predict({"message": "Ich wurde zweimal belastet, bitte erstatten."},
                                                triage)["answers"], sort_keys=True)
                         == json.dumps(a, sort_keys=True))

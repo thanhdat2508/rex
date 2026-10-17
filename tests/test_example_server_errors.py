@@ -88,7 +88,7 @@ def main():
     client = TestClient(demo.app, raise_server_exceptions=False)
 
     handler = Collect()
-    logger = logging.getLogger("laya.example-server")
+    logger = logging.getLogger("rex.example-server")
     logger.addHandler(handler)
     # WARNING, not ERROR: the parse-path fallback answers the caller and logs at warning level --
     # a client's bad request is not a server error, but its cause still belongs in the log.

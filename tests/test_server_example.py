@@ -66,7 +66,7 @@ def main():
         ok("GET /presets -> 200", r.status_code == 200, str(r.status_code))
         presets = r.json()
         expected_presets = {"triage", "email", "guard", "moderation", "router"}
-        ok("GET /presets has all five laya.presets workflows", set(presets) == expected_presets, str(set(presets)))
+        ok("GET /presets has all five rex.presets workflows", set(presets) == expected_presets, str(set(presets)))
         ok(
             "GET /presets entries have label/state/questions",
             all({"label", "state", "questions"} <= set(p) for p in presets.values()),
@@ -77,7 +77,7 @@ def main():
         ok("GET / is html", "<html" in r.text.lower())
         ok("GET / embeds PRESETS for the playground JS", "const PRESETS = " in r.text)
         ok("GET / has a preset option per workflow", r.text.count("data-preset=") == len(expected_presets))
-        ok("GET / sets the theme in <head>, before first paint", r.text.index("laya.theme") < r.text.index("<body"))
+        ok("GET / sets the theme in <head>, before first paint", r.text.index("rex.theme") < r.text.index("<body"))
         ok("GET / names the page in an h1", "<h1 class='crumb-t'>Playground</h1>" in r.text)
         ok("GET / keeps a no-JavaScript form that posts to /gui",
            "<noscript><form class='nojs' method='post' action='/gui'>" in r.text)
@@ -115,7 +115,7 @@ def main():
         r = client.post("/predict", json={"state": "hi", "questions": {"x": {"type": "bogus", "instructions": "?"}}})
         ok("POST /predict rejects unknown qtype with 422", r.status_code == 422, str(r.status_code))
 
-        # A choice/score question with no criteria used to reach laya.render_options and raise
+        # A choice/score question with no criteria used to reach rex.render_options and raise
         # there (AttributeError on crit.items()), surfacing as a 500 instead of a validation
         # error -- this is what the criteria-required model_validator on Question now catches.
         r = client.post("/predict", json={"state": "hi", "questions": {"x": {"type": "choice", "instructions": "?"}}})
@@ -165,7 +165,7 @@ def main():
         r = client.post("/gui", data={"state": "{not json", "questions": "{}"})
         ok("POST /gui explains invalid JSON", r.status_code == 200 and "Invalid JSON" in r.text, errs(r))
 
-        # laya.guard_questions()'s "topic" criteria uses None as a placeholder for "no
+        # rex.guard_questions()'s "topic" criteria uses None as a placeholder for "no
         # description" ({"coding": None, ...}) -- this is what caught two bugs: the
         # Question model rejecting None criteria values (fixed: Dict[str, Optional[str]]),
         # and _criteria_legend rendering the literal string "None" in the UI.

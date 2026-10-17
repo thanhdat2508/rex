@@ -22,11 +22,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import laya  # noqa: E402
-from laya import Agent, BaseHook, PredictContext, PredictHook, Router, load  # noqa: E402
-from laya.hooks import HOOK_EVENTS, Hook  # noqa: E402
-from laya.onnx_agent import ONNXAgent  # noqa: E402
-from laya.router import _question_schema  # noqa: E402
+import rex  # noqa: E402
+from rex import Agent, BaseHook, PredictContext, PredictHook, Router, load  # noqa: E402
+from rex.hooks import HOOK_EVENTS, Hook  # noqa: E402
+from rex.onnx_agent import ONNXAgent  # noqa: E402
+from rex.router import _question_schema  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -95,7 +95,7 @@ check_param("Router.unregister", Router.unregister, "name", inspect.Parameter.em
 # `agent_kwargs["expected_sha256"]` overlapping a per-checkpoint `sha256_digests` entry on one file
 # name is the ordinary shape, not a contradiction -- `model.safetensors` is the one name every
 # checkpoint uses for a different file. Refusing it here would reject a shared pin plus a
-# per-checkpoint override, and `laya.serve` maps a ValueError out of a load to a 422 about a
+# per-checkpoint override, and `rex.serve` maps a ValueError out of a load to a 422 about a
 # misconfiguration no request caused.
 _OVERLAP = "Router.__init__/a shared pin overlapping a per-checkpoint one constructs"
 try:
@@ -120,7 +120,7 @@ check_true("Agent.backend_object is a property", isinstance(Agent.backend_object
 check_param("ONNXAgent.__init__", ONNXAgent.__init__, "token", None)
 
 # --------------------------------------------------------------- predict surfaces
-from laya.mcp.remote import RemoteRouter  # noqa: E402
+from rex.mcp.remote import RemoteRouter  # noqa: E402
 
 check_true("RemoteRouter/is a Router", issubclass(RemoteRouter, Router))
 check_param("RemoteRouter.__init__", RemoteRouter.__init__, "base_url", inspect.Parameter.empty)
@@ -175,11 +175,11 @@ for param in ("max_len", "head_max_len"):
 
 # shortlist_choice returns bare labels by default; return_scores=True also hands back the
 # rank-order cosines, so the flag is keyword-only and defaults to off
-check_param("shortlist_choice", laya.shortlist_choice, "return_scores", False,
+check_param("shortlist_choice", rex.shortlist_choice, "return_scores", False,
             inspect.Parameter.KEYWORD_ONLY)
 
 # predict_tournament splits a choice into groups of 16 labels unless the caller picks a size
-check_param("predict_tournament", laya.predict_tournament, "group_size", 16)
+check_param("predict_tournament", rex.predict_tournament, "group_size", 16)
 
 # route() and route_batch() take per-call hooks so a hook can pin a checkpoint for one call
 for label, fn in (("Router.route", Router.route),
@@ -233,28 +233,28 @@ check_true("PredictHook is callable-typed", callable(PredictHook))
 
 # --------------------------------------------------------------- exports
 for name in ("PredictContext", "PredictHook", "Hook", "BaseHook", "AsyncHook"):
-    check_true("__all__/%s" % name, name in laya.__all__)
-    check_true("laya.%s exists" % name, hasattr(laya, name))
-check_true("laya.hooks/run_coroutine_sync exists",
-           callable(getattr(__import__("laya.hooks", fromlist=["run_coroutine_sync"]),
+    check_true("__all__/%s" % name, name in rex.__all__)
+    check_true("rex.%s exists" % name, hasattr(rex, name))
+check_true("rex.hooks/run_coroutine_sync exists",
+           callable(getattr(__import__("rex.hooks", fromlist=["run_coroutine_sync"]),
                             "run_coroutine_sync", None)))
 # Lazily exported, so `hasattr` is what proves `__getattr__` resolves it and not just that the
-# name sits in `__all__`. It must stay reachable as `laya.PINNED_REVISIONS` for the checkpoint
-# integrity guide; `laya.revisions` is not the documented path.
-check_true("__all__/PINNED_REVISIONS", "PINNED_REVISIONS" in laya.__all__)
-check_true("laya.PINNED_REVISIONS exists", hasattr(laya, "PINNED_REVISIONS"))
+# name sits in `__all__`. It must stay reachable as `rex.PINNED_REVISIONS` for the checkpoint
+# integrity guide; `rex.revisions` is not the documented path.
+check_true("__all__/PINNED_REVISIONS", "PINNED_REVISIONS" in rex.__all__)
+check_true("rex.PINNED_REVISIONS exists", hasattr(rex, "PINNED_REVISIONS"))
 
 # BaseHook is the concrete no-op base class; all six events exist and are callable.
 for event in HOOK_EVENTS:
     check_true("BaseHook/%s callable" % event, callable(getattr(BaseHook, event, None)))
 
-# process-wide default registry lives in laya.hooks (not the top level)
+# process-wide default registry lives in rex.hooks (not the top level)
 for helper in ("default_hooks", "set_default_hooks", "add_default_hook", "clear_default_hooks",
                "compose_hooks", "validate_timeout"):
-    check_true("laya.hooks/%s exists" % helper, callable(getattr(__import__("laya.hooks", fromlist=[helper]), helper, None)))
-check_true("defaults/not exported at top level", not hasattr(laya, "set_default_hooks"))
+    check_true("rex.hooks/%s exists" % helper, callable(getattr(__import__("rex.hooks", fromlist=[helper]), helper, None)))
+check_true("defaults/not exported at top level", not hasattr(rex, "set_default_hooks"))
 
-from laya.hooks import validate_timeout  # noqa: E402
+from rex.hooks import validate_timeout  # noqa: E402
 
 check("validate_timeout/None", validate_timeout(None), None)
 check("validate_timeout/positive float", validate_timeout(1.5), 1.5)
@@ -297,10 +297,10 @@ for label, cls in (("Agent", Agent), ("Router", Router), ("ONNXAgent", ONNXAgent
     with reg.hooks_installed((h1,), h2):
         check("%s/hooks_installed accepts mixed sequence and vararg" % label, tuple(reg.hooks), (h1, h2))
 
-# The LangChain runnables batch: laya.integrations.langchain's own suite checks what
+# The LangChain runnables batch: rex.integrations.langchain's own suite checks what
 # batch() returns, so these lines pin only the caller-visible shape. A rename, or losing
 # the keyword-only return_exceptions, would break LCEL and LangGraph map-reduce silently.
-from laya.integrations.langchain import (  # noqa: E402
+from rex.integrations.langchain import (  # noqa: E402
     LayaEvaluator,
     LayaGuardrail,
     LayaRouter,
@@ -324,10 +324,10 @@ for label, cls in (("LayaRouter", LayaRouter), ("LayaGuardrail", LayaGuardrail),
           [(p.name, p.kind.name, p.default) for p in sig(cls.batch).values()])
 
 # --------------------------------------------------------------- LangChain decision node
-# `LayaDecision` is the LCEL form of `laya.decide`, so its constructor has to keep accepting the
+# `LayaDecision` is the LCEL form of `rex.decide`, so its constructor has to keep accepting the
 # same schema argument and runner overrides. The module imports without langchain-core installed
 # (the runnable base falls back to plain object), so these checks hold in every CI lane.
-from laya.integrations.langchain import LayaDecision  # noqa: E402
+from rex.integrations.langchain import LayaDecision  # noqa: E402
 
 for param, default in (("return_details", False), ("state_key", None), ("agent", None),
                        ("base_url", None), ("api_key", None), ("model", None)):
@@ -335,17 +335,17 @@ for param, default in (("return_details", False), ("state_key", None), ("agent",
 check_param("LayaDecision.__init__", LayaDecision.__init__, "decision_schema",
             inspect.Parameter.empty, inspect.Parameter.POSITIONAL_OR_KEYWORD)
 check_true("LayaDecision/invoke exists", callable(getattr(LayaDecision, "invoke", None)))
-check_true("LayaDecision/__all__", "LayaDecision" in laya.__all__)
-check_true("LayaDecision/laya attribute", hasattr(laya, "LayaDecision"))
+check_true("LayaDecision/__all__", "LayaDecision" in rex.__all__)
+check_true("LayaDecision/laya attribute", hasattr(rex, "LayaDecision"))
 check_true("LayaDecision/integrations export",
-           "LayaDecision" in __import__("laya.integrations", fromlist=["__all__"]).__all__)
+           "LayaDecision" in __import__("rex.integrations", fromlist=["__all__"]).__all__)
 
 
 # --------------------------------------------------------------- LangChain token budget
 # `max_len`/`head_max_len` are the per-request knobs that decide how many tokens each option of a
 # choice question gets. Every runnable has to carry both, under the names the core API uses, or a
 # chain has no way to widen a question that overflows the checkpoint's budget.
-from laya.integrations.langchain import (  # noqa: E402
+from rex.integrations.langchain import (  # noqa: E402
     LayaEvaluator,
     LayaGuardrail,
     LayaRouter,
@@ -367,7 +367,7 @@ for label, cls in (("LayaRouter", LayaRouter), ("LayaGuardrail", LayaGuardrail),
 # install the cache/guard patterns from docs/hooks/patterns.md on a single node. They default to
 # None (meaning "inherit the runner"), which is what keeps an unset node byte-identical to today.
 # `hooks_concurrent` is deliberately absent: like the core predict surfaces, it is not per-call.
-from laya.integrations.langchain import (  # noqa: E402
+from rex.integrations.langchain import (  # noqa: E402
     LayaEvaluator,
     LayaGuardrail,
     LayaRouter,
@@ -391,7 +391,7 @@ for label, cls in (("LayaRouter", LayaRouter), ("LayaGuardrail", LayaGuardrail),
 # `input_tokens` / `output_tokens` are the fields every client decodes, so they are always
 # present. `options` (#538) is additive and conditional: it appears only for a request whose
 # options lost their distinct token spans, which is what keeps it out of ordinary responses.
-from laya.common import build_head, build_sequence, collapsed_options, state_room, window_budget  # noqa: E402
+from rex.common import build_head, build_sequence, collapsed_options, state_room, window_budget  # noqa: E402
 
 check_param("build_sequence", build_sequence, "return_stats", False)
 check_param("build_sequence", build_sequence, "return_truncation_stats", False)
@@ -440,20 +440,20 @@ BATCH = ["I was charged twice for the same invoice.",
 def taught_cache(path):
     """One taught copy of the cache pattern, exec'd out of that file's own text.
 
-    Sliced rather than imported: the example calls `laya.load()` at module scope, which would
+    Sliced rather than imported: the example calls `rex.load()` at module scope, which would
     download a checkpoint, and a docs code block is not importable at all. The slice stops at that
-    `laya.load(...)` line, or at the closing fence of the block, for the same reason, so none of
+    `rex.load(...)` line, or at the closing fence of the block, for the same reason, so none of
     this needs weights.
     """
     with open(os.path.join(REPO, path), encoding="utf-8") as handle:
         text = handle.read()
     start = text.index("CACHE = {")
     stop = len(text)
-    for cut in ("\nlaya.load", "\nagent = laya.load", "\n```"):
+    for cut in ("\nrex.load", "\nlaya.load", "\nagent = rex.load", "\nagent = laya.load", "\n```"):
         found = text.find(cut, start)
         if found != -1:
             stop = min(stop, found)
-    namespace = {"json": json, "hashlib": hashlib, "laya": laya}
+    namespace = {"json": json, "hashlib": hashlib, "rex": rex, "laya": rex}
     exec(text[start:stop], namespace)
     return namespace
 
@@ -544,10 +544,10 @@ for path, namespace in TAUGHT[1:]:
 # The example closes by saying its two-state batch "is served", and nothing in its printed output
 # distinguishes a served payload from a fresh one -- both are the same answers. So run the demo
 # against a stub agent that counts its own forward passes, and check the claim rather than trusting
-# the comment. No weights: `laya.load` is the only thing the example takes from the library.
+# the comment. No weights: `rex.load` is the only thing the example takes from the library.
 def run_cache_example():
     with open(os.path.join(REPO, "examples/hooks/cache.py"), encoding="utf-8") as handle:
-        source = handle.read().replace("\nimport laya\n", "\n")
+        source = handle.read().replace("\nimport rex\n", "\n").replace("\nimport laya\n", "\n")
     forwards = []
 
     class StubAgent:
@@ -580,7 +580,7 @@ def run_cache_example():
             return StubAgent(on_predict_start, on_predict_end)
 
     out = io.StringIO()
-    namespace = {"laya": StubLaya}
+    namespace = {"rex": StubLaya, "laya": StubLaya}
     with contextlib.redirect_stdout(out):
         exec(compile(source, "examples/hooks/cache.py", "exec"), namespace)
     return namespace, forwards, out.getvalue()
@@ -942,8 +942,8 @@ for path, name, anchor in BUDGET[1:]:
 # refuses them server-side. Those must stay the same five: if the server's list gained an argument
 # or dropped one, a chain step and a raw HTTP client would get different answers for one request
 # body -- and a caller that was told "no" on one path would be ignored on the other.
-from laya.integrations.langchain import _hook_kwargs as _lc_hook_kwargs  # noqa: E402
-from laya.serve import BODY_CONTROLS as _http_controls, BODY_REFUSALS as _http_refusals  # noqa: E402
+from rex.integrations.langchain import _hook_kwargs as _lc_hook_kwargs  # noqa: E402
+from rex.serve import BODY_CONTROLS as _http_controls, BODY_REFUSALS as _http_refusals  # noqa: E402
 
 check("serve/BODY_REFUSALS is the hook argument set LangChain refuses", sorted(_http_refusals),
       sorted(_lc_hook_kwargs(hooks=[object()], on_predict_start=object(),
@@ -955,7 +955,7 @@ check("serve forwards and refuses disjoint sets", sorted(set(_http_controls) & s
 
 # The opt-in shortlist evaluator is a public Python entry point. Pin its required
 # provenance arguments without adding an eager import to the package root.
-from laya.evals_shortlist import evaluate_shortlist  # noqa: E402
+from rex.evals_shortlist import evaluate_shortlist  # noqa: E402
 
 check_param("evaluate_shortlist", evaluate_shortlist, "k", 20)
 check_param("evaluate_shortlist", evaluate_shortlist, "dataset_path", None)
@@ -966,7 +966,7 @@ for param in ("checkpoint_id", "embedder_id"):
 # docs/hooks/examples.md ## Composition teaches one scope ordering contract; the pre-fix wording
 # ("Installed hooks first, then convenience callables") named only two tiers and put installed at
 # the head, which compose_hooks contradicts.
-from laya import hooks as _examples_hooks_mod  # noqa: E402
+from rex import hooks as _examples_hooks_mod  # noqa: E402
 
 _examples_md = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                             "docs", "hooks", "examples.md")
@@ -1053,7 +1053,7 @@ import ast  # noqa: E402
 # `encoding="utf-8"` because a bare `open()` takes the runner's locale codec, which is cp1252 on
 # `tests (windows)`; the gate that keeps every repo read in tests/ pinned is section 4 of
 # tests/test_portability.py.
-with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "laya", "tl_kernels.py"),
+with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "rex", "tl_kernels.py"),
           encoding="utf-8") as f:
     _tl_defs = {node.name: node for node in ast.parse(f.read()).body if isinstance(node, ast.FunctionDef)}
 for _name in ("gemm_kernel", "gemm_geglu_kernel", "add_ln_kernel", "rope_kernel", "attn_kernel"):
@@ -1103,10 +1103,10 @@ check_true("docs/hooks/api.md ONNXAgent constructor no longer ends at hooks_conc
 
 # Code truth: every documented surface really accepts hooks_timeout, so the ban cannot be
 # re-falsified by removing the parameter from the code.
-from laya.router import Router as _ApiRouter  # noqa: E402
-from laya.onnx_agent import ONNXAgent as _ApiONNXAgent  # noqa: E402
-from laya.agent import Agent as _ApiAgent  # noqa: E402
-from laya import load as _api_load  # noqa: E402
+from rex.router import Router as _ApiRouter  # noqa: E402
+from rex.onnx_agent import ONNXAgent as _ApiONNXAgent  # noqa: E402
+from rex.agent import Agent as _ApiAgent  # noqa: E402
+from rex import load as _api_load  # noqa: E402
 
 for _label, _obj in [
     ("Agent.__init__", _ApiAgent.__init__),
@@ -1140,7 +1140,7 @@ check_true("docs/hooks/tracing.md nested-call example passes a per-call on_predi
 
 # Code truth: no laya predict path ever writes `"run_id":` as a payload key, so the ban cannot be
 # re-falsified by adding the key at a later refactor.
-for _src_rel in ("laya/agent.py", "laya/router.py", "laya/onnx_agent.py", "laya/serve.py"):
+for _src_rel in ("rex/agent.py", "rex/router.py", "rex/onnx_agent.py", "rex/serve.py"):
     with open(os.path.join(REPO, _src_rel), encoding="utf-8") as _sf:
         _src_text = _sf.read()
     check('%s never writes "run_id" as a payload key' % _src_rel,
@@ -1215,9 +1215,9 @@ def _canonical_surfaces(module_path, cls_name):
 
 
 _real_raise, _real_timeout = set(), set()
-for _mod_rel, _cls in [("laya/agent.py", "Agent"),
-                        ("laya/router.py", "Router"),
-                        ("laya/onnx_agent.py", "ONNXAgent")]:
+for _mod_rel, _cls in [("rex/agent.py", "Agent"),
+                        ("rex/router.py", "Router"),
+                        ("rex/onnx_agent.py", "ONNXAgent")]:
     _per = _canonical_surfaces(os.path.join(REPO, _mod_rel), _cls)
     _real_raise |= _per["hooks_raise"]
     _real_timeout |= _per["hooks_timeout"]
@@ -1285,13 +1285,13 @@ check_true("docs/hooks/lifecycle.md example block includes a defaults row",
 # AST-side truth: compose_hooks's return must be exactly `defaults + list(installed) +
 # normalise_hooks(...)`. If a future change reorders the concat, the doc gate above would still
 # pass on stale wording, so bind the doc to the code with this second check.
-from laya import hooks as _hooks_mod  # noqa: E402
+from rex import hooks as _hooks_mod  # noqa: E402
 
 _compose_src = inspect.getsource(_hooks_mod.compose_hooks)
 _compose_tree = ast.parse(_compose_src.strip(), "<compose_hooks>")
 _ret = next(n for n in ast.walk(_compose_tree) if isinstance(n, ast.Return))
 _bin = _ret.value
-check_true("laya/hooks.compose_hooks returns a left-nested BinOp of three Add parts",
+check_true("rex/hooks.compose_hooks returns a left-nested BinOp of three Add parts",
            isinstance(_bin, ast.BinOp) and isinstance(_bin.op, ast.Add)
            and isinstance(_bin.left, ast.BinOp) and isinstance(_bin.left.op, ast.Add),
            ast.dump(_bin)[:200])
@@ -1313,7 +1313,7 @@ for _p in _parts:
         _part_names.append("[]")
     else:
         _part_names.append(ast.dump(_p)[:40])
-check("laya/hooks.compose_hooks concat order is defaults, installed, per-call",
+check("rex/hooks.compose_hooks concat order is defaults, installed, per-call",
       _part_names, ["defaults", "list()", "normalise_hooks()"])
 # The head part is a local `defaults` binding; prove it is the ternary that reads
 # default_hooks() behind _SKIP_DEFAULTS, so the doc's "defaults first" claim is anchored to
@@ -1425,7 +1425,7 @@ check("README route_batch clause names exactly its hooks kwargs",
 # further down its own file. `lifecycle.md`'s rule 1 (fixed in #991) says the same thing. The
 # gate bans the pre-fix wording, requires the tier vocabulary, and drives `compose_hooks` live
 # to prove the emitted order matches the prose.
-from laya import hooks as _hooks_mod  # noqa: E402
+from rex import hooks as _hooks_mod  # noqa: E402
 
 check_true("hooks module exports compose_hooks", callable(_hooks_mod.compose_hooks))
 

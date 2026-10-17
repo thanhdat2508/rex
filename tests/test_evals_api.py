@@ -1,4 +1,4 @@
-"""API-stability guard for laya.evals: an accidental rename or a torch import fails here.
+"""API-stability guard for rex.evals: an accidental rename or a torch import fails here.
 
 Run: python tests/test_evals_api.py
 """
@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya import evals  # noqa: E402
+from rex import evals  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -50,7 +50,7 @@ for name in ("Dataset", "Example", "EvalError", "EvalReport", "evaluate", "ece",
              # caller.
              "is_coverage_metric", "coverage_definition_conflict",
              "COVERAGE_METRIC_DEFINITION"):
-    check_true("laya.evals.%s exists" % name, hasattr(evals, name))
+    check_true("rex.evals.%s exists" % name, hasattr(evals, name))
 
 check("REPORT_SCHEMA", evals.REPORT_SCHEMA, "laya-evals-report/1")
 check("the coverage-cut definition this code computes", evals.COVERAGE_METRIC_DEFINITION, 2)
@@ -88,7 +88,7 @@ check_true("evaluate: the abstention knob sits after the batch size it may apply
 # never applied -- the metrics stay identical (the gate flags, it does not overwrite the argmax),
 # but the report itself would lie -- so the CLI runner shapes have to accept the kwarg under the
 # same name the guard on `evaluate` checks.
-from laya import evals_cli  # noqa: E402
+from rex import evals_cli  # noqa: E402
 
 for label, fn in (("RouterRunner.predict_batch", evals_cli.RouterRunner.predict_batch),
                   ("OnnxRunner.predict_batch", evals_cli.OnnxRunner.predict_batch)):
@@ -127,9 +127,9 @@ _router = _RecordingRouter()
 # --------------------------------------------------------------- torch stays out of import
 probe = subprocess.run(
     [sys.executable, "-c",
-     "import sys; import laya.evals; sys.exit(1 if 'torch' in sys.modules else 0)"],
+     "import sys; import rex.evals; sys.exit(1 if 'torch' in sys.modules else 0)"],
     cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-check("import laya.evals does not import torch", probe.returncode, 0)
+check("import rex.evals does not import torch", probe.returncode, 0)
 
 # --------------------------------------------------------------- argument documentation
 # `_build_parser` is what a caller reads before running anything: argparse prints each

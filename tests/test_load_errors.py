@@ -38,9 +38,9 @@ from tokenizers.models import WordLevel  # noqa: E402
 from tokenizers.pre_tokenizers import Whitespace  # noqa: E402
 from transformers import BertConfig, BertModel, PreTrainedTokenizerFast  # noqa: E402
 
-from laya import load  # noqa: E402
-from laya.common import DecisionModel  # noqa: E402
-from laya.router import Router  # noqa: E402
+from rex import load  # noqa: E402
+from rex.common import DecisionModel  # noqa: E402
+from rex.router import Router  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -250,12 +250,12 @@ check_true("short temperature/says the shape", "list of 3" in str(err), str(err)
 # each numbered case, the exception types the banner lists must be exactly the types that case's own
 # section prints.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "examples"))
-import _common  # noqa: E402 -- the helpers the example imports
+import _common  # type: ignore # noqa: E402 -- the helpers the example imports
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "39_error_handling.py"
 SOURCE = EXAMPLE.read_text(encoding="utf-8")
 TREE = ast.parse(SOURCE)
-AGENT_SRC = (Path(__file__).resolve().parents[1] / "laya" / "agent.py").read_text(encoding="utf-8")
+AGENT_SRC = (Path(__file__).resolve().parents[1] / "rex" / "agent.py").read_text(encoding="utf-8")
 
 ERR_TOKEN = re.compile(r"\b[A-Z][A-Za-z]+(?:Error|Exception)\b")
 # what a section shows it was given: the line the page prints from `type(e).__name__`, or from its

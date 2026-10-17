@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-from laya.serve import (  # noqa: E402
+from rex.serve import (  # noqa: E402
     BATCH_BODY_CALL_CONTROLS,
     BATCH_BODY_ITEM_CONTROLS,
     BODY_CONTROLS,
@@ -42,7 +42,7 @@ from laya.serve import (  # noqa: E402
 
 # Read from the router rather than copied here: the workload below has to reach the
 # typed-decisions checkpoint the same way a request does.
-from laya.router import _TYPED_DECISION_WORKFLOWS  # noqa: E402
+from rex.router import _TYPED_DECISION_WORKFLOWS  # noqa: E402
 
 
 class FakeRouter:
@@ -387,7 +387,7 @@ def test_body_read_preserves_parse_error_codes(monkeypatch):
 class DeviceRouter:
     """A Router with resident checkpoints whose real devices are known.
 
-    `Agent.device` is a `torch.device`; `laya.mcp.device.agent_device` also accepts the
+    `Agent.device` is a `torch.device`; `rex.mcp.device.agent_device` also accepts the
     plain string, which keeps this stub free of torch and of checkpoint weights.
     """
 
@@ -434,7 +434,7 @@ def test_health_without_a_resident_checkpoint_flags_the_preference(monkeypatch):
 def test_health_agrees_with_the_mcp_status_tool(monkeypatch):
     """One fact about the device, reported the same way by both surfaces."""
     pytest.importorskip("mcp")
-    from laya.mcp.tools import laya_status
+    from rex.mcp.tools import laya_status
 
     monkeypatch.setenv("LAYA_DEVICE", "cuda")
     fake = DeviceRouter(english="cpu")
@@ -446,7 +446,7 @@ def test_health_agrees_with_the_mcp_status_tool(monkeypatch):
 
 
 def test_health_needs_neither_the_mcp_extra_nor_torch():
-    """`laya.mcp.device` is documented as importable without `mcp`; prove the server agrees."""
+    """`rex.mcp.device` is documented as importable without `mcp`; prove the server agrees."""
     probe = r'''
 import sys
 class Blocker:
@@ -455,13 +455,13 @@ class Blocker:
             raise ImportError("mcp blocked")
 sys.meta_path.insert(0, Blocker())
 sys.path.insert(0, %r)
-from laya.mcp.device import agent_device, env_device, resolve_device, router_agent
+from rex.mcp.device import agent_device, env_device, resolve_device, router_agent
 assert agent_device(type("A", (), {"device": "cpu"})()) == "cpu"
-assert env_device.__module__ == "laya.mcp.device"
-import laya.serve
-assert "mcp" not in sys.modules, "laya.mcp.device reached the mcp distribution"
+assert env_device.__module__ == "rex.mcp.device"
+import rex.serve
+assert "mcp" not in sys.modules, "rex.mcp.device reached the mcp distribution"
 from fastapi.testclient import TestClient
-client = TestClient(laya.serve.create_app(router=type("R", (), {"loaded": ["english"],
+client = TestClient(rex.serve.create_app(router=type("R", (), {"loaded": ["english"],
     "_agents": {"english": type("A", (), {"device": "cpu"})()}})()))
 body = client.get("/health").json()
 assert body["device"] == "cpu" and body["checkpoint_devices"] == {"english": "cpu"}, body
@@ -474,8 +474,8 @@ print("ok")
 
 def test_build_router_strips_the_device_before_torch_sees_it(monkeypatch):
     """A value pasted from a Dockerfile or a `.env` file carries a trailing newline."""
-    import laya.router
-    import laya.serve
+    import rex.router
+    import rex.serve
 
     seen = {}
 
@@ -486,14 +486,14 @@ def test_build_router_strips_the_device_before_torch_sees_it(monkeypatch):
         def preload(self, names=None):
             seen["preloaded"] = names
 
-    monkeypatch.setattr(laya.router, "Router", RecordingRouter)
+    monkeypatch.setattr(rex.router, "Router", RecordingRouter)
     monkeypatch.setenv("LAYA_PRELOAD", "0")
     for raw, want in ((" cpu\n", "cpu"), ("cuda ", "cuda"), ("   ", None), ("cpu", "cpu")):
         monkeypatch.setenv("LAYA_DEVICE", raw)
-        laya.serve.build_router()
+        rex.serve.build_router()
         assert seen["device"] == want, "%r -> %r" % (raw, seen["device"])
     monkeypatch.delenv("LAYA_DEVICE")
-    laya.serve.build_router()
+    rex.serve.build_router()
     assert seen["device"] is None, repr(seen["device"])      # unset means auto
 
 
@@ -539,7 +539,7 @@ def test_helpers():
 
 
 def test_resolve_model_follows_the_router_registry(monkeypatch):
-    """A checkpoint added to laya.router must become pinnable over HTTP with no edit here.
+    """A checkpoint added to rex.router must become pinnable over HTTP with no edit here.
 
     serve used to keep two hand-copies of that registry -- a set of accepted names and a map of
     published Hugging Face ids. Either copy left behind means a client that names a real
@@ -547,7 +547,7 @@ def test_resolve_model_follows_the_router_registry(monkeypatch):
     the dropped pin is invisible from the outside. Only the name maps are read; nothing loads a
     checkpoint.
     """
-    from laya import router as router_mod
+    from rex import router as router_mod
 
     monkeypatch.setitem(router_mod.DEFAULT_MODELS, "spanish", (router_mod.BUNDLE_REPO, "spanish"))
     monkeypatch.setitem(router_mod.STANDALONE_MODELS, "spanish", "convaiinnovations/laya-spanish")
@@ -668,7 +668,7 @@ class _StubAgent:
 
 def _server_router(monkeypatch, **env):
     """The Router `laya-serve` builds for `env`, with loads recorded instead of performed."""
-    from laya.serve import build_router
+    from rex.serve import build_router
 
     monkeypatch.setenv("LAYA_PRELOAD", "0")       # nothing may download
     monkeypatch.setenv("LAYA_AUTO_TASK", "1")     # the config that puts three checkpoints in play
@@ -717,7 +717,7 @@ def _run_workload(router, cycles):
 
 
 def test_max_loaded_reaches_the_router_the_server_builds(monkeypatch):
-    from laya.router import Router
+    from rex.router import Router
 
     # Unset has to be reported as "not set", not as a copy of Router's default, or the two
     # numbers drift the day the default moves. Checked at the resolver, because a copy of 2 and
@@ -746,7 +746,7 @@ def test_max_loaded_reaches_the_router_the_server_builds(monkeypatch):
 
 
 def test_raising_the_cap_stops_the_server_rebuilding_a_checkpoint(monkeypatch):
-    from laya.router import DEFAULT_MODELS
+    from rex.router import DEFAULT_MODELS
 
     cycles = 3
     router, built = _server_router(monkeypatch)
@@ -776,8 +776,8 @@ def test_raising_the_cap_stops_the_server_rebuilding_a_checkpoint(monkeypatch):
 # wrong checkpoint answering every ambiguous state, which is the failure the operator was trying
 # to configure away. So the message is core's and the server refuses to start.
 def test_default_model_reaches_the_router_the_server_builds(monkeypatch):
-    from laya.router import DEFAULT_MODELS, Router, _ALIASES, normalise_name
-    from laya.serve import _default_model_option
+    from rex.router import DEFAULT_MODELS, Router, _ALIASES, normalise_name
+    from rex.serve import _default_model_option
 
     # Unset is "not asked for", not a copy of Router's default -- the same reason
     # `_resolve_max_loaded` returns None, and the same drift it prevents.
@@ -824,7 +824,7 @@ def test_default_model_reaches_the_router_the_server_builds(monkeypatch):
 
 
 def test_an_unresolvable_default_stops_the_server_with_core_s_words(monkeypatch):
-    from laya.serve import build_router
+    from rex.serve import build_router
 
     monkeypatch.setenv("LAYA_PRELOAD", "0")
     monkeypatch.delenv("LAYA_DEFAULT_MODEL", raising=False)
@@ -963,7 +963,7 @@ def test_inference_failure_is_logged_and_not_leaked(monkeypatch, caplog):
     monkeypatch.delenv("LAYA_API_KEY", raising=False)
     client = TestClient(create_app(router=ExplodingRouter(secret)), raise_server_exceptions=False)
 
-    with caplog.at_level(logging.ERROR, logger="laya.serve"):
+    with caplog.at_level(logging.ERROR, logger="rex.serve"):
         response = client.post("/v1/systemone", json=REQ)
 
     assert response.status_code == 500
@@ -995,7 +995,7 @@ def test_validation_errors_are_not_logged_as_failures(monkeypatch, caplog):
     monkeypatch.delenv("LAYA_API_KEY", raising=False)
     client = TestClient(create_app(router=RejectingRouter()), raise_server_exceptions=False)
 
-    with caplog.at_level(logging.ERROR, logger="laya.serve"):
+    with caplog.at_level(logging.ERROR, logger="rex.serve"):
         response = client.post("/v1/systemone", json=REQ)
 
     assert response.status_code == 422, response.text
@@ -1014,7 +1014,7 @@ class ValidatingRouter:
     loaded = ["english"]
 
     def predict(self, state, questions, model=None):
-        from laya.agent import Agent
+        from rex.agent import Agent
         for qid, qdef in questions.items():
             Agent._check_question(qid, qdef)
         raise AssertionError("validation should have rejected this before predict()")
@@ -1266,12 +1266,12 @@ def test_accepted_connections_set_tcp_nodelay(monkeypatch):
 
     import uvicorn
 
-    import laya.serve
+    import rex.serve
 
     captured = {}
     monkeypatch.setattr(uvicorn, "run", lambda app, **kwargs: captured.update(kwargs))
-    monkeypatch.setattr(laya.serve, "create_app", lambda: None)
-    laya.serve.main()
+    monkeypatch.setattr(rex.serve, "create_app", lambda: None)
+    rex.serve.main()
 
     async def drive():
         config = uvicorn.Config(create_app(router=FakeRouter()), host="127.0.0.1", port=0,
@@ -1454,7 +1454,7 @@ def test_batch_missing_questions_returns_400(monkeypatch):
 
 def test_batch_too_many_states_returns_413(monkeypatch):
     client, _ = _client(monkeypatch)
-    from laya.serve import MAX_BATCH_STATES
+    from rex.serve import MAX_BATCH_STATES
     oversized = {"states": ["state"] * (MAX_BATCH_STATES + 1), "questions": REQ["questions"]}
     r = client.post("/v1/systemone/batch", json=oversized)
     assert r.status_code == 413
@@ -1503,7 +1503,7 @@ def test_batch_within_the_budget_is_passed_no_batch_size(monkeypatch):
     that works today must not start answering differently. Not-passing is the only way to guarantee
     that: it leaves `predict_batch` on its own default.
     """
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     client, fake = _batch_env_client(monkeypatch)
     rows = serve_mod.DEFAULT_MAX_BATCH_TOKENS // serve_mod._BATCH_ROW_TOKENS_ASSUMED
@@ -1517,7 +1517,7 @@ def test_batch_within_the_budget_is_passed_no_batch_size(monkeypatch):
 
 def test_batch_over_the_budget_is_split_not_refused(monkeypatch):
     """The 4096-row shape still answers; it is chunked so one pass stays inside the budget."""
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     client, fake = _batch_env_client(monkeypatch)
     r = client.post("/v1/systemone/batch",
@@ -1535,7 +1535,7 @@ def test_batch_over_the_budget_is_split_not_refused(monkeypatch):
 
 def test_batch_one_row_over_the_budget_is_split(monkeypatch):
     """One row over, with both factors inside their own caps, so the comparison cannot be off by one."""
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     client, fake = _batch_env_client(monkeypatch)
     rows = serve_mod.DEFAULT_MAX_BATCH_TOKENS // serve_mod._BATCH_ROW_TOKENS_ASSUMED
@@ -1555,7 +1555,7 @@ def test_batch_a_raised_max_len_chunks_harder(monkeypatch):
     512, so 256 rows at 8192 is the same token count as 4096 rows at 512 and collates the same tensor.
     Counting tokens means a wider row buys proportionally fewer rows per pass.
     """
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     wide = serve_mod.DEFAULT_MAX_TOKEN_BUDGET
     assert wide > serve_mod._BATCH_ROW_TOKENS_ASSUMED
@@ -1577,7 +1577,7 @@ def test_batch_a_raised_max_len_chunks_harder(monkeypatch):
 
 def test_batch_an_explicit_batch_size_is_never_overridden(monkeypatch):
     """The caller asked for a shape. Planning one on top would silently change what they requested."""
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     client, fake = _batch_env_client(monkeypatch)
     r = client.post("/v1/systemone/batch",
@@ -1590,7 +1590,7 @@ def test_batch_an_explicit_batch_size_is_never_overridden(monkeypatch):
 
 def test_batch_chunking_follows_a_raised_budget(monkeypatch):
     """A deployment whose hardware can take more stops being chunked."""
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     client, fake = _batch_env_client(monkeypatch, LAYA_MAX_BATCH_TOKENS="2097152")
     r = client.post("/v1/systemone/batch",
@@ -1602,7 +1602,7 @@ def test_batch_chunking_follows_a_raised_budget(monkeypatch):
 
 def test_batch_chunking_follows_a_lowered_budget(monkeypatch):
     """And a LOWERED one -- the regime an operator on small hardware actually uses."""
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     assert 2048 < serve_mod.DEFAULT_MAX_BATCH_TOKENS, "2048 must be the lowered regime"
     client, fake = _batch_env_client(monkeypatch, LAYA_MAX_BATCH_TOKENS="2048")
@@ -1616,10 +1616,10 @@ def test_batch_chunking_follows_a_lowered_budget(monkeypatch):
 @pytest.mark.parametrize("raw", ["nonsense", "0", "-5", "3.5"])
 def test_batch_budget_warns_and_falls_back_on_an_unusable_value(monkeypatch, caplog, raw):
     """A bad knob must not disable the chunking, and must say so in the log."""
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     monkeypatch.setenv("LAYA_MAX_BATCH_TOKENS", raw)
-    with caplog.at_level(logging.WARNING, logger="laya.serve"):
+    with caplog.at_level(logging.WARNING, logger="rex.serve"):
         assert serve_mod._resolve_max_batch_tokens() == serve_mod.DEFAULT_MAX_BATCH_TOKENS
     assert "LAYA_MAX_BATCH_TOKENS" in caplog.text, caplog.text
     assert ("invalid" in caplog.text or "must be positive" in caplog.text), caplog.text
@@ -1634,7 +1634,7 @@ def test_batch_budget_warns_and_falls_back_on_an_unusable_value(monkeypatch, cap
 
 def test_batch_an_empty_environment_value_falls_back_silently(monkeypatch):
     """Unset and empty both mean "not configured", which is not worth a warning."""
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     monkeypatch.setenv("LAYA_MAX_BATCH_TOKENS", "")
     assert serve_mod._resolve_max_batch_tokens() == serve_mod.DEFAULT_MAX_BATCH_TOKENS
@@ -1646,7 +1646,7 @@ def test_batch_chunk_plan_floors_at_one_state(monkeypatch):
     At that floor one pass carries `len(questions)` rows, which is exactly what one `/v1/systemone`
     request can already ask for -- so the batch route's worst pass is the single route's worst pass.
     """
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     monkeypatch.delenv("LAYA_MAX_BATCH_TOKENS", raising=False)
     plan = serve_mod._batch_chunk_size(serve_mod.MAX_BATCH_STATES, serve_mod.MAX_QUESTIONS,
@@ -1659,7 +1659,7 @@ def test_batch_chunk_plan_floors_at_one_state(monkeypatch):
 @pytest.mark.parametrize("states,questions", [(0, 4), (4, 0), (0, 0)])
 def test_batch_chunk_plan_is_none_for_a_degenerate_shape(monkeypatch, states, questions):
     """Nothing to split, and no division by the question count."""
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     monkeypatch.delenv("LAYA_MAX_BATCH_TOKENS", raising=False)
     assert serve_mod._batch_chunk_size(states, questions) is None
@@ -1683,7 +1683,7 @@ def test_batch_a_non_object_questions_body_keeps_its_own_400(monkeypatch):
 
 def test_batch_too_many_questions_still_gets_its_own_413(monkeypatch):
     """Chunking does not replace the per-question cap: 300 questions is still refused, by name."""
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     client, _ = _batch_env_client(monkeypatch)
     r = client.post("/v1/systemone/batch",
@@ -1694,7 +1694,7 @@ def test_batch_too_many_questions_still_gets_its_own_413(monkeypatch):
 
 def test_batch_individual_oversized_state_returns_413(monkeypatch):
     client, _ = _client(monkeypatch)
-    from laya.serve import MAX_STATE_CHARS
+    from rex.serve import MAX_STATE_CHARS
     bad_req = {
         "states": ["ok", "X" * (MAX_STATE_CHARS + 10)],
         "questions": REQ["questions"],
@@ -1878,7 +1878,7 @@ def test_both_decision_routes_refuse_the_escape_before_the_router_sees_it(path, 
     `predict_batch`, which raises the `TypeError` above for all three slots on the real one, so each
     is a `500 inference failed` on a live server plus a `_log.exception` traceback per request. That
     is exactly the shape 06462bf was written to stop. So each slot is its own case, the message is
-    read from `laya.serve` rather than retyped here, and the router is asserted to have seen
+    read from `rex.serve` rather than retyped here, and the router is asserted to have seen
     nothing: the refusal has to land before the forward pass it exists to prevent.
     """
     monkeypatch.delenv("LAYA_API_KEY", raising=False)
@@ -1959,7 +1959,7 @@ _ZWSP_STATE = {"body": "\u200b" * 8332}    # len(str()) == 50004, serialized == 
 
 
 def _serialized_len(state):
-    """The length `laya.common.serialize_state` produces, without importing torch."""
+    """The length `rex.common.serialize_state` produces, without importing torch."""
     return len(json.dumps(state, ensure_ascii=False))
 
 
@@ -2026,16 +2026,16 @@ def test_the_declared_limit_is_the_limit_for_ordinary_states(monkeypatch, reques
 def test_the_gate_agrees_with_the_function_that_feeds_the_tokenizer():
     """Pin serve.py's inline `json.dumps` to `serialize_state` itself.
 
-    serve.py cannot import it -- `laya.common` imports torch at module level and
-    `import laya.serve` must not (tests/test_lazy_import.py) -- so the mirror is held here
+    serve.py cannot import it -- `rex.common` imports torch at module level and
+    `import rex.serve` must not (tests/test_lazy_import.py) -- so the mirror is held here
     instead. Looked up rather than imported at module scope so that a serve.py without the
     helper fails this one check instead of aborting the suite's import.
     """
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     state_length = getattr(serve_mod, "_state_length", None)
-    assert state_length is not None, "laya.serve no longer measures the state through _state_length"
-    serialize_state = pytest.importorskip("laya.common").serialize_state
+    assert state_length is not None, "rex.serve no longer measures the state through _state_length"
+    serialize_state = pytest.importorskip("rex.common").serialize_state
     for state in (_QUOTE_STATE, _ZWSP_STATE, "plain text", {}, [],
                   {"a": {"b": ["c", 1, 1.5, None, True]}},
                   ["\u4e2d\u6587", '"', "'", "\n", "\x00", "\U0001f600"],
@@ -2103,7 +2103,7 @@ def test_the_probe_refuses_an_oversized_value_without_serializing_the_state(monk
     This is the check that goes red if `_state_length_lower_bound_over` is removed: without it the gate
     still answers 413, so the *absence of the dump* is the only observable difference.
     """
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     calls = []
     real_dumps = json.dumps
@@ -2134,7 +2134,7 @@ def test_the_probe_verdict_always_matches_the_exact_measurement():
     are compared across shapes placed deliberately on both sides of the limit -- including the
     escape-heavy values where `repr` and JSON diverge, which is what the gate exists for.
     """
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
     cap = serve_mod.MAX_STATE_CHARS
     shapes = []
     for ch in ("a", '"', "\u200b", "\U000e0001", "\n", "\\", "\u4e2d"):
@@ -2166,7 +2166,7 @@ def test_the_early_refusal_reports_a_number_it_measured():
     """The 413 must not invent a count. Reporting `cap + 1` would answer "50001 > 50000" for a
     60 012-character state -- the same fabricated count this gate was written to remove.
     """
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
     cap = serve_mod.MAX_STATE_CHARS
     # `cap + 1` is NOT the tell: {"body": "a" * 50001} legitimately sums to exactly that. The
     # property that distinguishes a measured bound from a fabricated one is `cap < reported <= exact`.
@@ -2185,7 +2185,7 @@ def test_the_probe_is_bounded_and_falls_through_rather_than_guessing():
     A state of 200 000 small values is not provably over within that budget, and must fall through
     to the encoder rather than be refused on a partial sum.
     """
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
     assert serve_mod._STATE_PROBE_VALUES <= 256
     wide = {("k%06d" % i): "x" for i in range(200000)}
     assert serve_mod._state_length_lower_bound_over(wide, serve_mod.MAX_STATE_CHARS) == 0
@@ -2198,7 +2198,7 @@ def test_the_probe_walks_exact_container_types_only():
     13-character state refused as `60000 > 50000`. No HTTP request can reach it -- `json.loads`
     builds exact types -- but the 400 branch exists for in-process callers.
     """
-    import laya.serve as serve_mod
+    import rex.serve as serve_mod
 
     class Lying(dict):
         def values(self):
@@ -2223,7 +2223,7 @@ NEW_CONTROL_VALUES = {"task": "typed-decisions", "lang": "de", "lang_guess": "de
 
 def test_every_predict_control_is_forwarded_or_refused():
     """`BODY_CONTROLS` and `BODY_REFUSALS` must cover `Router.predict` exactly, both directions."""
-    from laya.router import Router
+    from rex.router import Router
 
     taken = set(inspect.signature(Router.predict).parameters) - {"self", "state", "questions"}
     declared = set(BODY_CONTROLS) | set(BODY_REFUSALS)
@@ -2284,13 +2284,13 @@ def test_a_language_control_must_be_a_code_string(monkeypatch, key, value):
 
 @pytest.mark.parametrize("value", [1.5, -0.1, True, "0.9"])
 def test_min_confidence_is_validated_by_core(monkeypatch, value):
-    """The bounds belong to `laya.confidence`, so serve must report core's own message.
+    """The bounds belong to `rex.confidence`, so serve must report core's own message.
 
     Comparing against the `ValueError` core raises for the same value is what keeps the accepted
     range from drifting: a restated `[0.0, 1.0]` check here would pass CI on the day core widened
     it and start rejecting requests the abstention gate would have honoured.
     """
-    from laya.confidence import check_min_confidence
+    from rex.confidence import check_min_confidence
 
     try:
         check_min_confidence(value)
@@ -2330,7 +2330,7 @@ def test_an_unknown_task_gets_cores_answer_not_a_500(monkeypatch):
     reports as a 422 carrying its message. Listing the accepted tasks in `serve` instead would be
     a second registry to keep in step -- the failure mode #544 and #638 removed elsewhere.
     """
-    from laya.router import normalise_name
+    from rex.router import normalise_name
 
     class RoutingRouter(BudgetRouter):
         def predict(self, state, questions, model=None, **kwargs):
@@ -2353,7 +2353,7 @@ def test_an_unknown_task_gets_cores_answer_not_a_500(monkeypatch):
 def test_a_hook_control_is_refused_not_dropped(monkeypatch, key):
     """All five used to be read into the body and ignored, so a client got a silent no.
 
-    `laya.integrations.langchain::_reject_remote_hooks` already refuses the same five on a node
+    `rex.integrations.langchain::_reject_remote_hooks` already refuses the same five on a node
     with a `base_url`, on the grounds that a hook runs in the server's process. The endpoint now
     says that itself instead of answering as though the control had been honoured.
     """
@@ -2486,7 +2486,7 @@ def test_batch_call_controls_are_exactly_predict_batch_kwargs_or_refusal():
     ``hooks_timeout`` in #724 applies to the batch path -- a caller cannot shorten the deadline
     on which the operator's own hooks execute.
     """
-    from laya.router import Router
+    from rex.router import Router
 
     taken = set(inspect.signature(Router.predict_batch).parameters) - {"self", "requests"}
     declared = set(BATCH_BODY_CALL_CONTROLS) | set(BODY_REFUSALS)
@@ -2765,7 +2765,7 @@ def test_health_without_an_api_key_is_unchanged(monkeypatch):
 
 def _health_return_keys():
     """The keys `health()` hands back, read out of its own `return` statement."""
-    path = os.path.join(ROOT, "laya", "serve.py")
+    path = os.path.join(ROOT, "rex", "serve.py")
     with open(path, encoding="utf-8") as handle:
         tree = ast.parse(handle.read(), filename=path)
     for node in ast.walk(tree):
@@ -2817,7 +2817,7 @@ def test_http_api_page_documents_exactly_the_health_fields():
 
     # `device` is a device label, not the configuration word: the labels come from the only function
     # that can produce one when nothing is resident.
-    dev_path = os.path.join(ROOT, "laya", "mcp", "device.py")
+    dev_path = os.path.join(ROOT, "rex", "mcp", "device.py")
     with open(dev_path, encoding="utf-8") as handle:
         dev_tree = ast.parse(handle.read(), filename=dev_path)
     labels = set()
@@ -2945,7 +2945,7 @@ def _decision_response_site(rel):
 
 def _route_decision_keys():
     """Every keyword some `RouteDecision(...)` is built with, across all of `_route`'s branches."""
-    path = os.path.join(ROOT, "laya", "router.py")
+    path = os.path.join(ROOT, "rex", "router.py")
     with open(path, encoding="utf-8") as handle:
         tree = ast.parse(handle.read(), filename=path)
     keys = set()
@@ -2975,7 +2975,7 @@ def test_http_api_page_documents_the_decision_response_keys():
     `Agent.predict_batch` builds six keys and `OnnxAgent._infer_batch` builds the same six -- the
     truncation report #174 asked for, and the only place a caller can see that the state it sent was
     cut before the model read it. It showed three of the four `routing` keys (`workflow` is on every
-    branch of `_route`) and four of the eight `laya.lang.analyse()` returns. And it named a
+    branch of `_route`) and four of the eight `rex.lang.analyse()` returns. And it named a
     `lang_guess` key of `routing` that no code path has ever set: `lang_guess` is a *request* control
     (`BODY_CONTROLS`), and the evidence a hint acted on is spelled out in `reason`.
 
@@ -2992,14 +2992,14 @@ def test_http_api_page_documents_the_decision_response_keys():
     response to the request the page itself prints, so the coherence checks at the end can read it as
     one server's answer rather than as six unrelated numbers.
     """
-    from laya.lang import analyse
+    from rex.lang import analyse
 
     page = open(os.path.join(ROOT, "docs", "http-api.md"), encoding="utf-8").read()
     section = page[page.index("### Response"):page.index("### Confidence")]
     sample = json.loads(section.split("```json", 1)[1].split("```", 1)[0])
 
-    torch_site = _decision_response_site(os.path.join("laya", "agent.py"))
-    onnx_site = _decision_response_site(os.path.join("laya", "onnx_agent.py"))
+    torch_site = _decision_response_site(os.path.join("rex", "agent.py"))
+    onnx_site = _decision_response_site(os.path.join("rex", "onnx_agent.py"))
     top, always, optional = torch_site["keys"], torch_site["usage"], torch_site["optional"]
     assert {k: v for k, v in onnx_site.items() if k != "head"} == \
         {k: v for k, v in torch_site.items() if k != "head"}, (
@@ -3092,7 +3092,7 @@ def _answer_literal_keys(rel):
 
 def _gate_written_keys():
     """Every key the abstention gate writes onto an answer, from `laya/confidence.py` itself."""
-    path = os.path.join(ROOT, "laya", "confidence.py")
+    path = os.path.join(ROOT, "rex", "confidence.py")
     with open(path, encoding="utf-8") as handle:
         tree = ast.parse(handle.read(), filename=path)
     written = set()
@@ -3152,8 +3152,8 @@ def test_http_api_page_documents_the_gate_report_on_an_answer():
     section = page[page.index("### Response"):page.index("### Confidence")]
     rows = _md_answer_table(section)
 
-    torch_site = _answer_literal_keys(os.path.join("laya", "agent.py"))
-    onnx_site = _answer_literal_keys(os.path.join("laya", "onnx_agent.py"))
+    torch_site = _answer_literal_keys(os.path.join("rex", "agent.py"))
+    onnx_site = _answer_literal_keys(os.path.join("rex", "onnx_agent.py"))
     assert torch_site == onnx_site, (
         "the two agents build different answers, so the page cannot describe both: torch %s, onnx %s"
         % (torch_site, onnx_site))
@@ -3440,8 +3440,8 @@ def _serve_health_return_keys():
     `LIVENESS_ONLY` is a module-level dict, so the `return LIVENESS_ONLY` branch resolves via
     the module scope; the authorized `return {...}` branch contributes its own keys directly.
     """
-    with open(os.path.join(ROOT, "laya", "serve.py"), encoding="utf-8") as handle:
-        tree = ast.parse(handle.read(), filename="laya/serve.py")
+    with open(os.path.join(ROOT, "rex", "serve.py"), encoding="utf-8") as handle:
+        tree = ast.parse(handle.read(), filename="rex/serve.py")
     module_dicts = {}
     for node in tree.body:
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
@@ -3540,7 +3540,7 @@ def test_jev_strict_projection_page_names_the_projected_keys():
     import re
     from pathlib import Path
 
-    from laya.serve import _project_jev_strict
+    from rex.serve import _project_jev_strict
 
     fixture = {
         "model": "laya-rl-agent",
@@ -3588,7 +3588,7 @@ def test_jev_strict_projection_page_names_the_projected_keys():
 # registry rather than the built-in table, so a registered name pins its
 # checkpoint the same way `english` does.
 def test_extra_models_option_parses_the_json_object(monkeypatch):
-    from laya.serve import _extra_models_option
+    from rex.serve import _extra_models_option
 
     # Unset and blank are "not asked for", like every other option here.
     monkeypatch.delenv("LAYA_EXTRA_MODELS", raising=False)
@@ -3614,7 +3614,7 @@ def test_extra_models_option_parses_the_json_object(monkeypatch):
 
 
 def test_extra_models_option_refuses_a_malformed_value(monkeypatch):
-    from laya.serve import _extra_models_option
+    from rex.serve import _extra_models_option
 
     # The fail-closed rule is `_default_model_option`'s: a checkpoint silently
     # absent from the registry would auto-route its traffic to a different one,
@@ -3668,7 +3668,7 @@ def test_extra_models_refuse_the_names_router_refuses(monkeypatch):
         assert "checkpoint name" in str(raised.value), name
 
     # And a default that names nothing registered is still fatal, unchanged.
-    from laya.serve import build_router
+    from rex.serve import build_router
 
     monkeypatch.setenv("LAYA_PRELOAD", "0")
     monkeypatch.setenv("LAYA_EXTRA_MODELS", '{"my-ckpt": "/tmp/ckpt"}')

@@ -11,12 +11,12 @@ import pytest
 
 pytest.importorskip("mcp")
 
-from laya.mcp import server as mcp_server  # noqa: E402
-from laya.mcp.tools import (  # noqa: E402
+from rex.mcp import server as mcp_server  # noqa: E402
+from rex.mcp.tools import (  # noqa: E402
     ToolError, laya_decide, laya_predict, laya_predict_batch, laya_preset, laya_route, laya_route_batch,
     laya_shortlist, laya_status,
 )
-from laya.mcp.remote import DEFAULT_TIMEOUT_S, RemoteError, RemoteRouter  # noqa: E402
+from rex.mcp.remote import DEFAULT_TIMEOUT_S, RemoteError, RemoteRouter  # noqa: E402
 
 ANSWER = {
     "model": "laya-rl-agent",
@@ -303,7 +303,7 @@ def test_remote_mcp_startup_and_every_tool_avoid_torch(serve):
                 raise AssertionError("remote MCP imported torch")
             return original_import(name, *args, **kwargs)
         builtins.__import__ = no_torch
-        from laya.mcp import server
+        from rex.mcp import server
         server.server.run = lambda: None
         server.main()
         state = {"text": "billed twice"}

@@ -70,12 +70,12 @@ int8_path = os.path.join(tmp, "mini.int8.onnx")
 x = _build_model(fp32_path)
 
 # ---------------------------------------------------------------- int8_output_path
-check("naming/laya.onnx -> laya.int8.onnx", export_onnx.int8_output_path("laya.onnx"),
-      "laya.int8.onnx")
+check("naming/laya.onnx -> rex.int8.onnx", export_onnx.int8_output_path("rex.onnx"),
+      "rex.int8.onnx")
 check("naming/keeps the directory", export_onnx.int8_output_path("/models/laya.onnx"),
       "/models/laya.int8.onnx")
 check("naming/extensionless input still gets .onnx", export_onnx.int8_output_path("laya"),
-      "laya.int8.onnx")
+      "rex.int8.onnx")
 
 # ---------------------------------------------------------------- quantize_model
 out = export_onnx.quantize_model(fp32_path, int8_path)

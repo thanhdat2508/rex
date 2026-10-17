@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "laya"
+name = "rex"
 version = "0.4.1"
 description = "Fast, non-autoregressive System 1 decision engine with calibrated probabilities"
 readme = "README.md"
@@ -37,22 +37,22 @@ dependencies = [
 packages = ["rex", "rex.backends", "rex.mcp", "rex.integrations"]
 
 [project.optional-dependencies]
-# `pip install laya[serve]` adds the HTTP server (laya.serve / the laya-serve CLI).
+# `pip install rex[serve]` adds the HTTP server (rex.serve / the rex-serve CLI).
 serve = [
     "fastapi>=0.110.0",
     "uvicorn>=0.27.0",
     "python-multipart>=0.0.9",  # examples/server.py form uploads
 ]
-# `pip install laya[fast]` adds the TileLang GPU fast path (laya/fast.py); everything else works without it.
+# `pip install rex[fast]` adds the TileLang GPU fast path (rex/fast.py); everything else works without it.
 fast = ["tilelang>=0.1.14"]
 
-# `pip install laya[mcp]` adds the MCP stdio server (laya.mcp / the laya-mcp-server CLI).
+# `pip install rex[mcp]` adds the MCP stdio server (rex.mcp / the rex-mcp-server CLI).
 mcp = ["mcp>=2.2.0"]
 
-# `pip install laya[structured]` adds pydantic for the typed-model helpers (laya/structured.py).
+# `pip install rex[structured]` adds pydantic for the typed-model helpers (rex/structured.py).
 structured = ["pydantic>=2.0.0"]
 
-# `pip install laya[onnx]` adds ONNX Runtime for `laya.onnx_agent` and `onnxscript`, which
+# `pip install rex[onnx]` adds ONNX Runtime for `rex.onnx_agent` and `onnxscript`, which
 # `torch.onnx.export` requires (`scripts/export_onnx.py`, `tests/test_onnx.py`).
 #
 # The NumPy cap is not about ONNX: the extra's own resolution (onnx -> ml-dtypes) otherwise
@@ -60,9 +60,8 @@ structured = ["pydantic>=2.0.0"]
 # available" when it converts a tensor against 2.x, which `predict()` needs for its final
 # `.numpy()`. This package declares `torch>=2.0.0`, so the extra must not force a NumPy the
 # declared floor cannot use.
-#
 # It is scoped by marker rather than written as a blanket `numpy<3`, because a hard upper cap
-# binds every `laya[onnx]` install -- including the many on a current torch -- and makes the
+# binds every `rex[onnx]` install -- including the many on a current torch -- and makes the
 # extra unresolvable next to anything else requiring `numpy>=2`. The marker names the stack this
 # actually affects: the macOS/Intel checkout (#948), where torch tops out at 2.2.2 and NumPy 1.26
 # satisfies onnx, onnxruntime and onnxscript. Every other platform resolves what `onnx` wants,
@@ -70,7 +69,7 @@ structured = ["pydantic>=2.0.0"]
 onnx = ["onnx", "onnxruntime", "onnxscript",
         "numpy<3; platform_system == 'Darwin' and platform_machine == 'x86_64'"]
 
-# `pip install laya[langchain]` adds the LangChain / LangGraph integrations (laya.integrations).
+# `pip install rex[langchain]` adds the LangChain / LangGraph integrations (rex.integrations).
 langchain = [
     "langchain-core>=0.2.0",
     "langgraph>=0.1.0",
@@ -80,23 +79,28 @@ langgraph = [
     "langgraph>=0.1.0",
 ]
 
-# `pip install laya[llamaindex]` adds the LlamaIndex query router & selector integrations (laya.integrations).
+# `pip install rex[llamaindex]` adds the LlamaIndex query router & selector integrations (rex.integrations).
 llamaindex = [
     "llama-index-core>=0.10.0",
 ]
 
-# `pip install laya[crewai]` adds the CrewAI multi-agent delegation router (laya.integrations).
+# `pip install rex[crewai]` adds the CrewAI multi-agent delegation router (rex.integrations).
 crewai = [
     "crewai>=0.28.0",
 ]
 
 [project.scripts]
-laya = "laya.cli:main"
-laya-serve = "laya.serve:main"
-laya-evals = "laya.evals_cli:main"
-laya-mcp-server = "laya.mcp.server:main"
-laya-train = "laya.train_cli:main"
+rex = "rex.cli:main"
+rex-serve = "rex.serve:main"
+rex-evals = "rex.evals_cli:main"
+rex-mcp-server = "rex.mcp.server:main"
+rex-train = "rex.train_cli:main"
+laya = "rex.cli:main"
+laya-serve = "rex.serve:main"
+laya-evals = "rex.evals_cli:main"
+laya-mcp-server = "rex.mcp.server:main"
+laya-train = "rex.train_cli:main"
 
 [project.urls]
-Homepage = "https://huggingface.co/convaiinnovations/laya"
-Demo = "https://huggingface.co/spaces/convaiinnovations/laya-demo"
+Homepage = "https://github.com/RequinLabs/rex"
+Repository = "https://github.com/RequinLabs/rex"

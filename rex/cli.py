@@ -29,7 +29,10 @@ import argparse
 import json
 import sys
 
-import laya
+try:
+    import rex as laya
+except Exception:
+    import laya
 
 # Ready-made question presets a prediction can run instead of router_questions().
 PRESETS = {
@@ -57,14 +60,14 @@ def model_name(value):
 
     ``argparse``'s ``choices=`` compared strings exactly, so ``--model en`` was rejected with
     "invalid choice" even though the call this flag feeds -- ``router.predict(model=...)`` --
-    has always accepted it. ``laya.router.normalise_name`` is the one registry of checkpoints and
+    has always accepted it. ``rex.router.normalise_name`` is the one registry of checkpoints and
     aliases, so delegating here cannot fall behind it, and the name that reaches the router is
     already canonical: what a caller prints is the checkpoint, not its spelling. ``auto`` means
     "do not pin one", which is what omitting the flag means, so it maps to ``None``.
     """
     if value.strip().lower() == "auto":
         return None
-    from laya.router import normalise_name
+    from .router import normalise_name
 
     try:
         return normalise_name(value)
@@ -75,12 +78,12 @@ def model_name(value):
 def min_confidence_value(value):
     """Resolve a `--min-confidence` argument through core's own validator, so the range is core's.
 
-    ``laya.confidence.check_min_confidence`` is what ``Router.predict`` and ``Router.predict_batch``
+    ``rex.confidence.check_min_confidence`` is what ``Router.predict`` and ``Router.predict_batch``
     run this argument through, so a threshold this flag accepts is exactly one the call accepts --
     including the boolean and the infinite value that ``float()`` alone waves through
     (``--min-confidence inf`` would ask for a gate no answer can clear).
     """
-    from laya.confidence import check_min_confidence
+    from .confidence import check_min_confidence
 
     try:
         number = float(value)
@@ -95,8 +98,8 @@ def min_confidence_value(value):
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        prog="laya",
-        description="Test Laya locally: route or answer a request from the command line.",
+        prog="rex",
+        description="Test Rex locally: route or answer a request from the command line.",
     )
     parser.add_argument("text", nargs="*", help="the request text (omit for interactive mode)")
     parser.add_argument("--predict", action="store_true",

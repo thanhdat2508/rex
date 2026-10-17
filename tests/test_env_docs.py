@@ -48,7 +48,7 @@ PASS: List[str] = []
 FAIL: List[str] = []
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PACKAGE = os.path.join(ROOT, "laya")
+PACKAGE = os.path.join(ROOT, "rex")
 NAME = re.compile(r"\bLAYA_[A-Z0-9_]+\b")
 
 # Markdown a user reads for configuration. The package's own docstrings are deliberately
@@ -64,7 +64,7 @@ DEFERRED: dict = {}
 
 # The half-precision spellings a document could offer for the two AMP names. Kept as the closed
 # universe of things a prose site can mean rather than as an accepted list: the accepted list is
-# derived from laya/agent.py below, and a spelling outside this set (`fp32`, `int8`) is not a
+# derived from rex/agent.py below, and a spelling outside this set (`fp32`, `int8`) is not a
 # value anyone offers -- it is what the forward falls back to, and pages name it for that.
 DTYPE_SPELLINGS = ("fp16", "float16", "bf16", "bfloat16")
 AMP_VARS = ("LAYA_CUDA_AMP", "LAYA_CPU_AMP")
@@ -314,7 +314,7 @@ def main() -> int:
     # the gate cannot fall behind the code the way the two prose sites did.
     cuda, cpu = amp_accepted("LAYA_CUDA_AMP"), amp_accepted("LAYA_CPU_AMP")
     accepted = {"LAYA_CUDA_AMP": cuda, "LAYA_CPU_AMP": cpu}
-    check_true("amp/the dtype vocabularies came from laya/agent.py",
+    check_true("amp/the dtype vocabularies came from rex/agent.py",
                bool(cuda) and bool(cpu) and cuda != cpu,
                "cuda=%s cpu=%s -- if the lookups stop being literal `in (...)` tuples this needs "
                "retargeting; if they start agreeing, the CPU option's cross-reference is stale"
@@ -361,7 +361,7 @@ def main() -> int:
                {v for _f, v in claim_sites} == set(AMP_VARS),
                "claims compared: %s" % sorted(claim_sites))
     check_true("amp/the package's own docstrings are in the claim sweep",
-               any(f == "laya/agent.py" for f, _v in claim_sites),
+               any(f == "rex/agent.py" for f, _v in claim_sites),
                "claims compared: %s -- if laya/agent.py stops carrying a sentence that lists an "
                "accepted dtype, the prose site this sweep was written for moved" % sorted(claim_sites))
 
@@ -388,7 +388,7 @@ def main() -> int:
         print("all %d LAYA_* names the package reads appear in the docs" % len(pkg))
         print("all %d documented names are consumed somewhere in the tree" % len(docs))
         for var in AMP_VARS:
-            print("laya/agent.py compares %s against %s" % (var, sorted(accepted[var])))
+            print("rex/agent.py compares %s against %s" % (var, sorted(accepted[var])))
         print("%d row(s) and %d completeness claim(s) held to that set: %s / %s"
               % (len(rows_sites), len(claim_sites), sorted(rows_sites), sorted(claim_sites)))
         for name, why in sorted(DEFERRED.items()):

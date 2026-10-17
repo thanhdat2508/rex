@@ -21,7 +21,7 @@ try:
 except ImportError:
     t = types.ModuleType("torch")
     # laya/common.py annotates `proper_reward` with both at module scope, so importing
-    # laya.agent through this stub needs them present even though no test touches a tensor.
+    # rex.agent through this stub needs them present even though no test touches a tensor.
     t.Tensor = type("Tensor", (), {})
     t.dtype = type("dtype", (), {})
     t.cuda = types.ModuleType("torch.cuda")
@@ -46,7 +46,7 @@ except ImportError:
     sys.modules["torch.utils.checkpoint"] = t.utils.checkpoint
 
 
-from laya.agent import _InferenceGate
+from rex.agent import _InferenceGate
 
 PASS, FAIL = [], []
 

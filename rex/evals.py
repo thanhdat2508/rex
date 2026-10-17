@@ -218,18 +218,21 @@ def file_fingerprint(path: str) -> str:
 
 
 def _library_version() -> Optional[str]:
-    """`laya.__version__`, read lazily so this module stays importable on its own.
+    """`rex.__version__`, read lazily so this module stays importable on its own.
 
-    `laya/__init__.py` defines the string at import time, so this is a module lookup rather
+    `rex/__init__.py` defines the string at import time, so this is a module lookup rather
     than a load of anything torch-backed -- but it is imported inside the call to keep
-    `laya.evals` free of an import cycle, and a failure here must not fail a run that has
+    `rex.evals` free of an import cycle, and a failure here must not fail a run that has
     already scored every row.
     """
     try:
-        import laya
+        import rex as _lib
     except Exception:  # pragma: no cover - identity only
-        return None
-    return getattr(laya, "__version__", None)
+        try:
+            import laya as _lib
+        except Exception:
+            return None
+    return getattr(_lib, "__version__", None)
 
 
 #: Which definition of the coverage metrics (`aurc`, `selective_accuracy@*`) produced a report.

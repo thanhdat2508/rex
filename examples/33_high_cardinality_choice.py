@@ -8,9 +8,9 @@ a 77-option (Banking77) question, then raises the budgets to show the answer and
 recover.
 """
 
-from _common import laya, banner, device_line, load
+from _common import rex, banner, device_line, load
 
-from laya.common import build_head, build_sequence
+from rex.common import build_head, build_sequence
 
 banner("33", "High-cardinality choice", """
     Laya formats a call as:
@@ -92,7 +92,7 @@ def internal(question):
 def option_lengths(tok, question):
     """Tokens per option before the squeeze, capped at 48 exactly as `build_sequence` does."""
     lengths = []
-    for opt in laya.render_options(internal(question)):
+    for opt in rex.render_options(internal(question)):
         body = tok(" " + opt.replace(tok.mask_token, " "), add_special_tokens=False)["input_ids"]
         lengths.append(1 + len(body[:48]))          # +1 for the option's own [MASK]
     return lengths

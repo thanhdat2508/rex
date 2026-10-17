@@ -35,8 +35,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import torch  # noqa: E402
 
-from laya import agent as _agent  # noqa: E402
-from laya.common import _apply_rope_config  # noqa: E402
+from rex import agent as _agent  # noqa: E402
+from rex.common import _apply_rope_config  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -380,7 +380,7 @@ check_true("encoding/the scan sees both open() and Path.read_text()",
 # Without one such page the rule is a style preference, not a crash guard.
 _repo_text = []
 for _pattern in ("README.md", os.path.join("docs", "**", "*.md"),
-                 os.path.join("examples", "*.py"), os.path.join("laya", "*.py")):
+                 os.path.join("examples", "*.py"), os.path.join("rex", "*.py")):
     _repo_text.extend(glob.glob(os.path.join(REPO, _pattern), recursive=True))
 _undecodable = []
 for _page in _repo_text:

@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 
-from laya.common import (  # noqa: E402
+from rex.common import (  # noqa: E402
     QTYPES,
     QTYPE_NAMES,
     amp_dtype,

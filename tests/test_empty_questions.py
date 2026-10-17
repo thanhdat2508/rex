@@ -21,12 +21,12 @@ from tokenizers import Tokenizer  # noqa: E402
 from tokenizers.models import WordLevel  # noqa: E402
 from transformers import BertConfig, BertModel, PreTrainedTokenizerFast  # noqa: E402
 
-from laya.agent import Agent  # noqa: E402
-from laya.common import DecisionModel  # noqa: E402
+from rex.agent import Agent  # noqa: E402
+from rex.common import DecisionModel  # noqa: E402
 # `laya/onnx_agent.py` imports onnxruntime inside a function, not at module scope, so this
 # import is safe in an environment without it -- which is the case for the Windows CI job that
 # runs this file. ONNXAgent.__new__ skips __init__, so no session and no checkpoint are needed.
-from laya.onnx_agent import ONNXAgent  # noqa: E402
+from rex.onnx_agent import ONNXAgent  # noqa: E402
 
 
 class _FakeOnnxTok:
@@ -109,8 +109,8 @@ class EmptyQuestionsTests(unittest.TestCase):
     def test_empty_questions_skip_tokenization_batching_and_forward(self):
         self.agent.tok = Mock(side_effect=AssertionError("unexpected tokenization"))
         self.agent.model = Mock(side_effect=AssertionError("unexpected forward pass"))
-        with patch("laya.agent.build_sequence", side_effect=AssertionError("unexpected encoding")) as encode, \
-                patch("laya.agent.collate_items", side_effect=AssertionError("unexpected batching")) as collate:
+        with patch("rex.agent.build_sequence", side_effect=AssertionError("unexpected encoding")) as encode, \
+                patch("rex.agent.collate_items", side_effect=AssertionError("unexpected batching")) as collate:
             self.assertEqual(self.agent.predict("hello", {}), self.empty)
             self.assertEqual(self.agent.system_one("hello", {}), self.empty)
         encode.assert_not_called()

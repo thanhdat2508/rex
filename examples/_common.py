@@ -14,7 +14,7 @@ no local copy -- and the first MPS call pays Metal kernel compilation, so anythi
 latency warms up first.
 
 This module also imports `laya` for you -- after setting `USE_TF=0`, because a stray TensorFlow
-install can deadlock model loading. Examples therefore do `from _common import laya, ...` rather
+install can deadlock model loading. Examples therefore do `from _common import rex, ...` rather
 than importing it themselves first, which would defeat the guard.
 """
 import os
@@ -29,8 +29,10 @@ os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)          # repository root; <root>/laya/email.py must not shadow stdlib email
 
-import laya  # noqa: E402
-from laya.router import Router  # noqa: E402
+import rex  # noqa: E402
+from rex.router import Router  # noqa: E402
+
+laya = rex  # backward compatibility alias
 
 BUNDLE_REPO = "convaiinnovations/laya"
 _SUBFOLDER = {
@@ -114,8 +116,8 @@ def load(name="english", device=None):
     `device=None` lets Laya pick: CUDA, then MPS, then CPU.
     """
     if has_local(name):
-        return laya.load(LOCAL_MODELS[name], device=device)
-    return laya.load(BUNDLE_REPO, subfolder=_SUBFOLDER[name], device=device)
+        return rex.load(LOCAL_MODELS[name], device=device)
+    return rex.load(BUNDLE_REPO, subfolder=_SUBFOLDER[name], device=device)
 
 
 def router(device=None, **kwargs):

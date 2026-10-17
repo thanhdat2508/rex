@@ -5,7 +5,7 @@ act automatically at 0.85 or above, hand the rest to a human -- reading back, pe
 temperature that probability was actually scaled by.
 """
 from _common import banner, describe, device_line, heading, load
-from laya.common import QTYPES, temp_bucket
+from rex.common import QTYPES, temp_bucket
 
 banner("18", "Confidence gating", """
     The production pattern from the README. Gate on `answer_confidence`: the probability Laya

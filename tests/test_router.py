@@ -7,9 +7,9 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.common import QTYPES, TEMP_MAX, TEMP_MIN, clamp_temperature, temp_bucket  # noqa: E402
-from laya.lang import analyse, detect_script, guess_latin_language, is_english, state_text  # noqa: E402
-from laya.router import (  # noqa: E402
+from rex.common import QTYPES, TEMP_MAX, TEMP_MIN, clamp_temperature, temp_bucket  # noqa: E402
+from rex.lang import analyse, detect_script, guess_latin_language, is_english, state_text  # noqa: E402
+from rex.router import (  # noqa: E402
     BUNDLE_REPO,
     DEFAULT_MODELS,
     STANDALONE_MODELS,
@@ -699,7 +699,7 @@ for text in [
     check("route/banglish control " + text[:32], _r_lat.route(text).model, "english")
 # ...and no other language may move either: the `bn` list claims no word another list holds, and
 # leaves out Romance words such as `ora`, `nei`, `vai`.
-from laya.lang import _STOP  # noqa: E402
+from rex.lang import _STOP  # noqa: E402
 check("latin_lang/bn list shares no word with another list",
       sorted(w for w in _STOP.get("bn", ()) for lg, words in _STOP.items() if lg != "bn" and w in words), [])
 check("latin_lang/romanian with ei stays romanian",
@@ -951,7 +951,7 @@ check("override/local path kept", r_local.route({"m": "मुझसे दो �
 
 # --------------------------------------------------------------------- preload
 # Exercise the real preload/load/LRU paths; only checkpoint construction is stubbed.
-with patch("laya.agent.Agent", side_effect=lambda repo, **kw: _Stub(repo)) as build:
+with patch("rex.agent.Agent", side_effect=lambda repo, **kw: _Stub(repo)) as build:
     rp = Router(preload=True)
     check("preload/all three stay resident", sorted(rp.loaded),
           ["english", "multilingual", "typed-decisions"])
@@ -1032,7 +1032,7 @@ check("attach/accepts aliases", stubbed_router(1).attach("en", _Stub("x")) is no
 
 def _concurrent_load_dedup():
     """Concurrent load() of the same checkpoint must build one Agent, shared by all callers."""
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
     constructions = []
     cl = threading.Lock()
 
@@ -1071,7 +1071,7 @@ check("threads/LRU views stay consistent", (order_len == 1 and agents == ["engli
 
 def _concurrent_hotpath():
     """Concurrent hot-path loads of an already-cached model must keep _order/_agents consistent."""
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
 
     class _Agent:
         def __init__(self, *args, **kwargs):
@@ -1111,7 +1111,7 @@ def _cold_build_does_not_hold_lifecycle_lock():
     `GET /health` (which reads `loaded`) and every request for an already-resident checkpoint wait
     for it, so a liveness probe timed out during a lazy load.
     """
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
     building, release = threading.Event(), threading.Event()
     constructions = []
 
@@ -1172,7 +1172,7 @@ def _on_load_reenters_router(target, hooks_concurrent):
     after releasing it. Returns whether the outer load finished, the agent the hook got back,
     the outer agent, and what ended up loaded.
     """
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
 
     class _FastAgent:
         def __init__(self, *args, **kwargs):
@@ -1214,7 +1214,7 @@ def _test_per_checkpoint_unload_granularity():
     unload("multilingual") must wait for its own in-flight build, and resident access
     (r.loaded and r.load("english")) must remain non-blocking while multilingual builds.
     """
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
     multi_building = threading.Event()
     multi_release = threading.Event()
 
@@ -1302,7 +1302,7 @@ check("threads/multilingual not resident after unload", multi_resident_after, Fa
 
 def _test_concurrent_load_same_checkpoint_dedup():
     """Concurrent loads for the same checkpoint must construct exactly one Agent."""
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
     build_started = threading.Event()
     build_release = threading.Event()
     constructions = []
@@ -1343,7 +1343,7 @@ check("threads/all concurrent callers complete", total_callers, 5)
 
 def _test_attach_during_build_wins():
     """attach() called while a build is in flight must win without being overwritten."""
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
     build_started = threading.Event()
     build_release = threading.Event()
 
@@ -1386,7 +1386,7 @@ check("threads/attach during build remains resident", resident_won, True)
 
 def _test_failed_build_cleans_inflight_and_allows_retry():
     """Failed builds clean up in-flight state, propagate exceptions, and allow retry."""
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
     fail_first = [True]
 
     class _FailingAgent:
@@ -1445,7 +1445,7 @@ check("threads/retried load lands in resident set", retried_res, True)
 
 def _test_waiting_callers_no_deadlock():
     """Concurrent mix of loads and unloads on same and different models must not deadlock."""
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
 
     class _FastAgent:
         def __init__(self, *args, **kwargs):
@@ -1478,7 +1478,7 @@ check("threads/all in-flight markers cleared after completion", loading_empty, T
 
 def _test_unload_reload_sequence_no_resurrection():
     """An older in-flight build cannot resurrect the model after an unload/reload sequence."""
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
     first_build_started = threading.Event()
     first_build_release = threading.Event()
     agent_instances = []
@@ -1624,7 +1624,7 @@ check("lang-code/posix with a modifier abstains", _english_from_code("POSIX-1"),
 # --------------------------------------------------------------------- registered checkpoints
 # A Router serves the checkpoints a caller registers beside the built-in three: named in `model=`
 # or `task=` like them, and loaded, evicted and unloaded like them.
-from laya.router import canonical_name  # noqa: E402
+from rex.router import canonical_name  # noqa: E402
 
 check("registry/canonical lowercases and aliases", canonical_name(" ML "), "multilingual")
 check("registry/canonical leaves an unknown name as typed", canonical_name("Papers"), "papers")
@@ -1692,7 +1692,7 @@ except ValueError as _e:
     check("register/auto is refused", "auto" in str(_e), True)
 
 # an attach()ed agent with no source is not part of a whole-router preload.
-with patch("laya.agent.Agent", side_effect=lambda repo, **kw: _Stub(repo)) as _build_att:
+with patch("rex.agent.Agent", side_effect=lambda repo, **kw: _Stub(repo)) as _build_att:
     _r_att = Router()
     _r_att.attach("mine", _Stub("mine"))
     _r_att.unload("mine")
@@ -1754,7 +1754,7 @@ except ValueError as e:
     check("attach/reload without a source is refused", "no source" in str(e), True)
 
 # load() hands a registered local path or repo to Agent as a source, not as a registry name.
-import laya.agent as _agent_for_registry
+import rex.agent as _agent_for_registry
 _built = []
 
 
@@ -1874,7 +1874,7 @@ def _swallow(fn, *args):
 
 def _test_unregister_during_build_leaves_no_zombie():
     """unregister waits for a build already in flight and leaves nothing under the dropped name."""
-    import laya.agent as _agent_mod
+    import rex.agent as _agent_mod
     started, release = threading.Event(), threading.Event()
 
     class _Slow:

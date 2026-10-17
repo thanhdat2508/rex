@@ -7,8 +7,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import laya  # noqa: E402
-from laya.structured import (  # noqa: E402
+import rex  # noqa: E402
+from rex.structured import (  # noqa: E402
     SchemaError,
     answers_to_json,
     answer_to_pydantic,
@@ -342,7 +342,7 @@ check("batch/forwards predict kwargs", batch_runner.calls[0]["kwargs"],
 
 # return_details: one DecisionResult per state with the usual fields
 details = decide_batch(FakeBatchRunner(BATCH_ANSWERS), STATES, schema=SCHEMA, return_details=True)
-check_true("batch/details are DecisionResult", all(isinstance(d, laya.DecisionResult) for d in details))
+check_true("batch/details are DecisionResult", all(isinstance(d, rex.DecisionResult) for d in details))
 check("batch/details values", [d.values["department"] for d in details], ["billing", "sales"])
 check("batch/details confidence", details[0].confidence["department"], 0.9)
 check("batch/details routing", details[0].routing, {"model": "english"})
@@ -404,7 +404,7 @@ class StubCheckpoint:
 
 
 def stub_router():
-    router = laya.Router()
+    router = rex.Router()
     stubs = {name: StubCheckpoint(name) for name in ("english", "multilingual")}
     for name, stub in stubs.items():
         router.attach(name, stub)
@@ -499,14 +499,14 @@ except ImportError:
 
 
 # --------------------------------------------------------------- exports and methods
-check("export/decide", callable(laya.decide), True)
-check("export/decide_batch", callable(laya.decide_batch), True)
-check("export/DecisionResult", hasattr(laya, "DecisionResult"), True)
-check("method/Agent.decide", callable(getattr(laya.Agent, "decide", None)), True)
-check("method/Agent.decide_batch", callable(getattr(laya.Agent, "decide_batch", None)), True)
-check("method/Router.decide", callable(getattr(laya.Router, "decide", None)), True)
-check("method/Router.decide_batch", callable(getattr(laya.Router, "decide_batch", None)), True)
-from laya.onnx_agent import ONNXAgent  # noqa: E402
+check("export/decide", callable(rex.decide), True)
+check("export/decide_batch", callable(rex.decide_batch), True)
+check("export/DecisionResult", hasattr(rex, "DecisionResult"), True)
+check("method/Agent.decide", callable(getattr(rex.Agent, "decide", None)), True)
+check("method/Agent.decide_batch", callable(getattr(rex.Agent, "decide_batch", None)), True)
+check("method/Router.decide", callable(getattr(rex.Router, "decide", None)), True)
+check("method/Router.decide_batch", callable(getattr(rex.Router, "decide_batch", None)), True)
+from rex.onnx_agent import ONNXAgent  # noqa: E402
 
 check("method/ONNXAgent.decide", callable(getattr(ONNXAgent, "decide", None)), True)
 

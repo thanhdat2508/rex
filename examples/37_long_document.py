@@ -6,7 +6,7 @@ a long multilingual document survives at the default, raises the window at runti
 shows that which *end* of the state survives is decided by the state's own type.
 """
 from _common import banner, device_line, heading, load
-from laya.common import build_sequence, serialize_state, state_room
+from rex.common import build_sequence, serialize_state, state_room
 
 banner("37", "Long documents and truncation", """
     `laya-multilingual` defaults to max_len=1024 (head_max_len=256). The configured split

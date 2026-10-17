@@ -29,10 +29,10 @@ from tokenizers.models import WordLevel  # noqa: E402
 from torch._dynamo.eval_frame import OptimizedModule  # noqa: E402
 from transformers import BertConfig, BertModel, PreTrainedTokenizerFast  # noqa: E402
 
-from laya import Agent, load  # noqa: E402
-from laya.common import DecisionModel  # noqa: E402
-from laya.revisions import PINNED_REVISIONS  # noqa: E402
-from laya.onnx_agent import ONNXAgent  # noqa: E402
+from rex import Agent, load  # noqa: E402
+from rex.common import DecisionModel  # noqa: E402
+from rex.revisions import PINNED_REVISIONS  # noqa: E402
+from rex.onnx_agent import ONNXAgent  # noqa: E402
 
 
 class _NoRuntime:
@@ -124,7 +124,7 @@ class DownloadTests(unittest.TestCase):
 
     def test_a_checkpoint_name_or_alias_reaches_the_same_download_as_a_repo_id(self):
         # #780: `Router` resolved `english` / `typed-decisions` / `ml`, but `load()` forwarded the
-        # same word to the Hub as a repo id, so `laya.load("typed-decisions")` 404'd. One registry
+        # same word to the Hub as a repo id, so `rex.load("typed-decisions")` 404'd. One registry
         # now serves both, and this asserts the transport the name produces is the one the spelled
         # -out `repo_id` + `subfolder` pair already produces.
         for name, repo_id, subfolder in [("english", "convaiinnovations/laya", None),
@@ -257,7 +257,7 @@ class DownloadTests(unittest.TestCase):
 
     def test_router_publishes_the_pinned_commit(self):
         """`/health`'s `revisions` block is `Router.loaded_revisions`, so the pin shows up there."""
-        from laya import Router
+        from rex import Router
 
         bundle = "convaiinnovations/laya"
         with patch.dict(os.environ), patch("huggingface_hub.snapshot_download",
@@ -274,14 +274,14 @@ class DownloadTests(unittest.TestCase):
 
     def test_the_onnx_loader_resolves_through_the_same_function(self):
         """`ONNXAgent` must not grow its own copy of the rule, or the env pin covers one loader."""
-        from laya import onnx_agent, revisions
+        from rex import onnx_agent, revisions
 
         self.assertIs(onnx_agent.resolve_revision, revisions.resolve_revision)
 
     def test_the_base_encoder_load_ignores_the_environment(self):
         """`common.build_model`'s training-time load is a different repository, with no reviewed
         SHA to resolve to, so `LAYA_REVISION` deliberately does not reach it."""
-        import laya.common as common
+        import rex.common as common
 
         seen = {}
 
@@ -305,7 +305,7 @@ class DownloadTests(unittest.TestCase):
         unreachable = (set(inspect.signature(Agent.__init__).parameters) - {"self"}
                        - set(inspect.signature(load).parameters))
         self.assertEqual(unreachable, set(),
-                         "laya.load cannot set: %s" % ", ".join(sorted(unreachable)))
+                         "rex.load cannot set: %s" % ", ".join(sorted(unreachable)))
 
     def test_compile_true_wraps_the_model_loaded_by_load(self):
         # The observable `Agent.__init__` produces for compile=True, reached through load().

@@ -13,7 +13,7 @@ import warnings
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.agent import _fix_tokenizer_config  # noqa: E402
+from rex.agent import _fix_tokenizer_config  # noqa: E402
 
 PASS, FAIL = [], []
 

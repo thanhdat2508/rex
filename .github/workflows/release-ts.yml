@@ -1,6 +1,6 @@
-name: Release TypeScript (laya-ts)
+name: Release TypeScript (rex-ts)
 
-# Tag a commit laya-ts-v0.1.0 and push it; this runs tests, verifies the version
+# Tag a commit rex-ts-v0.1.0 and push it; this runs tests, verifies the version
 # matches the tag, packs the artifact, publishes to npm with provenance, and
 # attaches the tarball to a GitHub Release.
 #
@@ -9,7 +9,7 @@ name: Release TypeScript (laya-ts)
 
 on:
   push:
-    tags: ["laya-ts-v*"]
+    tags: ["rex-ts-v*"]
   workflow_dispatch:
 
 permissions:
@@ -22,14 +22,14 @@ jobs:
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: laya-ts
+        working-directory: rex-ts
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: laya-ts/package-lock.json
+          cache-dependency-path: rex-ts/package-lock.json
 
       - run: npm ci
 
@@ -40,10 +40,10 @@ jobs:
         run: npm run test:package
 
       - name: Version matches tag
-        if: startsWith(github.ref, 'refs/tags/laya-ts-v')
+        if: startsWith(github.ref, 'refs/tags/rex-ts-v')
         run: |
           pkg=$(node -p "require('./package.json').version")
-          tag="${GITHUB_REF_NAME#laya-ts-v}"
+          tag="${GITHUB_REF_NAME#rex-ts-v}"
           echo "package.json=$pkg tag=$tag"
           test "$pkg" = "$tag" || { echo "::error::package.json version $pkg does not match tag $tag"; exit 1; }
 
@@ -52,52 +52,50 @@ jobs:
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: laya-ts-dist
-          path: laya-ts/dist/*.tgz
+          name: rex-ts-dist
+          path: rex-ts/dist/*.tgz
 
-  npm:
-    name: Publish to npm
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/laya-ts-v')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: npm
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-          registry-url: "https://registry.npmjs.org"
+  # npm:
+  #   name: Publish to npm
+  #   needs: build
+  #   if: startsWith(github.ref, 'refs/tags/rex-ts-v')
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   steps:
+  #     - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+  #       with:
+  #         node-version: "22"
+  #         registry-url: "https://registry.npmjs.org"
 
-      - name: Upgrade npm for OIDC Trusted Publishing support
-        run: npm install -g npm@latest
+  #     - name: Upgrade npm for OIDC Trusted Publishing support
+  #       run: npm install -g npm@latest
+  #     - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+  #       with:
+  #         name: rex-ts-dist
+  #         path: dist
 
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: laya-ts-dist
-          path: dist
-
-      - name: Publish to npm with provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          tarball=$(ls dist/laya-ts-*.tgz)
-          tag="${GITHUB_REF_NAME#laya-ts-v}"
-          if [[ "$tag" == *-* ]]; then
-            DIST_TAG="next"
-            echo "Prerelease detected ($tag). Publishing under dist-tag: $DIST_TAG"
-          else
-            DIST_TAG="latest"
-            echo "Stable release detected ($tag). Publishing under dist-tag: $DIST_TAG"
-          fi
-          npm publish "$tarball" --access public --provenance --tag "$DIST_TAG"
+  #     - name: Publish to npm with provenance
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  #       run: |
+  #         tarball=$(ls dist/rex-ts-*.tgz)
+  #         tag="${GITHUB_REF_NAME#rex-ts-v}"
+  #         if [[ "$tag" == *-* ]]; then
+  #           DIST_TAG="next"
+  #           echo "Prerelease detected ($tag). Publishing under dist-tag: $DIST_TAG"
+  #         else
+  #           DIST_TAG="latest"
+  #           echo "Stable release detected ($tag). Publishing under dist-tag: $DIST_TAG"
+  #         fi
+  #         npm publish "$tarball" --access public --provenance --tag "$DIST_TAG"
 
   github_release:
     name: Attach to GitHub Release
-    needs: [build, npm]
-    if: startsWith(github.ref, 'refs/tags/laya-ts-v')
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/rex-ts-v')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -109,14 +107,14 @@ jobs:
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: laya-ts-dist
+          name: rex-ts-dist
           path: dist
 
       - name: Publish or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${GITHUB_REF_NAME#laya-ts-v}"
+          tag="${GITHUB_REF_NAME#rex-ts-v}"
           PRERELEASE_FLAG=""
           if [[ "$tag" == *-* ]]; then
             PRERELEASE_FLAG="--prerelease"

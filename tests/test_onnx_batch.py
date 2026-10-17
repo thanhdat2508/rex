@@ -21,10 +21,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np  # noqa: E402
 
-from laya.agent import Agent  # noqa: E402
-from laya.common import clamp_temperature  # noqa: E402
-from laya.onnx_agent import ONNXAgent  # noqa: E402
-from laya.router import Router  # noqa: E402
+from rex.agent import Agent  # noqa: E402
+from rex.common import clamp_temperature  # noqa: E402
+from rex.onnx_agent import ONNXAgent  # noqa: E402
+from rex.router import Router  # noqa: E402
 
 PASS, FAIL = [], []
 

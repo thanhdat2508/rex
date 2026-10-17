@@ -77,7 +77,7 @@ class CheckpointsTests(unittest.TestCase):
 
     def write_manifest(self, **kwargs):
         path = self.root / "checkpoints.json"
-        path.write_text(json.dumps(manifest_for("laya/model.safetensors", **kwargs)))
+        path.write_text(json.dumps(manifest_for("rex/model.safetensors", **kwargs)))
         return path
 
     def run_script(self, manifest_path, *extra):

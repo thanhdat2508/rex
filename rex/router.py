@@ -500,7 +500,7 @@ class _InFlightBuild:
 class Router(HookRegistry):
     """Lazily loads Laya checkpoints and sends each request to the right one.
 
-        from laya import Router
+        from rex import Router
 
         r = Router()
         r.predict({"message": "Mein Konto wurde zweimal belastet"}, questions)   # -> multilingual

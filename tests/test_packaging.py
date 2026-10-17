@@ -51,12 +51,12 @@ try:
 except (SyntaxError, ValueError):
     declared_packages = set()
 source_packages = set()
-for package_root, _dirs, files in os.walk(os.path.join(ROOT, "laya")):
+for package_root, _dirs, files in os.walk(os.path.join(ROOT, "rex")):
     if "__init__.py" not in files:
         continue
     relative = os.path.relpath(package_root, ROOT)
     source_packages.add(relative.replace(os.sep, "."))
-check("setuptools/packages match every importable laya package",
+check("setuptools/packages match every importable rex package",
       sorted(declared_packages), sorted(source_packages))
 
 requires_python = re.search(r'requires-python\s*=\s*"[>=~^]*\s*([\d.]+)"', pyproject)
@@ -87,18 +87,18 @@ for field in ("python_requires", "install_requires", "classifiers"):
         "metadata belongs in pyproject.toml only",
     )
 
-# The release job checks the git tag against pyproject, but laya.__version__ is what the server
+# The release job checks the git tag against pyproject, but rex.__version__ is what the server
 # and SDK report at runtime, so the two strings must not drift apart.
 static_version = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
 check_true("pyproject/declares a static version", static_version is not None)
-init_version = re.search(r'^__version__\s*=\s*"([^"]+)"', read(os.path.join("laya", "__init__.py")), re.M)
-check_true("laya/__init__ declares a literal __version__", init_version is not None)
+init_version = re.search(r'^__version__\s*=\s*"([^"]+)"', read(os.path.join("rex", "__init__.py")), re.M)
+check_true("rex/__init__ declares a literal __version__", init_version is not None)
 check(
-    "version/pyproject matches laya.__version__",
+    "version/pyproject matches rex.__version__",
     static_version.group(1) if static_version else None,
     init_version.group(1) if init_version else None,
 )
-for label, match in (("pyproject", static_version), ("laya/__init__", init_version)):
+for label, match in (("pyproject", static_version), ("rex/__init__", init_version)):
     value = match.group(1) if match else ""
     parts = value.split(".")
     check_true("%s/version is X.Y.Z" % label, len(parts) == 3 and all(p.isdigit() for p in parts), "got %r" % value)
@@ -305,7 +305,7 @@ check("md/no anchor that matches no heading", _broken_anchors, [])
 # repo-relative target 404s there; the same is true of the npm-published `sdk/typescript` and
 # `laya-ts` READMEs. The check above only proves the target exists in-repo, which is exactly why
 # this went unnoticed -- a relative link is a local success and a published failure.
-for _pub in ("README.md", "sdk/typescript/README.md", "laya-ts/README.md"):
+for _pub in ("README.md", "sdk/typescript/README.md", "rex-ts/README.md"):
     if not os.path.exists(os.path.join(ROOT, _pub)):
         continue
     _rel = [u for _, u in re.findall(r"\[([^\]]*)\]\(([^)\s]+?)(?:\s+\"[^\"]*\")?\)", read(_pub))
@@ -430,14 +430,14 @@ check_true("docker/prefetch_modelscope.py exists", os.path.exists("docker/prefet
 nix_pkg = read(os.path.join("nix", "package.nix"))
 nix_version = re.search(r'^\s*version\s*=\s*"([^"]+)"', nix_pkg, re.M)
 check_true("nix/package.nix declares a version", nix_version is not None, nix_pkg[:200])
-# The release job compares the tag to pyproject, and pyproject is compared to laya.__version__
+# The release job compares the tag to pyproject, and pyproject is compared to rex.__version__
 # above. This is the third declaration of the same string -- it sat at 0.3.4 for sixteen
 # releases because no reader existed.
 check("version/nix matches pyproject",
       nix_version.group(1) if nix_version else None,
       static_version.group(1) if static_version else None)
 
-# `services.laya-serve.models` is joined into LAYA_MODELS, which laya.serve splits and hands to
+# `services.laya-serve.models` is joined into LAYA_MODELS, which rex.serve splits and hands to
 # Router.preload() -- and preload normalises every name (laya/router.py:370), so the server takes
 # core's aliases. A closed `enum` in the module can only copy that list and fall behind it: it
 # refused ten of the thirteen spellings the same value accepts, and it refused them at nix
@@ -465,7 +465,7 @@ def dict_keys(source, name):
     return []
 
 
-router_src = read(os.path.join("laya", "router.py"))
+router_src = read(os.path.join("rex", "router.py"))
 canonical = dict_keys(router_src, "DEFAULT_MODELS")
 aliases = dict_keys(router_src, "_ALIASES")
 accepted = sorted(set(canonical) | set(aliases))
@@ -488,7 +488,7 @@ check_true("nix/models has a description", description is not None, block[:200])
 described = description.group(1) if description else ""
 undocumented = [n for n in accepted if "`%s`" % n not in described]
 check_true("nix/models describes every name core accepts", not undocumented,
-           "accepted by laya.router.normalise_name but absent from the option text: %s"
+           "accepted by rex.router.normalise_name but absent from the option text: %s"
            % undocumented)
 # And the module must still be the thing that sets LAYA_MODELS, or the checks above describe a
 # wire that no longer exists.
@@ -497,7 +497,7 @@ check_true("nix/module still joins models into LAYA_MODELS",
            "the models option no longer feeds LAYA_MODELS; these checks need retargeting")
 
 # ---- every knob laya reads from the environment has to be reachable from the module
-# `laya.serve` has no config file and no CLI flag for any of it: the process configures itself
+# `rex.serve` has no config file and no CLI flag for any of it: the process configures itself
 # from LAYA_* and nothing else. On a NixOS host the unit's environment is the only thing that can
 # hand those variables over, so a name the module never assigns is a control that host cannot ask
 # for.
@@ -511,15 +511,15 @@ check_true("nix/module still joins models into LAYA_MODELS",
 # Both regexes carry `[A-Z0-9_]` for the same reason: `LAYA_SHA256_DIGESTS`. `[A-Z_]+` matches a
 # prefix of that name, so a narrower pattern reports no gap rather than the one it cannot see.
 # `_ENV_KEY = "LAYA_DEVICE"` is how laya/mcp/device.py names the one variable it reads, and since
-# #574 laya.serve reads the device through it, so the constant counts as a read.
+# #574 rex.serve reads the device through it, so the constant counts as a read.
 _READ_PATTERNS = (r'environ\.get\("(LAYA_[A-Z0-9_]+)"', r'_env_bool\("(LAYA_[A-Z0-9_]+)"',
                   r'environ\["(LAYA_[A-Z0-9_]+)"\]', r'_ENV_KEY = "(LAYA_[A-Z0-9_]+)"')
 
 
 def env_reads(excluded_paths=()):
-    """Every `LAYA_*` name the package looks up, by walking laya/ rather than listing files."""
+    """Every `LAYA_*` name the package looks up, by walking rex/ rather than listing files."""
     found = set()
-    for root, dirs, files in os.walk(os.path.join(ROOT, "laya")):
+    for root, dirs, files in os.walk(os.path.join(ROOT, "rex")):
         dirs[:] = [d for d in dirs if d != "__pycache__"]
         for name in files:
             if not name.endswith(".py"):
@@ -533,7 +533,7 @@ def env_reads(excluded_paths=()):
     return found
 
 
-read_names = env_reads(("laya/mcp/server.py", "laya/mcp/remote.py"))
+read_names = env_reads(("rex/mcp/server.py", "rex/mcp/remote.py"))
 check("nix/only the two MCP transport variables are excluded from the HTTP process",
       sorted(env_reads() - read_names), ["LAYA_BASE_URL", "LAYA_REMOTE_TIMEOUT"])
 # An assignment only. The `models` description names `LAYA_MODELS` in prose, and prose that
@@ -615,13 +615,13 @@ check_true("nix/module declares no closed enum over names it does not own",
            "types.enum" not in nix_module, "an enum in this module is a copy of someone "
            "else's list; defer to the thing that validates the value")
 
-# So the AMP vocabularies are read out of `laya.agent` instead, from the comparisons that follow
+# So the AMP vocabularies are read out of `rex.agent` instead, from the comparisons that follow
 # each lookup rather than from a list written down here: a spelling core starts accepting shows up
 # in the set on its own, and this module's prose has to name it. The sets differ by device -- CPU
 # takes bf16 only, CUDA takes fp16 too -- and that asymmetry is the whole content of the two
 # options, so the check runs in both directions like the env-var one above. A `fp16` added to the
 # `cpuAmp` description is a promise the runtime does not keep.
-agent_src = read(os.path.join("laya", "agent.py"))
+agent_src = read(os.path.join("rex", "agent.py"))
 
 
 def amp_tokens(var):
@@ -636,7 +636,7 @@ def amp_tokens(var):
 AMP_MEANING = {"cudaAmp": "LAYA_CUDA_AMP", "cpuAmp": "LAYA_CPU_AMP"}
 for _opt, _var in sorted(AMP_MEANING.items()):
     accepted = amp_tokens(_var)
-    check_true("nix/%s's dtype list came from laya/agent.py" % _opt, bool(accepted),
+    check_true("nix/%s's dtype list came from rex/agent.py" % _opt, bool(accepted),
                "no `in (...)` comparison follows `environ.get(\"%s\")`; retarget this" % _var)
     _d = re.search(r"description = ''(.*?)''", option_text(_opt), re.S)
     described = _d.group(1) if _d else ""
@@ -647,7 +647,7 @@ for _opt, _var in sorted(AMP_MEANING.items()):
     offered = [t for t in ("fp16", "float16", "bf16", "bfloat16")
                if "`%s`" % t in described and t not in accepted]
     check_true("nix/%s offers no dtype core ignores for it" % _opt, not offered,
-               "%s is not in the set laya.agent compares %s against" % (offered, _var))
+               "%s is not in the set rex.agent compares %s against" % (offered, _var))
 
 # `mpsAmpMinRows` has no vocabulary, but its type is a claim: laya clamps a value below 1 up to 1,
 # so `ints.positive` is what keeps the module from accepting an input the service reinterprets.
@@ -689,7 +689,7 @@ for _dirpath, _dirnames, _filenames in os.walk("."):
         if not _f.endswith((".py", ".md", ".yml", ".toml")):
             continue
         _p = os.path.normpath(os.path.join(_dirpath, _f))
-        for _group in re.findall(r"laya\[([a-z][\w,-]*)\]", read(_p)):
+        for _group in re.findall(r"(?:laya|rex)\[([a-z][\w,-]*)\]", read(_p)):
             for _extra in _group.split(","):
                 _referenced_extras.setdefault(_extra.strip(), set()).add(_p)
 
@@ -769,17 +769,17 @@ check_true(
 )
 
 # --------------------------------------------------------------- the API reference
-# `laya.__all__` is what `from laya import *` ships and what the README tells people to call, so
+# `rex.__all__` is what `from rex import *` ships and what the README tells people to call, so
 # an export no page under docs/ names cannot be looked up at all. `cached_embed_fn` was one: the
 # README documents wrapping an embedder in it, each of its three shortlisting siblings has a
 # `:::` directive in reference/helpers.md, and it appeared on no docs page.
 #
 # Like every other check in this file, this one reads source under the directory it walks and
-# imports nothing: no `laya.__getattr__` name resolves, torch never loads, and a computed `__all__`
+# imports nothing: no `rex.__getattr__` name resolves, torch never loads, and a computed `__all__`
 # returns [] for the guard below to report instead of an import quietly yielding whatever the
 # environment happens to have installed.
 def _exported_names():
-    tree = ast.parse(read(os.path.join("laya", "__init__.py")))
+    tree = ast.parse(read(os.path.join("rex", "__init__.py")))
     for node in tree.body:
         targets = getattr(node, "targets", [])
         if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "__all__" for t in targets):
@@ -796,7 +796,7 @@ _export_list = _exported_names()
 # Guards, not formalities: an empty page list or an unreadable `__all__` would let the sweep below
 # pass without checking anything.
 check_true("docs/reference pages found under docs/", len(_docs_pages) >= 8, _docs_pages[:3])
-check_true("docs/__all__ read as a literal from laya/__init__.py",
+check_true("docs/__all__ read as a literal from rex/__init__.py",
            len(_export_list) >= 20, len(_export_list))
 
 _unreferenced = [n for n in _export_list if not re.search(r"\b%s\b" % re.escape(n), _docs_text)]

@@ -10,7 +10,7 @@ every state of the batch at once.
 import hashlib
 import json
 
-import laya
+import rex
 
 CACHE = {}
 SKIPS = []            # one entry per call `cache_read` served, so the prints below are checkable
@@ -42,7 +42,7 @@ def cache_write(ctx):
         CACHE[cache_key(ctx, i)] = result
 
 
-agent = laya.load("convaiinnovations/laya",
+agent = rex.load("convaiinnovations/laya",
                   on_predict_start=cache_read, on_predict_end=cache_write)
 
 STATE = "I was charged twice for the same invoice."

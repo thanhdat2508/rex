@@ -19,8 +19,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from laya.agent import Agent, load  # noqa: E402
-from laya.calibrate import (  # noqa: E402
+from rex.agent import Agent, load  # noqa: E402
+from rex.calibrate import (  # noqa: E402
     CALIBRATION_VERSION,
     ECE_HOLDOUT_FRAC,
     MIN_BUCKET_N,
@@ -39,9 +39,9 @@ from laya.calibrate import (  # noqa: E402
     fit_temperatures,
     records_from_labeled,
 )
-from laya.common import QTYPES, TEMP_MAX, TEMP_MIN, ece_score, temp_bucket  # noqa: E402
-import laya.calibrate as _calibrate  # noqa: E402
-import laya.agent as _agent_module  # noqa: E402
+from rex.common import QTYPES, TEMP_MAX, TEMP_MIN, ece_score, temp_bucket  # noqa: E402
+import rex.calibrate as _calibrate  # noqa: E402
+import rex.agent as _agent_module  # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -505,7 +505,7 @@ check(
     boundary_bins["noul:2"]["values"][18],
 )
 
-from laya.onnx_agent import ONNXAgent  # noqa: E402
+from rex.onnx_agent import ONNXAgent  # noqa: E402
 
 onnx_boundary = ONNXAgent.__new__(ONNXAgent)
 onnx_boundary.temperature = [1.0, 1.0, 1.0]
@@ -851,7 +851,7 @@ check("records/noul logits unscaled", labeled[1][1].tolist(), [2.0, 4.0])
 
 
 # public exports stay lazy: importing the package must not import torch for these names
-import laya as _laya  # noqa: E402
+import rex as _laya  # noqa: E402
 for name in ("fit_temperatures", "fit_one_temperature", "fit_temperature_map"):
     check_true("export/%s in __all__" % name, name in _laya.__all__)
     check_true("export/%s attr" % name, hasattr(_laya, name))

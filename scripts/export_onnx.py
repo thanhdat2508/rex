@@ -2,7 +2,7 @@ import argparse
 import os
 import torch
 
-from laya.agent import Agent
+from rex.agent import Agent
 
 
 def quantize_model(model_path: str, output_path: str, per_channel: bool = False) -> str:

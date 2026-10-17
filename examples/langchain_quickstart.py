@@ -6,8 +6,8 @@ Demonstrates:
 3. Multi-primitive support ticket triage node.
 """
 from typing import TypedDict, List
-from laya import Router
-from laya.integrations.langchain import LayaRouter, LayaGuardrail, LayaTriage, LayaGuardrailError
+from rex import Router
+from rex.integrations.langchain import LayaRouter, LayaGuardrail, LayaTriage, LayaGuardrailError
 
 
 # =====================================================================
