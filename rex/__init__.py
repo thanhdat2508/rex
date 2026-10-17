@@ -77,6 +77,13 @@ _LAZY_ATTRS = {
     "LayaTriage": (".integrations", "LayaTriage"),
     "LayaEvaluator": (".integrations", "LayaEvaluator"),
     "LayaDecision": (".integrations", "LayaDecision"),
+    "ToolAsymmetricFocalLoss": (".losses", "ToolAsymmetricFocalLoss"),
+    "PoEMaskedCrossEntropyLoss": (".losses", "PoEMaskedCrossEntropyLoss"),
+    "ToolOrthogonalLoss": (".losses", "ToolOrthogonalLoss"),
+    "RexMultiTaskLoss": (".losses", "RexMultiTaskLoss"),
+    "RexLossWeights": (".losses", "RexLossWeights"),
+    "LossBreakdown": (".losses", "LossBreakdown"),
+    "RexMultiTaskInputs": (".losses", "RexMultiTaskInputs"),
 }
 
 
@@ -154,11 +161,20 @@ __all__ = [
     "DecisionResult",
     "PINNED_REVISIONS",
     "__version__",
+    # Rex Multi-Task Loss Suite
+    "ToolAsymmetricFocalLoss",
+    "PoEMaskedCrossEntropyLoss",
+    "ToolOrthogonalLoss",
+    "RexMultiTaskLoss",
+    "RexLossWeights",
+    "LossBreakdown",
+    "RexMultiTaskInputs",
     # Submodules for direct import paths
     "confidence",
     "email",
     "hooks",
     "lang",
+    "losses",
     "presets",
     "router",
     "structured",
