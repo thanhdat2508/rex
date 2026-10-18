@@ -84,6 +84,14 @@ _LAZY_ATTRS = {
     "RexLossWeights": (".losses", "RexLossWeights"),
     "LossBreakdown": (".losses", "LossBreakdown"),
     "RexMultiTaskInputs": (".losses", "RexMultiTaskInputs"),
+    "ComparisonOperator": (".rex_poe", "ComparisonOperator"),
+    "TerminationReason": (".rex_poe", "TerminationReason"),
+    "FalsificationRule": (".rex_poe", "FalsificationRule"),
+    "HypothesisDefinition": (".rex_poe", "HypothesisDefinition"),
+    "InvestigationResult": (".rex_poe", "InvestigationResult"),
+    "RoundTrace": (".rex_poe", "RoundTrace"),
+    "PoEFalsificationEngine": (".rex_poe", "PoEFalsificationEngine"),
+    "HardMaskingManager": (".rex_poe", "HardMaskingManager"),
 }
 
 
@@ -169,6 +177,15 @@ __all__ = [
     "RexLossWeights",
     "LossBreakdown",
     "RexMultiTaskInputs",
+    # Rex Runtime & PoE Engine
+    "ComparisonOperator",
+    "TerminationReason",
+    "FalsificationRule",
+    "HypothesisDefinition",
+    "InvestigationResult",
+    "RoundTrace",
+    "PoEFalsificationEngine",
+    "HardMaskingManager",
     # Submodules for direct import paths
     "confidence",
     "email",
@@ -176,6 +193,10 @@ __all__ = [
     "lang",
     "losses",
     "presets",
+    "rex_format",
+    "rex_model",
+    "rex_poe",
+    "rex_vocab",
     "router",
     "structured",
 ]
