@@ -7,7 +7,7 @@ import sys
 # Ensure repository root is on sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rex.rex_model import from_laya, save_rex_checkpoint
+from rex.rex_model import from_rex, save_rex_checkpoint
 from rex.rex_vocab import add_type_tokens
 from rex.train import load_checkpoint
 
@@ -85,7 +85,7 @@ def main():
 
     # 5. Convert to RexDecisionModel with new ToolHead
     print("Converting DecisionModel to RexDecisionModel...")
-    rex_model = from_laya(
+    rex_model = from_rex(
         base_model,
         tools=tools,
         type_tokens=type_tokens,

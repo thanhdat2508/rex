@@ -44,6 +44,32 @@ CANONICAL_TOOL_SLOTS: List[ToolSlot] = [
 ]
 
 
+def compact_telemetry_string(payload: Union[Dict[str, Any], str, List[Any]], max_val_len: int = 32) -> str:
+    """Format telemetry payload into concise, token-efficient key-values (omitting JSON syntax noise)."""
+    if not isinstance(payload, dict):
+        if isinstance(payload, list):
+            return " ".join(compact_telemetry_string(x, max_val_len) for x in payload)
+        return str(payload).strip()
+
+    parts: List[str] = []
+    skip_keys = {"raw_payload", "payload_summary", "headers", "stack_trace", "jwt_raw"}
+    for k, v in payload.items():
+        if k in skip_keys or v is None:
+            continue
+        if isinstance(v, float):
+            val_str = f"{v:.2f}"
+        elif isinstance(v, bool):
+            val_str = "1" if v else "0"
+        elif isinstance(v, dict):
+            val_str = compact_telemetry_string(v, max_val_len)
+        else:
+            val_str = str(v).strip()
+            if len(val_str) > max_val_len:
+                val_str = val_str[:max_val_len] + ".."
+        parts.append(f"{k}={val_str}")
+    return " ".join(parts)
+
+
 class InvestigationTensorFormatter:
     """Formats raw investigation inputs into the standardized token sequence:
 
@@ -68,6 +94,8 @@ class InvestigationTensorFormatter:
         hypotheses: Optional[Dict[RiskHypothesis, str]] = None,
         tokenizer: Optional[Any] = None,
         max_length: Optional[int] = None,
+        truncate_left: bool = True,
+        compact_state: bool = False,
     ) -> str:
         """Format a single investigation example into the standardized token string:
 
@@ -95,23 +123,27 @@ class InvestigationTensorFormatter:
 
         # State telemetry string
         if isinstance(state_payload, (dict, list)):
-            state_str = json.dumps(state_payload, ensure_ascii=False)
+            if compact_state:
+                state_str = compact_telemetry_string(state_payload)
+            else:
+                state_str = json.dumps(state_payload, ensure_ascii=False)
         else:
             state_str = str(state_payload).strip()
 
-        # Apply state_t-only truncation if tokenizer and max_length are provided
+        # Apply state_t-only truncation with truncate_left (preserving freshest evidence)
         if tokenizer is not None and max_length is not None:
             prefix_ids = tokenizer.encode(prefix, add_special_tokens=False)
             sep_ids = tokenizer.encode(self.sep_token, add_special_tokens=False)
-            reserved = len(prefix_ids) + len(sep_ids)
+            reserved = len(prefix_ids) + len(sep_ids) + 2
             avail_state_tokens = max(0, max_length - reserved)
 
             state_ids = tokenizer.encode(state_str, add_special_tokens=False)
             if len(state_ids) > avail_state_tokens:
-                truncated_state_ids = state_ids[:avail_state_tokens]
+                # Left-truncation: discard oldest telemetry, strictly preserve freshest round observations
+                truncated_state_ids = state_ids[-avail_state_tokens:] if avail_state_tokens > 0 else []
                 state_str = tokenizer.decode(truncated_state_ids, skip_special_tokens=True).strip()
 
-        # Assemble sequence
+        # Assemble sequence: Invariant prefix is guaranteed 100% intact
         return f"{prefix} {state_str} {self.sep_token}"
 
     def encode_batch(
@@ -418,9 +450,7 @@ def build_poe_attention_bias(
     return bias
 
 
-# ======================================================================================
 # 3. TOOL MLP HEAD
-# ======================================================================================
 
 class ToolMLPHead(nn.Module):
     """2-layer MLP with intermediate LayerNorm & GELU projecting h_CLS to Tool Slot logits.
@@ -461,9 +491,7 @@ class ToolMLPHead(nn.Module):
         return logits
 
 
-# ======================================================================================
 # 4. SHARED VERDICT HEAD
-# ======================================================================================
 
 class SharedVerdictHead(nn.Module):
     """Single shared linear projection layer scoring hypothesis confidence logits at each [MASK]_j.
@@ -494,9 +522,7 @@ class SharedVerdictHead(nn.Module):
         return out.squeeze(-1)
 
 
-# ======================================================================================
 # 5. UNIFIED LAYA INVESTIGATION MODEL
-# ======================================================================================
 
 @dataclass
 class InvestigationModelOutput:
@@ -679,6 +705,29 @@ class LayaInvestigationModel(nn.Module):
         # 4. Extract h_CLS and h_masks
         h_cls, h_masks = self.extract_hidden_vectors(hidden_states, cls_indices, mask_indices)
 
+        # Gradient Isolation for Refuted Hypotheses:
+        # If hypothesis H_j is refuted (M_j = 0), detach h_masks[:, j] so no backward gradient
+        # from the verdict head can ever propagate back through the isolated [MASK]_j token
+        # into the shared Transformer layers and embeddings.
+        if hypothesis_mask is not None:
+            if hasattr(hypothesis_mask, "to_list"):
+                m_list = hypothesis_mask.to_list()
+            elif isinstance(hypothesis_mask, (list, tuple)):
+                m_list = list(hypothesis_mask)
+            elif isinstance(hypothesis_mask, torch.Tensor):
+                m_list = hypothesis_mask.tolist()
+            else:
+                m_list = [1] * self.num_hypotheses
+
+            if len(m_list) > 0 and isinstance(m_list[0], (int, float)):
+                survivor_mask = torch.tensor(m_list, dtype=torch.bool, device=h_masks.device)
+                if h_masks.dim() == 3:
+                    survivor_mask = survivor_mask.unsqueeze(0).expand(h_masks.size(0), -1)
+                h_masks = torch.where(survivor_mask.unsqueeze(-1), h_masks, h_masks.detach())
+            elif len(m_list) > 0 and isinstance(m_list[0], list):
+                survivor_mask = torch.tensor(m_list, dtype=torch.bool, device=h_masks.device)
+                h_masks = torch.where(survivor_mask.unsqueeze(-1), h_masks, h_masks.detach())
+
         # 5. Predict raw tool logits and verdict logits (always fully differentiable)
         raw_tool_logits = self.tool_head(h_cls)
         verdict_logits = self.verdict_head(h_masks)
@@ -691,8 +740,29 @@ class LayaInvestigationModel(nn.Module):
             should_mask = apply_inference_masking and (hypothesis_mask is not None or budget_k is not None)
 
         tool_logits = raw_tool_logits.clone()
+        final_verdict_logits = verdict_logits.clone()
         if should_mask:
             batch_size = raw_tool_logits.size(0)
+
+            # Hard Logit Masking for Verdict Head: z_j = -1e4 if M_j == 0
+            if hypothesis_mask is not None:
+                if hasattr(hypothesis_mask, "to_list"):
+                    m_list = hypothesis_mask.to_list()
+                elif isinstance(hypothesis_mask, (list, tuple)):
+                    m_list = list(hypothesis_mask)
+                elif isinstance(hypothesis_mask, torch.Tensor):
+                    m_list = hypothesis_mask.tolist()
+                else:
+                    m_list = [1] * self.num_hypotheses
+
+                if len(m_list) > 0 and isinstance(m_list[0], (int, float)):
+                    m_tensor = torch.tensor(m_list, dtype=torch.bool, device=final_verdict_logits.device)
+                    if final_verdict_logits.dim() == 2:
+                        m_tensor = m_tensor.unsqueeze(0).expand(batch_size, -1)
+                    final_verdict_logits = final_verdict_logits.masked_fill(~m_tensor, SAFE_FP16_MASK_VALUE)
+                elif len(m_list) > 0 and isinstance(m_list[0], list):
+                    m_tensor = torch.tensor(m_list, dtype=torch.bool, device=final_verdict_logits.device)
+                    final_verdict_logits = final_verdict_logits.masked_fill(~m_tensor, SAFE_FP16_MASK_VALUE)
             for b in range(batch_size):
                 # Map tensor row to slot dict
                 row_dict = {
@@ -724,7 +794,7 @@ class LayaInvestigationModel(nn.Module):
 
         return InvestigationModelOutput(
             tool_logits=tool_logits,
-            verdict_logits=verdict_logits,
+            verdict_logits=final_verdict_logits,
             raw_tool_logits=raw_tool_logits,
             h_cls=h_cls,
             h_masks=h_masks,

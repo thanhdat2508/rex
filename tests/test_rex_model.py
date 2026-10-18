@@ -1,7 +1,7 @@
 """Comprehensive offline unit tests for Rex Architecture & Tokenizer (Part 2).
 
 Tests DecisionModel refactoring, ToolHead, RexDecisionModel, rex_vocab, rex_format,
-PoE elimination masking, and from_laya checkpoint conversion.
+PoE elimination masking, and from_rex checkpoint conversion.
 Runs completely offline using dummy in-memory Bert configs without network calls.
 """
 import math
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from rex.common import DecisionModel
 from rex.rex_format import collate_rex, encode_rex_input
-from rex.rex_model import RexDecisionModel, ToolHead, from_laya, rex_config, save_rex_checkpoint
+from rex.rex_model import RexDecisionModel, ToolHead, from_rex, rex_config, save_rex_checkpoint
 from rex.rex_vocab import add_type_tokens, check_type_token
 
 
@@ -423,12 +423,12 @@ def test_collate_rex():
 # ==============================================================================
 
 def test_from_laya_conversion():
-    """from_laya transfers weights from DecisionModel to RexDecisionModel cleanly."""
+    """from_rex transfers weights from DecisionModel to RexDecisionModel cleanly."""
     enc = _tiny_encoder()
     laya = DecisionModel(enc, head_layers=1, n_act=2)
     tools = ["tool_1", "tool_2", "tool_3"]
 
-    rex = from_laya(laya, tools=tools, tool_hidden=64, tool_prior=0.3)
+    rex = from_rex(laya, tools=tools, tool_hidden=64, tool_prior=0.3)
 
     assert isinstance(rex, RexDecisionModel)
     assert rex.tools == tools
@@ -496,7 +496,7 @@ def test_rex_checkpoint_round_trip():
         add_type_tokens(loaded_tok, loaded_laya, type_tokens)
 
         tools = ["ip_reputation", "auth_history"]
-        rex_model = from_laya(loaded_laya, tools=tools, type_tokens=type_tokens)
+        rex_model = from_rex(loaded_laya, tools=tools, type_tokens=type_tokens)
 
         # Save Rex checkpoint using save_rex_checkpoint (which writes encoder/ with updated vocab)
         save_rex_checkpoint(rex_model, loaded_tok, rex_out, base_cfg=loaded_cfg)

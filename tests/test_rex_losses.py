@@ -11,7 +11,6 @@ import pytest
 import torch
 
 from rex.losses import (
-    DEFAULT_FOCAL_GAMMA_NEG,
     LossBreakdown,
     PoEMaskedCrossEntropyLoss,
     RexLossWeights,

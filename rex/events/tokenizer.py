@@ -290,3 +290,125 @@ def setup_investigation_tokenizer(
         "all_atomic": all_atomic,
     }
 
+
+
+class TokenizerAlignmentGuard:
+    """Production-grade alignment guard for ModernBERT and Laya Decision Backbones.
+
+    Ensures that when switching from dummy test tokenizers to real ModernBERT backbones:
+      1. Special tokens ([CLS], [SEP], [MASK], <TASK_...>, <TYPE_...>) are atomic (len == 1).
+      2. Model embedding matrix is resized and semantically warm-started.
+      3. Token IDs in the model are 100% synchronized with the tokenizer.
+      4. PositionTracker accurately resolves mask_token_indices for extracting h_mask,j.
+    """
+
+    @classmethod
+    def align_and_verify(
+        cls,
+        model: Any,
+        tokenizer: Any,
+        domain_tokens: Optional[List[str]] = None,
+        semantic_init: bool = True,
+        pad_to_multiple_of: Optional[int] = 64,
+    ) -> Dict[str, Any]:
+        """Verify and align tokenizer with model embedding layer and position tracker."""
+        # 1. Setup tokenizer with atomic special tokens
+        setup_res = setup_investigation_tokenizer(
+            tokenizer=tokenizer,
+            domain_tokens=domain_tokens,
+            resize_embeddings=False,
+        )
+
+        target_vocab_size = len(tokenizer)
+        if pad_to_multiple_of and target_vocab_size % pad_to_multiple_of != 0:
+            target_vocab_size += pad_to_multiple_of - (target_vocab_size % pad_to_multiple_of)
+
+        # 2. Resize model embedding layer if needed
+        model_resized = False
+        encoder = getattr(model, "encoder", model)
+        if hasattr(encoder, "get_input_embeddings") and hasattr(encoder, "resize_token_embeddings"):
+            embeddings = encoder.get_input_embeddings()
+            if embeddings is not None:
+                current_size = embeddings.weight.size(0)
+                if current_size < target_vocab_size:
+                    old_weight = embeddings.weight.data.clone()
+                    hidden_dim = old_weight.shape[1]
+                    encoder.resize_token_embeddings(target_vocab_size)
+                    new_weight = encoder.get_input_embeddings().weight.data
+
+                    # Apply Semantic Warm-Start to new token slots
+                    if semantic_init and current_size < len(tokenizer):
+                        from .model_modifier import _extract_token_semantic_words
+                        all_special = getattr(tokenizer, "additional_special_tokens", [])
+                        for tok_str in all_special:
+                            tid = tokenizer.convert_tokens_to_ids(tok_str)
+                            if tid is not None and tid >= current_size:
+                                words = _extract_token_semantic_words(tok_str)
+                                sub_ids = []
+                                for w in words:
+                                    sub_ids.extend([i for i in tokenizer.encode(w, add_special_tokens=False) if i < current_size])
+                                if sub_ids:
+                                    mean_vec = old_weight[sub_ids].mean(dim=0)
+                                    new_weight[tid] = mean_vec
+                                else:
+                                    new_weight[tid] = old_weight.mean(dim=0)
+                    model_resized = True
+
+        # 3. Synchronize IDs into model attributes
+        mask_tid = getattr(tokenizer, "mask_token_id", None) or tokenizer.convert_tokens_to_ids("[MASK]")
+        cls_tid = getattr(tokenizer, "cls_token_id", None) or tokenizer.convert_tokens_to_ids("[CLS]")
+        sep_tid = getattr(tokenizer, "sep_token_id", None) or tokenizer.convert_tokens_to_ids("[SEP]")
+
+        if hasattr(model, "mask_token_id"):
+            model.mask_token_id = mask_tid
+        if hasattr(model, "cls_token_id"):
+            model.cls_token_id = cls_tid
+        if hasattr(model, "sep_token_id"):
+            model.sep_token_id = sep_tid
+
+        # 4. Integrity Assertion: Verify PositionTracker and h_mask extraction on dummy sample
+        from .backbone import CANONICAL_HYPOTHESES, InvestigationTensorFormatter, PositionTracker
+
+        formatter = InvestigationTensorFormatter(
+            cls_token=getattr(tokenizer, "cls_token", "[CLS]"),
+            sep_token=getattr(tokenizer, "sep_token", "[SEP]"),
+            mask_token=getattr(tokenizer, "mask_token", "[MASK]"),
+        )
+        sample_seq = formatter.format_sequence(
+            type_token="<TYPE_PROMO_ABUSE>",
+            instructions="Verify alignment",
+            state_payload={"check": 1},
+        )
+        enc = tokenizer(sample_seq, return_tensors="pt")
+        input_ids = enc["input_ids"]
+
+        # Extract positions
+        cls_indices, mask_indices = PositionTracker.extract_positions(
+            input_ids=input_ids,
+            mask_token_id=mask_tid,
+            cls_token_id=cls_tid,
+            expected_num_masks=len(CANONICAL_HYPOTHESES),
+        )
+
+        # Check CLS token alignment
+        cls_actual_id = input_ids[0, cls_indices[0]].item()
+        assert cls_actual_id == cls_tid, f"CLS token misaligned: expected {cls_tid}, got {cls_actual_id}"
+
+        # Check MASK token alignment for each MECE hypothesis
+        for j in range(len(CANONICAL_HYPOTHESES)):
+            m_pos = mask_indices[0, j].item()
+            actual_mask_id = input_ids[0, m_pos].item()
+            assert actual_mask_id == mask_tid, (
+                f"MASK token {j} misaligned at position {m_pos}: expected {mask_tid}, got {actual_mask_id}"
+            )
+
+        return {
+            "vocab_size": len(tokenizer),
+            "model_embedding_size": encoder.get_input_embeddings().weight.size(0) if hasattr(encoder, "get_input_embeddings") else None,
+            "model_resized": model_resized,
+            "mask_token_id": mask_tid,
+            "cls_token_id": cls_tid,
+            "sep_token_id": sep_tid,
+            "all_atomic": setup_res["all_atomic"],
+            "alignment_verified": True,
+        }
