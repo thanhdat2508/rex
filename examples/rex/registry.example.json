@@ -18,5 +18,234 @@
   },
   "tool_hidden": null,
   "tool_dropout": 0.1,
-  "tool_prior": 0.25
+  "tool_prior": 0.25,
+  "scope_schedule": [
+    "macro",
+    "micro"
+  ],
+  "metrics": {
+    "signup_count_10min": { "kind": "int", "min": 0, "max": 2000 },
+    "promo_redemption_rate": { "kind": "float", "min": 0.0, "max": 1.0 },
+    "failed_login_burst": { "kind": "int", "min": 0, "max": 500 },
+    "mfa_bypass_attempt": { "kind": "bool" },
+    "velocity_1h": { "kind": "int", "min": 0, "max": 1000 },
+    "declined_rate": { "kind": "float", "min": 0.0, "max": 1.0 },
+    "ip_risk_score": { "kind": "float", "min": 0.0, "max": 1.0 },
+    "datacenter_ip_ratio": { "kind": "float", "min": 0.0, "max": 1.0 },
+    "shared_asn_ratio": { "kind": "float", "min": 0.0, "max": 1.0 },
+    "carrier_nat": { "kind": "bool" },
+    "country_mismatch": { "kind": "bool" },
+    "ip_distance_km": { "kind": "float", "min": 0.0, "max": 20000.0 },
+    "unique_device_ratio": { "kind": "float", "min": 0.0, "max": 1.0 },
+    "emulator_ratio": { "kind": "float", "min": 0.0, "max": 1.0 },
+    "device_seen_before": { "kind": "bool" },
+    "keystroke_entropy": { "kind": "float", "min": 0.0, "max": 1.0 },
+    "mouse_linearity": { "kind": "float", "min": 0.0, "max": 1.0 },
+    "prior_compromise_flag": { "kind": "bool" },
+    "password_reset_recent": { "kind": "bool" },
+    "card_sharing_degree": { "kind": "int", "min": 0, "max": 50 },
+    "chargeback_history": { "kind": "bool" }
+  },
+  "tool_specs": {
+    "ip_reputation": {
+      "returns": ["ip_risk_score", "datacenter_ip_ratio"],
+      "scope": "macro"
+    },
+    "network_trace": {
+      "returns": ["shared_asn_ratio", "carrier_nat"],
+      "scope": "macro"
+    },
+    "geo_ip_lookup": {
+      "returns": ["country_mismatch", "ip_distance_km"],
+      "scope": "macro"
+    },
+    "transaction_velocity": {
+      "returns": ["velocity_1h", "declined_rate"],
+      "scope": "macro"
+    },
+    "device_fingerprint": {
+      "returns": ["unique_device_ratio", "emulator_ratio", "device_seen_before"],
+      "scope": "micro"
+    },
+    "behavioral_jitter": {
+      "returns": ["keystroke_entropy", "mouse_linearity"],
+      "scope": "micro"
+    },
+    "auth_history": {
+      "returns": ["prior_compromise_flag", "password_reset_recent"],
+      "scope": "micro"
+    },
+    "payment_graph": {
+      "returns": ["card_sharing_degree", "chargeback_history"],
+      "scope": "micro"
+    }
+  },
+  "domains": {
+    "<TYPE_PROMO_ABUSE>": {
+      "instruction": "which hypothesis explains this burst of new accounts redeeming promotions?",
+      "alert_metrics": ["signup_count_10min", "promo_redemption_rate"],
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "text": "automated headless botnet farming promo credits across datacenter proxies",
+          "associated_tools": ["behavioral_jitter", "ip_reputation"],
+          "falsification_rules": [
+            { "metric": "keystroke_entropy", "operator": "GT", "threshold": 0.6 },
+            { "metric": "datacenter_ip_ratio", "operator": "LT", "threshold": 0.2 }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "text": "sybil farm using emulator pools with physical human farm operators",
+          "associated_tools": ["device_fingerprint", "network_trace"],
+          "falsification_rules": [
+            { "metric": "unique_device_ratio", "operator": "GT", "threshold": 0.75 },
+            { "metric": "shared_asn_ratio", "operator": "LT", "threshold": 0.3 }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "text": "organic viral campaign traffic aggregating behind regional carrier NAT gateways",
+          "associated_tools": ["network_trace", "device_fingerprint"],
+          "falsification_rules": [
+            { "metric": "carrier_nat", "operator": "EQ", "threshold": 0 },
+            { "metric": "emulator_ratio", "operator": "GT", "threshold": 0.3 }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "text": "unexplained promotional redemption anomaly outside known attack distribution",
+          "is_residual": true
+        }
+      ]
+    },
+    "<TYPE_ACCOUNT_TAKEOVER>": {
+      "instruction": "which hypothesis explains the unauthorized access anomalies on user accounts?",
+      "alert_metrics": ["failed_login_burst", "mfa_bypass_attempt"],
+      "hypotheses": [
+        {
+          "id": "H_credential_replay",
+          "text": "automated credential replay targeting accounts using leaked credential lists",
+          "associated_tools": ["device_fingerprint", "ip_reputation"],
+          "falsification_rules": [
+            { "metric": "device_seen_before", "operator": "EQ", "threshold": 1 },
+            { "metric": "ip_risk_score", "operator": "LT", "threshold": 0.25 }
+          ]
+        },
+        {
+          "id": "H_session_hijack",
+          "text": "stolen session token hijacked from another geographic region",
+          "associated_tools": ["geo_ip_lookup", "behavioral_jitter"],
+          "falsification_rules": [
+            { "metric": "country_mismatch", "operator": "EQ", "threshold": 0 },
+            { "metric": "mouse_linearity", "operator": "GT", "threshold": 0.7 }
+          ]
+        },
+        {
+          "id": "H_legitimate_travel",
+          "text": "legitimate user travelling internationally with unfamiliar client network",
+          "associated_tools": ["auth_history", "behavioral_jitter"],
+          "falsification_rules": [
+            { "metric": "keystroke_entropy", "operator": "LT", "threshold": 0.4 },
+            { "metric": "prior_compromise_flag", "operator": "EQ", "threshold": 1 }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "text": "unexplained account compromise anomaly outside known attack patterns",
+          "is_residual": true
+        }
+      ]
+    },
+    "<TYPE_CREDENTIAL_STUFFING>": {
+      "instruction": "which hypothesis explains the sudden surge in authentication failures?",
+      "alert_metrics": ["failed_login_burst", "velocity_1h"],
+      "hypotheses": [
+        {
+          "id": "H_distributed_botnet",
+          "text": "distributed proxy botnet spraying leaked credentials across vast IP space",
+          "associated_tools": ["ip_reputation", "network_trace"],
+          "falsification_rules": [
+            { "metric": "datacenter_ip_ratio", "operator": "LT", "threshold": 0.2 },
+            { "metric": "shared_asn_ratio", "operator": "LT", "threshold": 0.2 }
+          ]
+        },
+        {
+          "id": "H_scripted_attack",
+          "text": "local scripted attack running automated headless browser instances",
+          "associated_tools": ["behavioral_jitter", "device_fingerprint"],
+          "falsification_rules": [
+            { "metric": "keystroke_entropy", "operator": "GT", "threshold": 0.65 },
+            { "metric": "emulator_ratio", "operator": "LT", "threshold": 0.2 }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "text": "unexplained authentication failure anomaly requiring investigation",
+          "is_residual": true
+        }
+      ]
+    },
+    "<TYPE_API_SCRAPING>": {
+      "instruction": "which hypothesis explains the anomalous high-volume API invocation rate?",
+      "alert_metrics": ["velocity_1h", "ip_risk_score"],
+      "hypotheses": [
+        {
+          "id": "H_commercial_crawler",
+          "text": "datacenter-hosted scraping infrastructure harvesting product catalogue",
+          "associated_tools": ["ip_reputation", "network_trace"],
+          "falsification_rules": [
+            { "metric": "datacenter_ip_ratio", "operator": "LT", "threshold": 0.3 },
+            { "metric": "carrier_nat", "operator": "EQ", "threshold": 1 }
+          ]
+        },
+        {
+          "id": "H_partner_integration",
+          "text": "legitimate commercial partner sync misconfigured to poll at elevated rate",
+          "associated_tools": ["device_fingerprint", "geo_ip_lookup"],
+          "falsification_rules": [
+            { "metric": "unique_device_ratio", "operator": "GT", "threshold": 0.7 },
+            { "metric": "country_mismatch", "operator": "EQ", "threshold": 1 }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "text": "unexplained API consumption anomaly outside known traffic profiles",
+          "is_residual": true
+        }
+      ]
+    },
+    "<TYPE_PAYMENT_FRAUD>": {
+      "instruction": "which hypothesis explains the abnormal checkout patterns and authorization failures?",
+      "alert_metrics": ["declined_rate", "velocity_1h"],
+      "hypotheses": [
+        {
+          "id": "H_card_testing",
+          "text": "automated card testing script cycling through stolen credit card numbers",
+          "associated_tools": ["payment_graph", "behavioral_jitter", "ip_reputation"],
+          "falsification_rules": [
+            { "metric": "card_sharing_degree", "operator": "LT", "threshold": 2 },
+            { "metric": "keystroke_entropy", "operator": "GT", "threshold": 0.6 },
+            { "metric": "datacenter_ip_ratio", "operator": "LT", "threshold": 0.2 },
+            { "metric": "declined_rate", "operator": "LT", "threshold": 0.25 }
+          ]
+        },
+        {
+          "id": "H_compromised_merchant",
+          "text": "known stolen payment profile linked to past chargeback clusters",
+          "associated_tools": ["payment_graph", "geo_ip_lookup", "network_trace"],
+          "falsification_rules": [
+            { "metric": "chargeback_history", "operator": "EQ", "threshold": 0 },
+            { "metric": "country_mismatch", "operator": "EQ", "threshold": 0 },
+            { "metric": "shared_asn_ratio", "operator": "LT", "threshold": 0.3 }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "text": "unexplained transactional fraud anomaly requiring manual fraud intervention",
+          "is_residual": true
+        }
+      ]
+    }
+  }
 }

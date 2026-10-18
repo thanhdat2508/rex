@@ -7,7 +7,12 @@ Tests follow F.I.R.S.T. principles and verify:
 4. RexMultiTaskLoss: composite loss weighting, dataclass input compatibility, and end-to-end autograd.
 """
 
-import pytest
+from contextlib import contextmanager
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import torch
 
 from rex.losses import (
@@ -20,6 +25,18 @@ from rex.losses import (
     ToolAsymmetricFocalLoss,
     ToolOrthogonalLoss,
 )
+
+
+@contextmanager
+def assert_raises(exc_type, match=None):
+    failed = False
+    try:
+        yield
+    except exc_type as e:
+        failed = True
+        if match:
+            assert match in str(e), f"Expected '{match}' in error message '{str(e)}'"
+    assert failed, f"Expected exception {exc_type.__name__} to be raised"
 
 
 # -----------------------------------------------------------------------------
@@ -71,10 +88,10 @@ def test_focal_loss_numerical_stability_extreme_logits():
 
 def test_focal_loss_invalid_arguments_raise():
     """Should raise ValueError on invalid gamma or reduction mode."""
-    with pytest.raises(ValueError, match="gamma_neg must be non-negative"):
+    with assert_raises(ValueError, match="gamma_neg must be non-negative"):
         ToolAsymmetricFocalLoss(gamma_neg=-1.0)
 
-    with pytest.raises(ValueError, match="Invalid reduction"):
+    with assert_raises(ValueError, match="Invalid reduction"):
         ToolAsymmetricFocalLoss(reduction="invalid_mode")
 
 
@@ -214,3 +231,23 @@ def test_rex_multi_task_loss_composition_and_backward():
     assert torch.isfinite(tool_logits.grad).all()
     assert torch.isfinite(verdict_logits.grad).all()
     assert torch.isfinite(tool_weight_matrix.grad).all()
+
+
+if __name__ == "__main__":
+    tests = [
+        test_focal_loss_suppresses_well_classified_negatives,
+        test_focal_loss_positive_preserves_gradient,
+        test_focal_loss_numerical_stability_extreme_logits,
+        test_focal_loss_invalid_arguments_raise,
+        test_poe_masked_ce_zero_gradient_for_eliminated_hypothesis,
+        test_poe_masked_ce_single_and_batch_consistency,
+        test_orthogonal_loss_zero_for_identity,
+        test_orthogonal_loss_positive_for_collinear_vectors,
+        test_orthogonal_loss_single_tool,
+        test_rex_multi_task_loss_composition_and_backward,
+    ]
+    print(f"Running {len(tests)} Rex multi-task loss unit tests...\n")
+    for t in tests:
+        t()
+        print(f"PASS: {t.__name__}")
+    print("\nAll Rex multi-task loss tests passed successfully!")
