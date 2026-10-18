@@ -88,7 +88,7 @@ HYPOTHESIS_METADATA: Dict[RiskHypothesis, Dict[str, Any]] = {
     },
     RiskHypothesis.NOVEL: {
         "title": "Novel / Zero-Day",
-        "is_residual": True,  # Slot thặng dư (Residual / Sink Hypothesis)
+        "is_residual": True,  # Slot thặng dư (Residual)
         "mechanism": "Zero-day exploit techniques, next-generation deepfakes, or business logic errors not previously recorded.",
         "signals": ["anomaly_score_spike", "unknown_parameter_injection", "unprecedented_flow_transition"],
         "falsification_criteria": [],  # STRICTLY EMPTY: Cấm tuyệt đối gán quy tắc phản bác trực tiếp lên slot thặng dư

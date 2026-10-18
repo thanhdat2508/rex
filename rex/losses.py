@@ -161,8 +161,20 @@ class PoEMaskedCrossEntropyLoss(nn.Module):
             if targets.dim() == 0:
                 targets = targets.unsqueeze(0)
 
-        # Hard logit masking for eliminated hypotheses
+        # Target Integrity Protection: Ensure targets do not point to eliminated hypotheses
+        # If any target was refuted by PoE, isolate and zero-out its loss contribution
+        # to strictly protect gradient stability and prevent backward noise.
+        target_indices = targets.unsqueeze(1) if targets.dim() == 1 else targets
+        target_survives = poe_mask.gather(1, target_indices).squeeze(1) == 1
+
+        # Hard logit masking for eliminated hypotheses (forces dLoss/dz_j = 0 for M_j = 0)
         masked_logits = logits.masked_fill(poe_mask == 0, self.masked_logit)
+
+        if not target_survives.all():
+            loss_unreduced = F.cross_entropy(masked_logits, targets, reduction="none")
+            valid_mask = target_survives.to(dtype=logits.dtype)
+            num_valid = valid_mask.sum().clamp(min=1.0)
+            return (loss_unreduced * valid_mask).sum() / num_valid
 
         # Cross-entropy automatically computes log-softmax over unmasked survivor logits
         loss = F.cross_entropy(masked_logits, targets)

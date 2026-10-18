@@ -16,7 +16,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import torch
 
 from rex.losses import (
-    DEFAULT_FOCAL_GAMMA_NEG,
     LossBreakdown,
     PoEMaskedCrossEntropyLoss,
     RexLossWeights,

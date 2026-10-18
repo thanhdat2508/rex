@@ -568,7 +568,7 @@ def rex_config(model: RexDecisionModel, base_cfg: Optional[Dict[str, Any]] = Non
     return cfg
 
 
-def from_laya(
+def from_rex(
     laya_model: DecisionModel,
     tools: Sequence[str],
     type_tokens: Optional[Dict[str, str]] = None,
@@ -595,8 +595,8 @@ def from_laya(
     )
 
     # Transfer state dict; only tool_head weights should be missing
-    laya_state = laya_model.state_dict()
-    missing_keys, unexpected_keys = rex_model.load_state_dict(laya_state, strict=False)
+    rex_state = laya_model.state_dict()
+    missing_keys, unexpected_keys = rex_model.load_state_dict(rex_state, strict=False)
 
     # Validate that only tool_head parameters were missing
     non_tool_missing = [k for k in missing_keys if not k.startswith("tool_head.")]
