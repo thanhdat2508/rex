@@ -920,18 +920,18 @@ def build_router():
     return router
 
 
-def create_app(router: Optional[Any] = None):
-    """Build the FastAPI app. Pass a Router to inject one (tests); otherwise one
+def create_app(router: Optional[Any] = None, agent: Optional[Any] = None):
+    """Build the FastAPI app. Pass a Router or Agent to inject one (tests); otherwise one
     is built from the environment (and preloaded) at app-creation time."""
     import asyncio
     from concurrent.futures import ThreadPoolExecutor
     from functools import partial
 
-    from fastapi import FastAPI, Header, HTTPException, Request
+    from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 
     from .mcp.device import agent_device, resolve_device, router_agent
 
-    if router is None:
+    if router is None and agent is None:
         router = build_router()
     api_key = os.environ.get("LAYA_API_KEY") or None
 
@@ -1330,6 +1330,86 @@ def create_app(router: Optional[Any] = None):
         except Exception:  # noqa: BLE001
             _log.exception("batch inference failed")
             raise HTTPException(status_code=500, detail="inference failed")
+
+    from .orch.gateway import GatewayManager
+
+    gateway_manager = GatewayManager(router=router, agent=agent)
+
+    @app.websocket("/v1/gateway")
+    async def gateway_ws(websocket: WebSocket):
+        await websocket.accept()
+        # Optional bearer check from headers or query params
+        auth_header = websocket.headers.get("authorization")
+        if not _authorized(auth_header):
+            token = websocket.query_params.get("token") or websocket.query_params.get("api_key")
+            if not _authorized(f"Bearer {token}" if token else None):
+                await websocket.close(code=1008)
+                return
+
+        project_id = websocket.headers.get("x-project-id")
+        send_lock = asyncio.Lock()
+
+        async def safe_send(msg: str):
+            try:
+                async with send_lock:
+                    await websocket.send_text(msg)
+            except Exception:
+                pass
+
+        session = gateway_manager.create_session(
+            send_fn=safe_send,
+            project_id=project_id,
+        )
+
+        async def process_message(text: str):
+            try:
+                resp = await session.handle_message(text)
+                if resp is not None:
+                    await safe_send(json.dumps(resp, ensure_ascii=False))
+            except Exception:
+                _log.exception("Error processing gateway message")
+
+        active_tasks = set()
+        try:
+            while True:
+                msg_text = await websocket.receive_text()
+                task = asyncio.create_task(process_message(msg_text))
+                active_tasks.add(task)
+                task.add_done_callback(active_tasks.discard)
+        except WebSocketDisconnect:
+            pass
+        except Exception:
+            _log.exception("Gateway WebSocket session error")
+            try:
+                await websocket.close(code=1011)
+            except Exception:
+                pass
+        finally:
+            for task in list(active_tasks):
+                task.cancel()
+
+    @app.post("/v1/investigate")
+    async def investigate_endpoint(
+        request: Request,
+        authorization: Optional[str] = Header(default=None),
+    ):
+        _check_auth(authorization)
+        body = await _read_json_body(request)
+        if not isinstance(body, dict):
+            raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+
+        context = body.get("raw_payload", body)
+        project_id = request.headers.get("x-project-id")
+
+        session = gateway_manager.create_session(send_fn=lambda _: None, project_id=project_id)
+        res = await session.investigate("http_req", context)
+
+        from fastapi.responses import JSONResponse
+        if "result" in res:
+            return JSONResponse(content=res["result"])
+        elif "error" in res:
+            raise HTTPException(status_code=422, detail=res["error"])
+        return JSONResponse(content=res)
 
     return app
 
