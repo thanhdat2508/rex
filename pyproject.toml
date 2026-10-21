@@ -34,9 +34,12 @@ dependencies = [
 
 [tool.setuptools]
 # assets/, research/ and notebooks/ sit in the root, so auto-discovery bails out.
-packages = ["rex", "rex.backends", "rex.mcp", "rex.integrations", "rex.events"]
+packages = ["rex", "rex.backends", "rex.mcp", "rex.integrations", "rex.events", "rex.orch", "rex.orch.backends"]
 
 [project.optional-dependencies]
+# `pip install rex[orch]` adds orchestration persistence backends.
+orch = []
+
 # `pip install rex[serve]` adds the HTTP server (rex.serve / the rex-serve CLI).
 serve = [
     "fastapi>=0.110.0",

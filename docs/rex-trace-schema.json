@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RexCaseTrace",
+  "type": "object",
+  "required": [
+    "trace_id",
+    "ticket_id",
+    "steps",
+    "created_at"
+  ],
+  "properties": {
+    "trace_id": { "type": "string" },
+    "ticket_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "final_action": { "type": ["string", "null"] },
+    "final_reason": { "type": ["string", "null"] },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "step_no",
+          "round",
+          "action",
+          "status"
+        ],
+        "properties": {
+          "step_no": { "type": "integer" },
+          "round": { "type": "integer" },
+          "action": { "type": "string" },
+          "tool": { "type": ["string", "null"] },
+          "tool_impact": { "type": ["string", "null"] },
+          "params": { "type": "object" },
+          "result": { "type": "object" },
+          "sufficiency_before": { "type": ["number", "null"] },
+          "sufficiency_after": { "type": ["number", "null"] },
+          "duration_ms": { "type": "number" },
+          "status": { "type": "string" }
+        }
+      }
+    }
+  }
+}
