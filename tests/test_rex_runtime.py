@@ -28,6 +28,7 @@ from rex.rex_poe import (
     PoEFalsificationEngine,
     TerminationReason,
 )
+from rex.rex_tools import dispatch_three_branch
 from rex.rex_vocab import add_type_tokens
 
 
@@ -74,65 +75,76 @@ def _create_test_rex_model(d: int = 32, n_tools: int = 4) -> RexDecisionModel:
 
 
 # -----------------------------------------------------------------------------
-# 1. Tests for ToolHead.select_tools (Step 5.1: Gating & Budget)
+# 1. Tests for dispatch_three_branch (Step 5.1: Gating & Budget)
 # -----------------------------------------------------------------------------
 
 def test_select_tools_floor_threshold():
-    """If top-1 score falls below s_min floor (0.35), select_tools must return an empty list."""
-    head = ToolHead(d=16, n_tools=4)
-    # Mock projection layer to return low logits (z = -3.0 -> sigmoid ~ 0.047 < 0.35)
-    with torch.no_grad():
-        head.proj_out.weight.zero_()
-        head.proj_out.bias.fill_(-3.0)
+    """If tool gain falls below cost hurdle and round > 1, no tools are selected."""
+    tools = ["t0", "t1", "t2", "t3"]
+    logits = torch.tensor([0.1, 0.2, 0.3, 0.4])
+    gains = torch.tensor([0.05, 0.05, 0.05, 0.05])
+    tool_costs = {"t0": 0.5, "t1": 0.5, "t2": 0.5, "t3": 0.5}
+    tool_levels = {t: "HEAVY" for t in tools}
 
-    h_cls = torch.randn(1, 16)
-    selected = head.select_tools(h_cls, round_idx=1, s_min=0.35)
+    action, selected, _ = dispatch_three_branch(
+        tool_names=tools,
+        tool_logits=logits,
+        tool_gains=gains,
+        s_prob=torch.tensor([0.1]),
+        r_prob=torch.tensor([0.1]),
+        round_idx=2,
+        tool_costs=tool_costs,
+        tool_levels=tool_levels,
+    )
+    assert action == "STALL"
     assert selected == []
 
 
 def test_select_tools_relative_margin_and_budget_cap():
-    """Runners-up must be within delta_margin of top-1 score and capped at K_t."""
-    head = ToolHead(d=16, n_tools=5)
-    # Set custom scores via mock forward:
-    # scores: [0.90, 0.85, 0.80, 0.60, 0.20]
-    # top1 is tool 0 (0.90).
-    # with delta_margin = 0.15: cutoff is 0.75.
-    # qualifying tools: tool 0 (0.90), tool 1 (0.85), tool 2 (0.80) -> 3 tools.
-    # tool 3 (0.60 < 0.75) and tool 4 (0.20 < 0.35) fail.
-    mock_logits = torch.tensor([[2.197, 1.734, 1.386, 0.405, -1.386]])  # logit(score)
+    """Runners-up must qualify and selection must be capped at K_t."""
+    tools = ["t0", "t1", "t2", "t3", "t4"]
+    logits = torch.tensor([2.0, 1.8, 1.5, 0.5, -1.0])
+    gains = torch.tensor([0.9, 0.85, 0.8, 0.6, 0.2])
+    tool_costs = {t: 0.1 for t in tools}
 
-    def mock_forward(x):
-        return mock_logits
+    # Round 1: Budget cap K_1 = 3 -> top 3 selected
+    _, sel_r1, _ = dispatch_three_branch(
+        tool_names=tools, tool_logits=logits, tool_gains=gains,
+        s_prob=torch.tensor([0.2]), r_prob=torch.tensor([0.1]),
+        round_idx=1, tool_costs=tool_costs, budget_caps=(3, 2, 1)
+    )
+    assert sel_r1 == ["t0", "t1", "t2"]
 
-    head.forward = mock_forward
-    h_cls = torch.zeros(1, 16)
+    # Round 2: Budget cap K_2 = 2 -> top 2 selected
+    _, sel_r2, _ = dispatch_three_branch(
+        tool_names=tools, tool_logits=logits, tool_gains=gains,
+        s_prob=torch.tensor([0.2]), r_prob=torch.tensor([0.1]),
+        round_idx=2, tool_costs=tool_costs, budget_caps=(3, 2, 1)
+    )
+    assert sel_r2 == ["t0", "t1"]
 
-    # Round 1: Budget cap K_1 = 3 -> all 3 qualifying tools selected
-    selected_r1 = head.select_tools(h_cls, round_idx=1, s_min=0.35, delta_margin=0.15)
-    assert selected_r1 == [0, 1, 2]
-
-    # Round 2: Budget cap K_2 = 2 -> capped to top 2 qualifying tools
-    selected_r2 = head.select_tools(h_cls, round_idx=2, s_min=0.35, delta_margin=0.15)
-    assert selected_r2 == [0, 1]
-
-    # Round 3: Budget cap K_3 = 1 -> capped to top 1
-    selected_r3 = head.select_tools(h_cls, round_idx=3, s_min=0.35, delta_margin=0.15)
-    assert selected_r3 == [0]
+    # Round 3: Budget cap K_3 = 1 -> top 1 selected
+    _, sel_r3, _ = dispatch_three_branch(
+        tool_names=tools, tool_logits=logits, tool_gains=gains,
+        s_prob=torch.tensor([0.2]), r_prob=torch.tensor([0.1]),
+        round_idx=3, tool_costs=tool_costs, budget_caps=(3, 2, 1)
+    )
+    assert sel_r3 == ["t0"]
 
 
 def test_select_tools_poe_tool_mask_suppression():
     """Tools disabled by tool_mask (False) must receive -1e4 and never be selected."""
-    head = ToolHead(d=16, n_tools=3)
-    # High logits for all tools
-    mock_logits = torch.tensor([[5.0, 5.0, 5.0]])
-    head.forward = lambda x: mock_logits
-
-    h_cls = torch.zeros(1, 16)
-    # Disable tool 0 and tool 2
+    tools = ["t0", "t1", "t2"]
+    logits = torch.tensor([5.0, 5.0, 5.0])
+    gains = torch.tensor([0.8, 0.8, 0.8])
     tool_mask = torch.tensor([False, True, False])
 
-    selected = head.select_tools(h_cls, round_idx=1, tool_mask=tool_mask)
-    assert selected == [1]
+    _, selected, _ = dispatch_three_branch(
+        tool_names=tools, tool_logits=logits, tool_gains=gains,
+        s_prob=torch.tensor([0.2]), r_prob=torch.tensor([0.1]),
+        round_idx=1, tool_mask=tool_mask,
+    )
+    assert selected == ["t1"]
 
 
 # -----------------------------------------------------------------------------
@@ -267,10 +279,6 @@ def test_investigate_early_termination_single_survivor():
     def mock_dispatcher(tools: List[str]) -> Dict[str, Any]:
         return {"entropy": 0.9, "device_id": 1.0}
 
-    # Ensure tool gating returns tools
-    with torch.no_grad():
-        model.tool_head.proj_out.bias.fill_(2.0)
-
     result: InvestigationResult = model.investigate(
         tok=tok,
         type_token="<TYPE_PROMO_ABUSE>",
@@ -313,9 +321,6 @@ def test_investigate_all_cataloged_eliminated_triggers_escalation():
     def mock_dispatcher(tools: List[str]) -> Dict[str, Any]:
         return {"anomaly": 0.99}
 
-    with torch.no_grad():
-        model.tool_head.proj_out.bias.fill_(2.0)
-
     result = model.investigate(
         tok=tok,
         type_token="<TYPE_PROMO_ABUSE>",
@@ -343,9 +348,14 @@ def test_investigate_empty_tool_selection_short_circuits():
         "H_novel": "unseen novel attack pattern",
     }
 
-    # Force low tool logits so select_tools returns []
-    with torch.no_grad():
-        model.tool_head.proj_out.bias.fill_(-10.0)
+    # Mock forward to simulate empty tool selection / VERDICT
+    orig_forward = model.forward
+    def mock_fwd(*args, **kwargs):
+        v, s, out = orig_forward(*args, **kwargs)
+        out.selected_tools = [[]]
+        out.proposed_action = ["VERDICT"]
+        return v, s, out
+    model.forward = mock_fwd
 
     called = False
 
@@ -363,7 +373,6 @@ def test_investigate_empty_tool_selection_short_circuits():
         tool_hyp_mapping={},
         tool_dispatcher=mock_dispatcher,
         max_rounds=3,
-        s_min=0.35,
     )
 
     # Tool dispatcher must NOT be called when tool list is empty

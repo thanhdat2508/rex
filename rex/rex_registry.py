@@ -80,6 +80,9 @@ class ToolSpec:
     returns: List[str]
     scope: str = "macro"  # "macro" or "micro"
     general: bool = False
+    description: str = ""
+    level: str = "READ"   # "READ", "LIGHT", or "HEAVY"
+    cost: float = 0.0
 
 
 @dataclass(frozen=True)

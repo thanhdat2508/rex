@@ -1,177 +1,53 @@
-"""Rex model architecture: RexDecisionModel, ToolHead, and checkpoint utilities."""
+"""Rex unified model architecture: RexDecisionModel, 4 decision heads, and checkpoint utilities (Step A8)."""
+from __future__ import annotations
+
 import math
 from contextlib import nullcontext
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from .common import DecisionModel
+from .rex_heads import ConformalCalibrator, HypothesisScorer, RiskHead, SufficiencyHead, VerdictBridge
+from .rex_memory import EvidenceMemoryManager
+from .rex_ponder import LatentPonderBlock
+from .rex_registry import ToolSpec
+from .rex_tools import ToolGainHead, ToolMatcherHead, evaluate_stall_and_dispatch
+from .rex_types import RexState, RexStepOutput
 
-# Default hyperparameters for Dynamic Margin Gating and Budget Allocation
-DEFAULT_S_MIN: float = 0.35
-DEFAULT_DELTA_MARGIN: float = 0.15
-DEFAULT_BUDGET_CAPS: tuple[int, int, int] = (3, 2, 1)
+# Checkpoint loader prefix whitelist for newly initialized Rex2 modules
+REX2_NEW_MODULE_PREFIXES: Tuple[str, ...] = (
+    "ponder_block.",
+    "head_s.",
+    "head_r.",
+    "verdict_bridge.",
+    "tool_matcher.",
+    "tool_gain.",
+    "hyp_scorer.",
+    "tool_embeddings",
+)
 
-
-class ToolHead(nn.Module):
-    """Tool selection MLP head for Rex.
-
-    Architecture:
-        h[:, 0] ([CLS]) -> Linear(d, hidden_dim) -> LayerNorm -> GELU -> Dropout -> Linear(hidden_dim, N_tools)
-
-    Notes:
-        - LayerNorm in the hidden layer mitigates anisotropic representation drift.
-        - Output bias is initialized to logit(prior) for numerical stability under focal loss.
-        - Raw float32 logits are returned; thresholding / margin / Top-K selection lives in runtime.
-    """
-
-    def __init__(
-        self,
-        d: int,
-        n_tools: int,
-        hidden_dim: Optional[int] = None,
-        dropout: float = 0.1,
-        tool_prior: Optional[float] = None,
-    ):
-        super().__init__()
-        hidden_dim = hidden_dim or d
-        self.d = d
-        self.n_tools = n_tools
-        self.hidden_dim = hidden_dim
-
-        self.proj_in = nn.Linear(d, hidden_dim)
-        self.ln = nn.LayerNorm(hidden_dim)
-        self.act = nn.GELU()
-        self.dropout = nn.Dropout(dropout)
-        self.proj_out = nn.Linear(hidden_dim, n_tools)
-
-        # Initialize weights
-        nn.init.xavier_uniform_(self.proj_in.weight)
-        nn.init.zeros_(self.proj_in.bias)
-        nn.init.xavier_uniform_(self.proj_out.weight)
-
-        # Output bias initialized to logit(prior) to handle extreme label sparsity
-        if n_tools > 0:
-            if tool_prior is not None:
-                prior = tool_prior
-            else:
-                prior = min(max(2.0 / max(1, n_tools), 1e-4), 0.5)
-            logit_prior = math.log(prior / (1.0 - prior))
-            nn.init.constant_(self.proj_out.bias, logit_prior)
-        else:
-            nn.init.zeros_(self.proj_out.bias)
-
-    @property
-    def weight(self) -> torch.Tensor:
-        """Weight matrix [n_tools, hidden_dim] for orthogonality loss computation."""
-        return self.proj_out.weight
-
-    @property
-    def tool_embeddings(self) -> torch.Tensor:
-        """Alias for projection weight matrix [n_tools, hidden_dim]."""
-        return self.proj_out.weight
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Compute tool selection logits from contextualized [CLS] embedding.
-
-        Parameters
-        ----------
-        x : torch.Tensor
-            Contextualized [CLS] hidden states, shape [batch_size, d].
-
-        Returns
-        -------
-        torch.Tensor
-            Raw logits, shape [batch_size, n_tools], dtype float32.
-        """
-        h = self.proj_in(x)
-        h = self.ln(h)
-        h = self.act(h)
-        h = self.dropout(h)
-        return self.proj_out(h).float()
-
-    def select_tools(
-        self,
-        h_cls: torch.Tensor,
-        round_idx: int,
-        tool_mask: Optional[torch.Tensor] = None,
-        s_min: float = DEFAULT_S_MIN,
-        delta_margin: float = DEFAULT_DELTA_MARGIN,
-        budget_caps: tuple[int, ...] = DEFAULT_BUDGET_CAPS,
-    ) -> List[int]:
-        """Select parallel tools using Sigmoid + Dynamic Margin Gating + Descending Budget Cap.
-
-        Parameters
-        ----------
-        h_cls : torch.Tensor
-            Hidden state of [CLS] token, shape [d] or [1, d].
-        round_idx : int
-            Current investigation round (1-indexed, e.g. 1, 2, 3).
-        tool_mask : Optional[torch.Tensor]
-            Boolean availability mask of shape [n_tools] or [1, n_tools].
-            False denotes tool is disabled by PoE hard masking.
-        s_min : float
-            Absolute confidence floor threshold (default 0.35).
-        delta_margin : float
-            Relative tolerance margin below top-1 score (default 0.15).
-        budget_caps : tuple[int, ...]
-            Descending budget limits per round (default 3, 2, 1).
-
-        Returns
-        -------
-        List[int]
-            Indices of selected tools.
-        """
-        if h_cls.dim() == 1:
-            h_cls = h_cls.unsqueeze(0)
-
-        logits = self.forward(h_cls).squeeze(0)  # [n_tools]
-
-        if tool_mask is not None:
-            mask = tool_mask.squeeze(0) if tool_mask.dim() == 2 else tool_mask
-            logits = logits.masked_fill(~mask, -1e4)
-
-        # Layer 1: Independent Sigmoid Scoring
-        scores = torch.sigmoid(logits)
-
-        # Layer 2: Dynamic Margin Gating
-        sorted_scores, sorted_indices = torch.sort(scores, descending=True)
-        top_1_score = sorted_scores[0].item()
-
-        # If top tool falls below s_min floor or is masked out (-1e4 -> sigmoid ~ 0), return empty
-        if top_1_score < s_min or torch.isinf(sorted_scores[0]):
-            return []
-
-        selected_indices = [sorted_indices[0].item()]
-
-        # Determine round-dependent budget cap K_t
-        cap_idx = max(0, min(round_idx - 1, len(budget_caps) - 1))
-        budget_cap = budget_caps[cap_idx]
-
-        # Scan runners-up within budget
-        max_scan = min(budget_cap, len(sorted_scores))
-        for i in range(1, max_scan):
-            score_i = sorted_scores[i].item()
-            if score_i >= s_min and (top_1_score - score_i) <= delta_margin:
-                selected_indices.append(sorted_indices[i].item())
-            else:
-                break
-
-        return selected_indices
+# Deprecated alias for legacy v1 imports
+ToolHead = ToolMatcherHead
 
 
 class RexDecisionModel(DecisionModel):
-    """Rex Decision Model extending Laya's DecisionModel with parallel tool selection and PoE.
+    """Rex unified decision model (arch='rex2') extending Laya's DecisionModel.
 
-    Inherits contextualization (encoder + head layers) and hypothesis scoring (scorer)
-    from DecisionModel, and adds a dedicated ToolHead alongside act_head.
+    Architecture:
+        - Latent Ponder Block with Cross-Attention over evidence memory and KV caching
+        - 4 Decision Heads: SufficiencyHead (S), RiskHead (R), ToolGainHead, ToolMatcherHead
+        - Zero-init Verdict Bridge for hypothesis logits with exact Laya checkpoint parity
+        - HypothesisScorer for PoE likelihood estimation
+        - Unified step-by-step forward execution with RexState and RexStepOutput
     """
 
     def __init__(
         self,
         encoder: nn.Module,
-        tools: Sequence[str],
+        tools: Sequence[Union[str, ToolSpec]],
         type_tokens: Optional[Dict[str, str]] = None,
         tool_hidden: Optional[int] = None,
         tool_dropout: float = 0.1,
@@ -180,37 +56,319 @@ class RexDecisionModel(DecisionModel):
         n_act: int = 2,
         dropout: float = 0.1,
         no_init: bool = False,
+        ponder_steps: int = 3,
+        calibrator_alpha: float = 0.10,
     ):
         super().__init__(encoder, head_layers=head_layers, n_act=n_act, dropout=dropout, no_init=no_init)
         if not tools:
             raise ValueError("tools list must not be empty")
-        cleaned_tools = []
+
+        cleaned_tools: List[str] = []
         for t in tools:
-            if not isinstance(t, str) or not t.strip():
-                raise ValueError(f"Tool names must be non-empty strings, got {t!r}")
-            cleaned_tools.append(t.strip())
+            name = t.name if isinstance(t, ToolSpec) else t
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError(f"Tool names must be non-empty strings, got {name!r}")
+            cleaned_tools.append(name.strip())
+
         if len(cleaned_tools) != len(set(cleaned_tools)):
             seen = set()
             duplicates = [t for t in cleaned_tools if t in seen or seen.add(t)]
             raise ValueError(f"Duplicate tool names found in tools list: {duplicates}")
+
         self.tools = cleaned_tools
         self.tool_to_idx = {name: i for i, name in enumerate(self.tools)}
         self.type_tokens = dict(type_tokens or {})
         self.tool_hidden = tool_hidden
         self.tool_dropout = tool_dropout
         self.tool_prior = tool_prior
+        self.ponder_steps = ponder_steps
 
         d = encoder.config.hidden_size
+        # Find head count dividing d_model cleanly
+        n_heads = 1
+        for h in range(min(8, d), 0, -1):
+            if d % h == 0:
+                n_heads = h
+                break
+
         with torch.device("meta") if no_init else nullcontext():
-            self.tool_head = ToolHead(
-                d,
-                len(self.tools),
-                hidden_dim=tool_hidden,
-                dropout=tool_dropout,
-                tool_prior=tool_prior,
-            )
+            # 1. Latent Ponder Block with KV-caching
+            self.ponder_block = LatentPonderBlock(d_model=d, nhead=n_heads, dropout=dropout)
+
+            # 2. Sufficiency & Risk Heads
+            self.head_s = SufficiencyHead(d=d)
+            self.head_r = RiskHead(d=d)
+
+            # 3. Verdict Bridge (zero initialized for exact Laya parity)
+            self.verdict_bridge = VerdictBridge(d=d)
+
+            # 4. Tool Matcher and Gain Heads
+            proj_dim = min(256, d)
+            self.tool_matcher = ToolMatcherHead(d=d, proj_dim=proj_dim)
+            self.tool_gain = ToolGainHead(d=d, hidden_dim=proj_dim)
+
+            # 5. Hypothesis Scorer for PoE
+            self.hyp_scorer = HypothesisScorer(d=d, nhead=n_heads)
+
+            # Pre-initialize tool representation buffer
+            tool_init = torch.randn(len(self.tools), d) * 0.02
+            self.register_buffer("tool_embeddings", tool_init)
+            self.tool_matcher.set_tool_embeddings(self.tool_embeddings)
+
+            # 6. Memory Manager & Calibrator
+            self.memory_manager = EvidenceMemoryManager()
+            self.calibrator = ConformalCalibrator(alpha=calibrator_alpha)
+
         if no_init:
-            self.tool_head.to_empty(device="cpu")
+            self.ponder_block.to_empty(device="cpu")
+            self.head_s.to_empty(device="cpu")
+            self.head_r.to_empty(device="cpu")
+            self.verdict_bridge.to_empty(device="cpu")
+            self.tool_matcher.to_empty(device="cpu")
+            self.tool_gain.to_empty(device="cpu")
+            self.hyp_scorer.to_empty(device="cpu")
+            self.tool_embeddings = torch.empty((len(self.tools), d), device="cpu")
+            self.tool_matcher.set_tool_embeddings(self.tool_embeddings)
+
+    @property
+    def tool_head(self) -> ToolMatcherHead:
+        """Backward-compatibility alias mapping legacy tool_head to tool_matcher."""
+        return self.tool_matcher
+
+    def forward(
+        self,
+        input_ids: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        marker_pos: Optional[torch.Tensor] = None,
+        marker_mask: Optional[torch.Tensor] = None,
+        qtype: Optional[torch.Tensor] = None,
+        state: Optional[RexState] = None,
+        evidence_new: Optional[torch.Tensor] = None,
+        evidence_mask: Optional[torch.Tensor] = None,
+        tool_specs: Optional[Sequence[Any]] = None,
+        tool_mask: Optional[torch.Tensor] = None,
+        hyp_alive: Optional[torch.Tensor] = None,
+        hyp_names: Optional[List[str]] = None,
+        detach_encoder: bool = False,
+        position_ids: Optional[torch.Tensor] = None,
+        option_ids: Optional[torch.Tensor] = None,
+        ponder_steps: Optional[int] = None,
+    ) -> Tuple[torch.Tensor, RexState, RexStepOutput]:
+        """Unified step-by-step forward execution across multi-round investigation turns.
+
+        Args:
+            input_ids: Token IDs for initial contextualization [B, S].
+            attention_mask: Attention mask for input tokens [B, S].
+            marker_pos: Marker token positions for hypotheses [B, K].
+            marker_mask: Boolean mask for valid hypothesis markers [B, K].
+            qtype: Question type tensor [B].
+            state: RexState from previous turn (None on turn 1).
+            evidence_new: New observation tokens or embeddings [B, L_new].
+            evidence_mask: Mask for new observation tokens [B, L_new].
+            tool_specs: Catalogue of tool specifications (ToolSpec).
+            tool_mask: Boolean mask [B, N_tools] disabling unavailable tools.
+            hyp_alive: Boolean survival mask [B, K] across Popperian candidate hypotheses.
+            hyp_names: Optional names of candidate hypotheses.
+            detach_encoder: Whether to detach encoder outputs during training.
+            position_ids: Positional encoding overrides.
+            option_ids: Option layout indicators.
+            ponder_steps: Number of pondering steps T (default: self.ponder_steps).
+
+        Returns:
+            Tuple of:
+                verdict_logits: Float tensor [B, K].
+                updated_state: Updated RexState carrier.
+                step_output: Detailed RexStepOutput container with logits, probs, and actions.
+        """
+        T = ponder_steps if ponder_steps is not None else self.ponder_steps
+
+        if state is None:
+            if input_ids is None or attention_mask is None or marker_pos is None or marker_mask is None:
+                raise ValueError("Turn 1 requires input_ids, attention_mask, marker_pos, and marker_mask.")
+
+            if qtype is None:
+                qtype = torch.zeros(input_ids.size(0), dtype=torch.long, device=input_ids.device)
+
+            # 1. Contextualize initial problem statement & hypothesis tokens
+            h = self._contextualize(
+                input_ids,
+                attention_mask,
+                qtype,
+                detach_encoder=detach_encoder,
+                position_ids=position_ids,
+                option_ids=option_ids,
+            )
+            B, S, d = h.shape
+
+            # 2. Extract hypothesis markers m_j from marker positions
+            idx = marker_pos.clamp(min=0)[:, :, None].expand(-1, -1, d)
+            m = torch.gather(h, 1, idx)  # [B, K, d]
+
+            # 3. Initial thought state h_0 and initial evidence memory M_0
+            h_0 = h[:, 0]  # [CLS] token [B, d]
+            M_0 = h        # [B, S, d]
+            mem_mask = attention_mask.bool()  # [B, S]
+
+            # 4. Latent Pondering
+            h_T, kv_cache, attn_weights = self.ponder_block.ponder(
+                h_0, M_0, memory_mask=mem_mask, T=T, kv_cache=None
+            )
+
+            # Initialize survival mask if not provided
+            K = marker_pos.size(1)
+            active_hyp = hyp_alive if hyp_alive is not None else torch.ones((B, K), dtype=torch.bool, device=h.device)
+
+            current_state = RexState(
+                h=h_T,
+                M=M_0,
+                memory_mask=mem_mask,
+                kv_cache=kv_cache,
+                hyp_alive=active_hyp,
+                hyp_markers=m,
+                round_idx=1,
+                called_tools=[[] for _ in range(B)],
+                last_read_tried=False,
+                is_truncated=False,
+            )
+        else:
+            current_state = state
+            B = current_state.h.size(0)
+            d = current_state.h.size(1)
+
+            if evidence_new is not None:
+                # Encode new evidence tokens
+                if evidence_mask is None:
+                    evidence_mask = torch.ones_like(evidence_new, dtype=torch.bool)
+                if qtype is None:
+                    qtype = torch.zeros(B, dtype=torch.long, device=evidence_new.device)
+
+                h_ev = self._contextualize(
+                    evidence_new,
+                    evidence_mask,
+                    qtype,
+                    detach_encoder=detach_encoder,
+                )
+                current_state = self.memory_manager.append_evidence(
+                    current_state,
+                    h_ev,
+                    evidence_mask,
+                    is_truncated=False,
+                    ponder_block=self.ponder_block,
+                )
+
+            # Ponder with updated evidence memory & existing KV-cache
+            h_T, kv_cache, attn_weights = self.ponder_block.ponder(
+                current_state.h,
+                current_state.M,
+                memory_mask=current_state.memory_mask,
+                T=T,
+                kv_cache=current_state.kv_cache,
+            )
+            current_state.h = h_T
+            current_state.kv_cache = kv_cache
+            current_state.round_idx += 1
+
+        # 5. Verdict Bridge: bridge markers with h_T
+        m_bridged = self.verdict_bridge(current_state.hyp_markers, h_T)
+        raw_verdict_logits = self.scorer(m_bridged).squeeze(-1).float()  # [B, K]
+
+        # Apply marker mask and PoE survival mask
+        effective_mask = marker_mask if marker_mask is not None else torch.ones_like(raw_verdict_logits, dtype=torch.bool)
+        if current_state.hyp_alive is not None:
+            effective_mask = effective_mask & current_state.hyp_alive
+        verdict_logits = raw_verdict_logits.masked_fill(~effective_mask, -1e4)
+        verdict_probs = torch.softmax(verdict_logits, dim=-1)
+
+        # 6. Sufficiency and Risk Heads
+        s_logit = self.head_s(h_T)
+        s_prob = torch.sigmoid(s_logit)
+        r_logit = self.head_r(h_T)
+        r_prob = torch.sigmoid(r_logit)
+
+        # 7. Tool Matcher and Gain Heads
+        tool_logits = self.tool_matcher(h_T)
+        if tool_mask is not None:
+            tool_logits = tool_logits.masked_fill(~tool_mask, -1e4)
+        tool_gains = self.tool_gain(h_T, self.tool_embeddings)
+
+        # 8. Conformal Calibration
+        k_names = hyp_names or [f"H_{i}" for i in range(verdict_logits.size(1))]
+        conformal_sets = self.calibrator.predict_set(verdict_probs, labels=k_names)
+
+        # 9. STALL Evaluation & 3-Branch Dispatch
+        resolved_tools = [
+            t if isinstance(t, ToolSpec) else ToolSpec(name=str(t), returns=[])
+            for t in (tool_specs or self.tools)
+        ]
+        tool_names = [t.name for t in resolved_tools]
+        tool_levels = {t.name: getattr(t, "level", "READ") for t in resolved_tools}
+        tool_costs = {t.name: getattr(t, "cost", 0.0) for t in resolved_tools}
+
+        actions: List[str] = []
+        selected_batch: List[List[str]] = []
+        stalls: List[bool] = []
+        stall_modes: List[str] = []
+        rule_stalls: List[bool] = []
+        last_read_state = current_state.last_read_tried
+
+        for b in range(B):
+            b_conformal = conformal_sets[b] if conformal_sets else None
+            b_called = current_state.called_tools[b] if b < len(current_state.called_tools) else []
+            b_mask = tool_mask[b] if tool_mask is not None else None
+
+            action, selected, stall, stall_mode, rule_stall, new_last_read, _ = evaluate_stall_and_dispatch(
+                tool_names=tool_names,
+                tool_logits=tool_logits[b],
+                tool_gains=tool_gains[b],
+                s_prob=s_prob[b],
+                r_prob=r_prob[b],
+                round_idx=current_state.round_idx,
+                called_tools=b_called,
+                conformal_set=b_conformal,
+                last_read_tried=last_read_state,
+                tool_levels=tool_levels,
+                tool_costs=tool_costs,
+                tool_mask=b_mask,
+            )
+            actions.append(action)
+            selected_batch.append(selected)
+            stalls.append(stall)
+            stall_modes.append(stall_mode)
+            rule_stalls.append(rule_stall)
+            last_read_state = new_last_read
+            if b < len(current_state.called_tools):
+                current_state.called_tools[b].extend(selected)
+
+        current_state.last_read_tried = last_read_state
+
+        step_output = RexStepOutput(
+            s_logit=s_logit,
+            s_prob=s_prob,
+            r_logit=r_logit,
+            r_prob=r_prob,
+            verdict_logits=verdict_logits,
+            verdict_probs=verdict_probs,
+            tool_logits=tool_logits,
+            tool_gains=tool_gains,
+            stall=torch.tensor(stalls, dtype=torch.bool, device=h_T.device),
+            stall_mode=stall_modes[0] if stall_modes else "NONE",
+            rule_stall=torch.tensor(rule_stalls, dtype=torch.bool, device=h_T.device),
+            selected_tools=selected_batch,
+            proposed_action=actions,
+            h_T=h_T,
+            tool_names=[t.name for t in resolved_tools],
+            hyp_names=k_names,
+            conformal_set=conformal_sets,
+            attn_weights=attn_weights,
+            gain_head_trained=True,
+            is_truncated=current_state.is_truncated,
+        )
+
+        return verdict_logits, current_state, step_output
+
+    def step(self, *args, **kwargs) -> Tuple[torch.Tensor, RexState, RexStepOutput]:
+        """Convenience alias for forward()."""
+        return self.forward(*args, **kwargs)
 
     def rex_forward(
         self,
@@ -225,45 +383,10 @@ class RexDecisionModel(DecisionModel):
         position_ids: Optional[torch.Tensor] = None,
         option_ids: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
-        """Forward pass for Rex multi-task decision and tool selection.
-
-        Parameters
-        ----------
-        input_ids : torch.Tensor
-            Batch token IDs, shape [B, S].
-        attention_mask : torch.Tensor
-            Attention mask, shape [B, S].
-        marker_pos : torch.Tensor
-            Positions of [MASK] tokens corresponding to hypotheses, shape [B, K].
-        marker_mask : torch.Tensor
-            Padding mask for marker positions, shape [B, K] bool.
-        qtype : Optional[torch.Tensor]
-            Question type (default 0 for choice), shape [B].
-        hyp_alive : Optional[torch.Tensor]
-            PoE survival mask, shape [B, K] bool. False indicates hypothesis is eliminated.
-        tool_mask : Optional[torch.Tensor]
-            Mask of available tools, shape [B, N_tools] bool. False indicates tool is disabled.
-        detach_encoder : bool
-            Whether to detach encoder output during training.
-        position_ids : Optional[torch.Tensor]
-            Explicit position IDs for parallel option layout.
-        option_ids : Optional[torch.Tensor]
-            Explicit option IDs for parallel option layout.
-
-        Returns
-        -------
-        Dict[str, torch.Tensor]
-            {
-                "verdict_logits": [B, K] float32,
-                "tool_logits": [B, N_tools] float32,
-                "act_logits": [B, n_act] float32,
-                "h_cls": [B, d] hidden state,
-            }
-        """
+        """Lightweight compatibility shim for legacy Rex v1 training and evaluation scripts."""
         if qtype is None:
             qtype = torch.zeros(input_ids.size(0), dtype=torch.long, device=input_ids.device)
 
-        # 1. Contextualize tokens via encoder + type embedding + head layers
         h = self._contextualize(
             input_ids,
             attention_mask,
@@ -273,21 +396,24 @@ class RexDecisionModel(DecisionModel):
             option_ids=option_ids,
         )
 
-        # 2. Tool Head on contextualized [CLS] embedding (h[:, 0])
         h_cls = h[:, 0]
-        tool_logits = self.tool_head(h_cls)
+        tool_logits = self.tool_matcher(h_cls)
         if tool_mask is not None:
             tool_logits = tool_logits.masked_fill(~tool_mask, -1e4)
 
-        # 3. Verdict Head on hypothesis [MASK] representations with PoE hard masking
         effective_marker_mask = marker_mask
         if hyp_alive is not None:
             effective_marker_mask = marker_mask & hyp_alive
-            # Numerical sanity: ensure at least one hypothesis remains alive per sample
             if not effective_marker_mask.any(dim=-1).all():
                 raise ValueError("All hypotheses have been eliminated for at least one sample in the batch.")
 
-        verdict_logits, act_logits = self._decide(h, attention_mask, marker_pos, effective_marker_mask)
+        idx = marker_pos.clamp(min=0)[:, :, None].expand(-1, -1, h.size(-1))
+        m = torch.gather(h, 1, idx)
+        m_bridged = self.verdict_bridge(m, h_cls)
+        verdict_logits = self.scorer(m_bridged).squeeze(-1).float()
+        verdict_logits = verdict_logits.masked_fill(~effective_marker_mask, -1e4)
+
+        _, act_logits = self._decide(h, attention_mask, marker_pos, effective_marker_mask)
 
         return {
             "verdict_logits": verdict_logits,
@@ -296,268 +422,45 @@ class RexDecisionModel(DecisionModel):
             "h_cls": h_cls,
         }
 
-    def select_tools(
-        self,
-        h_cls: torch.Tensor,
-        round_idx: int,
-        tool_mask: Optional[torch.Tensor] = None,
-        s_min: float = DEFAULT_S_MIN,
-        delta_margin: float = DEFAULT_DELTA_MARGIN,
-    ) -> List[str]:
-        """Select tools by name using the internal ToolHead gating pipeline (Step 5.1).
-
-        Parameters
-        ----------
-        h_cls : torch.Tensor
-            Contextualized [CLS] hidden state, shape [d] or [1, d].
-        round_idx : int
-            Current turn index (1-indexed, e.g. 1, 2, 3).
-        tool_mask : Optional[torch.Tensor]
-            Optional boolean mask [n_tools] disabling refuted tool branches.
-        s_min : float
-            Absolute confidence floor threshold.
-        delta_margin : float
-            Relative runner-up tolerance margin.
-
-        Returns
-        -------
-        List[str]
-            List of approved tool names to execute in parallel.
-        """
-        indices = self.tool_head.select_tools(
-            h_cls,
-            round_idx=round_idx,
-            tool_mask=tool_mask,
-            s_min=s_min,
-            delta_margin=delta_margin,
-        )
-        return [self.tools[idx] for idx in indices]
-
-    def derive_tool_mask(
-        self,
-        current_alive: Dict[str, bool],
-        tool_hyp_mapping: Dict[str, List[str]],
-    ) -> torch.Tensor:
-        """Derive boolean tool availability tensor [n_tools] from hypothesis survival state (Step 5.3)."""
-        from .rex_poe import HardMaskingManager
-
-        manager = HardMaskingManager()
-        mask_list = manager.compute_tool_mask(self.tools, current_alive, tool_hyp_mapping)
-        device = self.tool_head.proj_in.weight.device
-        return torch.tensor(mask_list, dtype=torch.bool, device=device)
-
-    def evaluate_falsification(
-        self,
-        observations: Dict[str, Any],
-        current_alive: Dict[str, bool],
-        rules: Dict[str, List[Any]],
-    ) -> Dict[str, bool]:
-        """Evaluate observation telemetry against Popperian falsification criteria (Step 5.2)."""
-        from .rex_poe import PoEFalsificationEngine
-
-        engine = PoEFalsificationEngine()
-        return engine.evaluate(observations, current_alive, rules)
-
     def compute_verdict_probabilities(
         self,
         verdict_logits: torch.Tensor,
         hyp_alive: Optional[Dict[str, bool]] = None,
         hyp_keys: Optional[List[str]] = None,
     ) -> Dict[str, float]:
-        """Compute normalized softmax probabilities over surviving hypotheses with hard logit masking (Step 5.3).
-
-        Parameters
-        ----------
-        verdict_logits : torch.Tensor
-            Verdict logits of shape [K] or [1, K].
-        hyp_alive : Optional[Dict[str, bool]]
-            Survival status per hypothesis key. Eliminated hypotheses receive -1e4 logit masking.
-        hyp_keys : Optional[List[str]]
-            Hypothesis names corresponding to logit indices.
-
-        Returns
-        -------
-        Dict[str, float]
-            Probability distribution summing to 1.0 across active hypotheses.
-        """
+        """Compute normalized softmax probabilities over surviving hypotheses."""
         if verdict_logits.dim() == 2:
             verdict_logits = verdict_logits.squeeze(0)
-
         k = verdict_logits.size(0)
         keys = hyp_keys or [f"H_{i}" for i in range(k)]
-
         masked_logits = verdict_logits.clone()
         if hyp_alive is not None:
             for idx, key in enumerate(keys):
                 if not hyp_alive.get(key, True):
                     masked_logits[idx] = -1e4
-
         probs = torch.softmax(masked_logits, dim=-1)
-        return {key: float(probs[idx].item()) for idx, key in enumerate(keys)}
+        res = {key: float(probs[idx].item()) for idx, key in enumerate(keys)}
+        if hyp_alive is not None:
+            for key in keys:
+                if not hyp_alive.get(key, True):
+                    res[key] = 0.0
+        s = sum(res.values())
+        if s > 0:
+            res = {k: v / s for k, v in res.items()}
+        return res
 
-    def investigate(
-        self,
-        tok: Any,
-        type_token: str,
-        instruction: str,
-        hypotheses: Dict[str, str],
-        rules: Dict[str, List[Any]],
-        tool_hyp_mapping: Dict[str, List[str]],
-        tool_dispatcher: Callable[[List[str]], Dict[str, Any]],
-        initial_state: Union[str, dict, list] = "",
-        max_rounds: int = 3,
-        s_min: float = DEFAULT_S_MIN,
-        delta_margin: float = DEFAULT_DELTA_MARGIN,
-    ) -> Any:
-        """Execute an autonomous multi-round investigation loop directly within the model (Step 5.4).
+    def investigate(self, *args, **kwargs) -> Any:
+        """Deprecated procedural investigation method delegated to InvestigatorAgent (Step A10)."""
+        from .rex_agent import InvestigatorAgent
 
-        Parameters
-        ----------
-        tok : Any
-            Tokenizer configured with type tokens.
-        type_token : str
-            Domain event identifier (e.g. '<TYPE_PROMO_ABUSE>').
-        instruction : str
-            Core question or incident investigation prompt.
-        hypotheses : Dict[str, str]
-            Hypothesis name -> physical description mapping, ending with 'H_novel'.
-        rules : Dict[str, List[FalsificationRule]]
-            Falsification rules per hypothesis.
-        tool_hyp_mapping : Dict[str, List[str]]
-            Tool name -> list of supporting hypotheses.
-        tool_dispatcher : Callable[[List[str]], Dict[str, Any]]
-            Callback executing selected tools and returning observation telemetry.
-        initial_state : Union[str, dict, list]
-            Initial incident telemetry state.
-        max_rounds : int
-            Maximum exploration rounds before forced termination (default 3).
-        s_min : float
-            Confidence floor for tool gating (default 0.35).
-        delta_margin : float
-            Relative runner-up margin (default 0.15).
-
-        Returns
-        -------
-        InvestigationResult
-            Detailed verdict, probability distribution, round traces, and escalation status.
-        """
-        import json
-        from .rex_format import collate_rex, encode_rex_input
-        from .rex_poe import InvestigationResult, RoundTrace, TerminationReason
-
-        hyp_keys = list(hypotheses.keys())
-        current_alive = {k: True for k in hyp_keys}
-        state_t = initial_state if isinstance(initial_state, str) else json.dumps(initial_state, ensure_ascii=False)
-        traces: List[RoundTrace] = []
-        final_verdict_logits: Optional[torch.Tensor] = None
-        term_reason = TerminationReason.MAX_ROUNDS_REACHED
-
-        for round_idx in range(1, max_rounds + 1):
-            # 1. Derive tool availability mask from current hypothesis survival state
-            tool_mask_tensor = self.derive_tool_mask(current_alive, tool_hyp_mapping)
-            tool_mask_list = tool_mask_tensor.tolist()
-
-            # 2. Format token sequence for the current investigation round
-            encoded = encode_rex_input(
-                tok,
-                type_token=type_token,
-                instruction=instruction,
-                hypotheses=hypotheses,
-                state=state_t,
-                alive=current_alive,
-                tool_mask=tool_mask_list,
-            )
-            pad_id = getattr(tok, "pad_token_id", 0) or 0
-            batch = collate_rex([encoded], pad_token_id=pad_id)
-
-            # Move batch tensors to model device
-            device = self.tool_head.proj_in.weight.device
-            batch_on_device = {k: v.to(device) for k, v in batch.items()}
-
-            # 3. Model forward pass
-            with torch.no_grad():
-                outputs = self.rex_forward(**batch_on_device)
-
-            h_cls = outputs["h_cls"]
-            final_verdict_logits = outputs["verdict_logits"]
-
-            # 4. Tool selection via Dynamic Margin Gating
-            selected_tools = self.select_tools(
-                h_cls,
-                round_idx=round_idx,
-                tool_mask=tool_mask_tensor,
-                s_min=s_min,
-                delta_margin=delta_margin,
-            )
-
-            # Check if tool list is empty (short-circuit to verdict)
-            if not selected_tools:
-                term_reason = TerminationReason.EMPTY_TOOL_SELECTION
-                break
-
-            # 5. Dispatch selected tools to retrieve observation telemetry
-            observations = tool_dispatcher(selected_tools)
-            traces.append(
-                RoundTrace(
-                    round_idx=round_idx,
-                    selected_tools=selected_tools,
-                    observations=observations,
-                    active_hypotheses=[k for k, v in current_alive.items() if v],
-                )
-            )
-
-            # 6. Apply Popperian falsification to eliminate refuted hypotheses
-            current_alive = self.evaluate_falsification(observations, current_alive, rules)
-
-            # 7. Check convergence criteria
-            active_count = sum(1 for v in current_alive.values() if v)
-            known_active_count = sum(1 for k, v in current_alive.items() if k != "H_novel" and v)
-
-            if known_active_count == 0:
-                # All cataloged hypotheses eliminated; only H_novel remains -> escalate
-                term_reason = TerminationReason.ALL_CATALOGED_ELIMINATED
-                break
-
-            if active_count == 1:
-                # Exactly one hypothesis remains -> single survivor found
-                term_reason = TerminationReason.SINGLE_SURVIVOR
-                break
-
-            if round_idx == max_rounds:
-                term_reason = TerminationReason.MAX_ROUNDS_REACHED
-                break
-
-            # 8. Append observations to running state for subsequent rounds
-            obs_str = json.dumps(observations, ensure_ascii=False)
-            state_t = f"{state_t}\n{obs_str}".strip()
-
-        # Compute final verdict probabilities
-        if final_verdict_logits is None:
-            raise RuntimeError("Model did not execute any forward pass during investigation.")
-
-        probs = self.compute_verdict_probabilities(
-            final_verdict_logits,
-            hyp_alive=current_alive,
-            hyp_keys=hyp_keys,
-        )
-
-        winner = max(probs.items(), key=lambda kv: kv[1])[0]
-        is_escalated = (term_reason == TerminationReason.ALL_CATALOGED_ELIMINATED) or (winner == "H_novel")
-
-        return InvestigationResult(
-            predicted_hypothesis=winner,
-            probabilities=probs,
-            rounds_executed=len(traces) if traces else 1,
-            termination_reason=term_reason,
-            is_escalated=is_escalated,
-            traces=traces,
-        )
+        agent = InvestigatorAgent(model=self)
+        return agent.investigate(*args, **kwargs)
 
 
 def rex_config(model: RexDecisionModel, base_cfg: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Generate Rex configuration dictionary compatible with rl_agent_config.json."""
     cfg = dict(base_cfg or {})
-    cfg["arch"] = "rex"
+    cfg["arch"] = "rex2"
     cfg["rex"] = {
         "tools": list(model.tools),
         "type_tokens": dict(model.type_tokens),
@@ -579,7 +482,7 @@ def from_rex(
     """Wrap an existing pre-trained Laya DecisionModel into a RexDecisionModel.
 
     Transfers all trained weights from the Laya model (encoder, transformer head,
-    scorer, act_head, type_emb, temperature) and initializes a fresh ToolHead.
+    scorer, act_head, type_emb, temperature) and initializes Rex2 modules.
     """
     rex_model = RexDecisionModel(
         encoder=laya_model.encoder,
@@ -594,14 +497,15 @@ def from_rex(
         no_init=False,
     )
 
-    # Transfer state dict; only tool_head weights should be missing
     rex_state = laya_model.state_dict()
     missing_keys, unexpected_keys = rex_model.load_state_dict(rex_state, strict=False)
 
-    # Validate that only tool_head parameters were missing
-    non_tool_missing = [k for k in missing_keys if not k.startswith("tool_head.")]
-    if non_tool_missing:
-        raise RuntimeError(f"Unexpected missing keys when loading Laya checkpoint: {non_tool_missing}")
+    non_rex2_missing = [
+        k for k in missing_keys
+        if not any(k.startswith(p) for p in REX2_NEW_MODULE_PREFIXES)
+    ]
+    if non_rex2_missing:
+        raise RuntimeError(f"Unexpected missing keys when loading Laya checkpoint: {non_rex2_missing}")
     if unexpected_keys:
         raise RuntimeError(f"Unexpected extra keys when loading Laya checkpoint: {unexpected_keys}")
 
@@ -619,4 +523,3 @@ def save_rex_checkpoint(
 
     cfg = rex_config(model, base_cfg=base_cfg)
     save_checkpoint(model, tok, cfg, output_dir)
-

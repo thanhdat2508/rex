@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from rex.common import DecisionModel
 from rex.rex_format import collate_rex, encode_rex_input
 from rex.rex_model import RexDecisionModel, ToolHead, from_rex, rex_config, save_rex_checkpoint
+from rex.rex_tools import ToolMatcherHead
 from rex.rex_vocab import add_type_tokens, check_type_token
 
 
@@ -102,9 +103,10 @@ def test_contextualize_detach_encoder():
 # ==============================================================================
 
 def test_tool_head_shapes_and_dtype():
-    """ToolHead returns float32 logits of shape [B, N_tools]."""
+    """ToolMatcherHead returns float32 logits of shape [B, N_tools]."""
     d, n_tools = 32, 6
-    head = ToolHead(d=d, n_tools=n_tools, hidden_dim=64, dropout=0.1)
+    head = ToolMatcherHead(d=d, proj_dim=64)
+    head.set_tool_embeddings(torch.randn(n_tools, d))
     x = torch.randn(4, d)
     logits = head(x)
 
@@ -113,24 +115,14 @@ def test_tool_head_shapes_and_dtype():
     assert torch.isfinite(logits).all()
 
 
-def test_tool_head_prior_bias_init():
-    """Output bias is initialized to logit(prior) for training stability."""
-    d, n_tools = 32, 10
-    prior = 0.2
-    expected_bias = math.log(prior / (1.0 - prior))  # ~ -1.38629
-    head = ToolHead(d=d, n_tools=n_tools, tool_prior=prior)
-
-    assert torch.allclose(head.proj_out.bias, torch.full((n_tools,), expected_bias), atol=1e-5)
-
-
 def test_tool_head_tool_embeddings_property():
-    """tool_embeddings and weight properties expose [n_tools, hidden_dim] matrix for ortho loss."""
+    """tool_embeddings and weight properties expose [n_tools, proj_dim] matrix for ortho loss."""
     d, n_tools, hidden = 32, 5, 48
-    head = ToolHead(d=d, n_tools=n_tools, hidden_dim=hidden)
+    head = ToolMatcherHead(d=d, proj_dim=hidden)
+    head.set_tool_embeddings(torch.randn(n_tools, d))
 
-    assert head.weight.shape == (n_tools, hidden)
+    assert head.tool_projection_weight.shape == (n_tools, hidden)
     assert head.tool_embeddings.shape == (n_tools, hidden)
-    assert head.weight is head.proj_out.weight
 
 
 # ==============================================================================
@@ -138,7 +130,7 @@ def test_tool_head_tool_embeddings_property():
 # ==============================================================================
 
 def test_rex_decision_model_forward():
-    """RexDecisionModel backward compatibility: normal forward() returns (logits, act_logits)."""
+    """RexDecisionModel forward() returns (verdict_logits, state, step_output)."""
     enc = _tiny_encoder()
     tools = ["tool_a", "tool_b", "tool_c"]
     model = RexDecisionModel(enc, tools=tools, head_layers=1, n_act=2)
@@ -146,10 +138,11 @@ def test_rex_decision_model_forward():
 
     input_ids, attention_mask, marker_pos, marker_mask, qtype = _dummy_inputs()
     with torch.no_grad():
-        logits, act_logits = model(input_ids, attention_mask, marker_pos, marker_mask, qtype)
+        verdict_logits, state, step_out = model(input_ids, attention_mask, marker_pos, marker_mask, qtype)
 
-    assert logits.shape == (2, 4)
-    assert act_logits.shape == (2, 2)
+    assert verdict_logits.shape == (2, 4)
+    assert state.round_idx == 1
+    assert step_out.verdict_logits.shape == (2, 4)
 
 
 def test_rex_forward_outputs():
@@ -432,16 +425,16 @@ def test_from_laya_conversion():
 
     assert isinstance(rex, RexDecisionModel)
     assert rex.tools == tools
-    assert rex.tool_head.proj_out.out_features == 3
+    assert rex.tool_embeddings.shape[0] == len(tools)
 
     # Check that scorer weights match exactly
     assert torch.allclose(rex.scorer[1].weight, laya.scorer[1].weight)
 
 
 def test_build_model_rex_arch():
-    """build_model constructs RexDecisionModel when arch=='rex'."""
+    """build_model constructs RexDecisionModel when arch=='rex' or 'rex2'."""
     cfg = {
-        "arch": "rex",
+        "arch": "rex2",
         "encoder": "bert-base-uncased",
         "head_layers": 1,
         "rex": {
@@ -456,7 +449,7 @@ def test_build_model_rex_arch():
     model = RexDecisionModel(enc, tools=cfg["rex"]["tools"], head_layers=1)
     conf = rex_config(model)
 
-    assert conf["arch"] == "rex"
+    assert conf["arch"] in ("rex", "rex2")
     assert conf["rex"]["tools"] == ["t1", "t2"]
 
 
@@ -504,7 +497,7 @@ def test_rex_checkpoint_round_trip():
         # 4. Verify reload via load_checkpoint
         reloaded_rex, reloaded_tok, reloaded_cfg = load_checkpoint(rex_out)
         assert isinstance(reloaded_rex, RexDecisionModel)
-        assert reloaded_cfg["arch"] == "rex"
+        assert reloaded_cfg["arch"] in ("rex", "rex2")
         assert reloaded_rex.tools == tools
         assert torch.allclose(reloaded_rex.scorer[1].weight, torch.tensor(3.14159), atol=1e-3)
         assert torch.allclose(reloaded_rex.act_head[0].weight, torch.tensor(2.71828), atol=1e-3)
