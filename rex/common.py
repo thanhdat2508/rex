@@ -711,7 +711,7 @@ def build_model(cfg: Dict, encoder_dir: Optional[str] = None, pretrained: bool =
     from transformers import AutoConfig, AutoModel
 
     head_layers, n_act = cfg.get("head_layers", 2), len(cfg.get("act_costs", {})) + 1
-    is_rex = cfg.get("arch") == "rex"
+    is_rex = cfg.get("arch") in ("rex", "rex2")
     if not pretrained or (encoder_dir and os.path.exists(encoder_dir)):
         ecfg = AutoConfig.from_pretrained(encoder_dir or cfg["encoder"])
         _apply_rope_config(ecfg)

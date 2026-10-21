@@ -191,7 +191,58 @@ def collate_rex(
         "hyp_alive": hyp_alive,
         "qtype": torch.zeros(b, dtype=torch.long),
     }
-    if tool_mask_tensor is not None:
-        result["tool_mask"] = tool_mask_tensor
-
     return result
+
+
+def encode_evidence(
+    tok: Any,
+    evidence_text: Union[str, Dict[str, Any], List[Any]],
+    round_idx: int = 1,
+    max_tokens: int = 64,
+) -> Dict[str, Any]:
+    """Encode an incremental evidence piece with a strict token budget cap (Step A4).
+
+    Parameters
+    ----------
+    tok : Any
+        Tokenizer configured for the model.
+    evidence_text : Union[str, Dict[str, Any], List[Any]]
+        Observation string or structured dictionary from tools.
+    round_idx : int
+        Investigation turn index (default: 1).
+    max_tokens : int
+        Hard upper bound on encoded evidence tokens (default: 64).
+
+    Returns
+    -------
+    Dict[str, Any]
+        {
+            "input_ids": list of token IDs,
+            "attention_mask": list of binary mask flags,
+            "is_truncated": bool flag,
+            "round_idx": int,
+        }
+    """
+    import json
+
+    if not isinstance(evidence_text, str):
+        text = json.dumps(evidence_text, ensure_ascii=False)
+    else:
+        text = evidence_text.strip()
+
+    if hasattr(tok, "encode"):
+        ids = tok.encode(text, add_special_tokens=False)
+    else:
+        # Fallback dummy encoding for token-free mocking in unit tests
+        ids = [int(abs(hash(w)) % 1000) + 1 for w in text.split()] or [1]
+
+    is_truncated = len(ids) > max_tokens
+    if is_truncated:
+        ids = ids[:max_tokens]
+
+    return {
+        "input_ids": ids,
+        "attention_mask": [1] * len(ids),
+        "is_truncated": is_truncated,
+        "round_idx": round_idx,
+    }
