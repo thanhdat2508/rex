@@ -1,0 +1,100 @@
+servers:
+  geo:
+    transport: streamable_http
+    url: https://geo.internal/mcp
+  device:
+    transport: streamable_http
+    url: https://device.internal/mcp
+  auth:
+    transport: streamable_http
+    url: https://auth.internal/mcp
+  payment:
+    transport: streamable_http
+    url: https://payment.internal/mcp
+  behavior:
+    transport: streamable_http
+    url: https://behavior.internal/mcp
+  network:
+    transport: streamable_http
+    url: https://network.internal/mcp
+
+tools:
+  geo_ip_lookup:
+    description: Quốc gia của IP và khoảng cách tới nơi khách hay đăng nhập
+    level: READ
+    cost: 0.0
+    server: geo
+    remote_name: geo_ip_lookup
+    timeout_ms: 80
+    params:
+      ip: state.network.session_ip
+
+  device_fingerprint:
+    description: Kiểm tra fingerprint thiết bị và tỉ lệ giả lập
+    level: READ
+    cost: 0.05
+    server: device
+    remote_name: device_fingerprint
+    timeout_ms: 100
+    params:
+      device_id: state.device.id
+
+  auth_history:
+    description: Lịch sử đăng nhập và số lần thử sai
+    level: READ
+    cost: 0.02
+    server: auth
+    remote_name: auth_history
+    timeout_ms: 80
+    params:
+      user_id: state.account.user_id
+
+  ip_reputation:
+    description: Điểm uy tín của địa chỉ IP và tỉ lệ IP trung tâm dữ liệu
+    level: READ
+    cost: 0.01
+    server: network
+    remote_name: ip_reputation
+    timeout_ms: 70
+    params:
+      ip: state.network.session_ip
+
+  network_trace:
+    description: Tỉ lệ ASN dùng chung và thông tin nhà mạng NAT
+    level: READ
+    cost: 0.02
+    server: network
+    remote_name: network_trace
+    timeout_ms: 70
+    params:
+      ip: state.network.session_ip
+
+  behavioral_jitter:
+    description: Độ hỗn loạn gõ phím và tính tuyến tính của chuột
+    level: READ
+    cost: 0.04
+    server: behavior
+    remote_name: behavioral_jitter
+    timeout_ms: 90
+    params:
+      session_id: state.session.id
+
+  payment_graph:
+    description: Đồ thị chia sẻ thẻ ngân hàng và lịch sử chargeback
+    level: READ
+    cost: 0.08
+    server: payment
+    remote_name: payment_graph
+    timeout_ms: 120
+    params:
+      card_hash: state.payment.card_hash
+
+  transaction_velocity:
+    description: Tốc độ giao dịch trong 1h và tỉ lệ từ chối thẻ
+    level: READ
+    cost: 0.05
+    server: payment
+    remote_name: transaction_velocity
+    timeout_ms: 100
+    params:
+      account_id: state.account.user_id

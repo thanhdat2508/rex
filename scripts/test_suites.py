@@ -101,6 +101,20 @@ SCRIPT_SUITES = [
     "tests/test_llamaindex.py",
     "tests/test_langchain_real_mode.py",
     "tests/test_email.py",
+    "tests/test_orch_fake_agent.py",
+    "tests/test_orch_registry.py",
+    "tests/test_orch_state_store.py",
+    "tests/test_orch_params.py",
+    "tests/test_orch_tool_client.py",
+    "tests/test_orch_tool_runner.py",
+    "tests/test_orch_guard.py",
+    "tests/test_orch_packer.py",
+    "tests/test_orch_stop.py",
+    "tests/test_orch_trace_store.py",
+    "tests/test_orch_runner.py",
+    "tests/test_orch_rex_adapter.py",
+    "tests/test_orch_backends.py",
+    "tests/test_orch_e2e.py",
 ]
 
 PYTEST_SUITES = [
