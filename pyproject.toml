@@ -50,7 +50,7 @@ serve = [
 fast = ["tilelang>=0.1.14"]
 
 # `pip install rex[mcp]` adds the MCP stdio server (rex.mcp / the rex-mcp-server CLI).
-mcp = ["mcp>=2.2.0"]
+mcp = ["mcp>=2.3.0"]
 
 # `pip install rex[structured]` adds pydantic for the typed-model helpers (rex/structured.py).
 structured = ["pydantic>=2.0.0"]
