@@ -5,17 +5,16 @@ Evidence packing, StateStore persistence, and Collaborator C handoff.
 """
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import Any, Dict, List, Optional, Sequence
 
-from .agent_port import AgentCommand, AgentPort, Case, CaseStatus
+from .agent_port import AgentPort, CaseStatus
 from .guard import Guard
 from .handoff import HandoffPayload, finish_case
 from .packer import pack_evidence
 from .params import compute_availability
 from .state_store import StateStore
-from .stop import Decision, StopConfig, decide
+from .stop import StopConfig, decide
 from .tool_runner import ToolRunner
 from .trace_store import TraceStep, TraceStore
 

@@ -35,6 +35,11 @@ class RexLossWeights:
     tool_weight: float = DEFAULT_TOOL_WEIGHT
     verdict_weight: float = DEFAULT_VERDICT_WEIGHT
     ortho_weight: float = DEFAULT_ORTHO_WEIGHT
+    s_weight: float = 1.0
+    r_weight: float = 0.0  # Hyp-level risk supervised directly via hyp_risk_weight; 0.0 avoids gradient conflict
+    gain_weight: float = 1.0
+    hyp_weight: float = 1.0
+    hyp_risk_weight: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -45,6 +50,11 @@ class LossBreakdown:
     tool_loss: torch.Tensor
     verdict_loss: torch.Tensor
     ortho_loss: torch.Tensor
+    s_loss: Optional[torch.Tensor] = None
+    r_loss: Optional[torch.Tensor] = None
+    gain_loss: Optional[torch.Tensor] = None
+    hyp_loss: Optional[torch.Tensor] = None
+    hyp_risk_loss: Optional[torch.Tensor] = None
 
 
 @dataclass(frozen=True)
@@ -57,6 +67,18 @@ class RexMultiTaskInputs:
     poe_mask: torch.Tensor
     target_verdict: torch.Tensor
     tool_projection_weight: torch.Tensor
+    s_logits: Optional[torch.Tensor] = None
+    s_targets: Optional[torch.Tensor] = None
+    r_logits: Optional[torch.Tensor] = None
+    r_targets: Optional[torch.Tensor] = None
+    gain_logits: Optional[torch.Tensor] = None
+    gain_targets: Optional[torch.Tensor] = None
+    redundancy_mask: Optional[torch.Tensor] = None
+    hyp_logits: Optional[torch.Tensor] = None
+    hyp_targets: Optional[torch.Tensor] = None
+    hyp_mask: Optional[torch.Tensor] = None
+    hyp_risk_logits: Optional[torch.Tensor] = None
+    hyp_risk_targets: Optional[torch.Tensor] = None
 
 
 class ToolAsymmetricFocalLoss(nn.Module):
@@ -251,6 +273,16 @@ class RexMultiTaskLoss(nn.Module):
         poe_mask: Optional[torch.Tensor] = None,
         target_verdict: Optional[torch.Tensor] = None,
         tool_projection_weight: Optional[torch.Tensor] = None,
+        s_logits: Optional[torch.Tensor] = None,
+        s_targets: Optional[torch.Tensor] = None,
+        r_logits: Optional[torch.Tensor] = None,
+        r_targets: Optional[torch.Tensor] = None,
+        gain_logits: Optional[torch.Tensor] = None,
+        gain_targets: Optional[torch.Tensor] = None,
+        redundancy_mask: Optional[torch.Tensor] = None,
+        hyp_logits: Optional[torch.Tensor] = None,
+        hyp_targets: Optional[torch.Tensor] = None,
+        hyp_mask: Optional[torch.Tensor] = None,
     ) -> LossBreakdown:
         """Compute the weighted composite loss and individual loss breakdown.
 
@@ -264,6 +296,18 @@ class RexMultiTaskLoss(nn.Module):
             p_mask = inp.poe_mask
             v_target = inp.target_verdict
             w_proj = inp.tool_projection_weight
+            s_l = inp.s_logits
+            s_t = inp.s_targets
+            r_l = inp.r_logits
+            r_t = inp.r_targets
+            g_l = inp.gain_logits
+            g_t = inp.gain_targets
+            red_m = inp.redundancy_mask
+            h_l = inp.hyp_logits
+            h_t = inp.hyp_targets
+            h_m = inp.hyp_mask
+            hr_l = inp.hyp_risk_logits
+            hr_t = inp.hyp_risk_targets
         else:
             t_logits = inputs_or_tool_logits
             t_labels = tool_labels
@@ -271,14 +315,76 @@ class RexMultiTaskLoss(nn.Module):
             p_mask = poe_mask
             v_target = target_verdict
             w_proj = tool_projection_weight
+            s_l = s_logits
+            s_t = s_targets
+            r_l = r_logits
+            r_t = r_targets
+            g_l = gain_logits
+            g_t = gain_targets
+            red_m = redundancy_mask
+            h_l = hyp_logits
+            h_t = hyp_targets
+            h_m = hyp_mask
+            hr_l = hr_t = None
 
             if any(x is None for x in (t_labels, v_logits, p_mask, v_target, w_proj)):
                 raise ValueError("All constituent tensor arguments must be provided when not using RexMultiTaskInputs.")
 
-        # Compute individual constituent losses
+        # Compute core constituent losses
         l_tool = self.tool_loss_fn(t_logits, t_labels)
         l_verdict = self.verdict_loss_fn(v_logits, p_mask, v_target)
         l_ortho = self.ortho_loss_fn(w_proj)
+
+        # 4. Epistemic Sufficiency Loss (S*)
+        l_s: Optional[torch.Tensor] = None
+        if s_l is not None and s_t is not None:
+            valid_s = (s_t.view(-1) != -100)
+            if valid_s.any():
+                l_s = F.binary_cross_entropy_with_logits(s_l.view(-1)[valid_s].float(), s_t.view(-1)[valid_s].float())
+            else:
+                l_s = torch.tensor(0.0, device=s_l.device, dtype=torch.float32)
+
+        # 5. Risk Loss (R*)
+        l_r: Optional[torch.Tensor] = None
+        if r_l is not None and r_t is not None:
+            valid_r = (r_t.view(-1) != -100)
+            if valid_r.any():
+                l_r = F.binary_cross_entropy_with_logits(r_l.view(-1)[valid_r].float(), r_t.view(-1)[valid_r].float())
+            else:
+                l_r = torch.tensor(0.0, device=r_l.device, dtype=torch.float32)
+
+        # 6. Counterfactual Tool Information Gain Loss (gain*)
+        l_gain: Optional[torch.Tensor] = None
+        if g_l is not None and g_t is not None:
+            valid_gain = (g_t != -100)
+            if red_m is not None:
+                valid_gain = valid_gain & (~red_m.bool())
+            if valid_gain.any():
+                l_gain = F.binary_cross_entropy_with_logits(g_l[valid_gain].float(), g_t[valid_gain].float())
+            else:
+                l_gain = torch.tensor(0.0, device=g_l.device, dtype=torch.float32)
+
+        # 7. Hypothesis Popperian Scorer Loss (hyp_true)
+        l_hyp: Optional[torch.Tensor] = None
+        if h_l is not None and h_t is not None:
+            valid_hyp = (h_t != -100)
+            if h_m is not None:
+                valid_hyp = valid_hyp & h_m.bool()
+            if valid_hyp.any():
+                l_hyp = F.binary_cross_entropy_with_logits(h_l[valid_hyp].float(), h_t[valid_hyp].float())
+            else:
+                l_hyp = torch.tensor(0.0, device=h_l.device, dtype=torch.float32)
+
+        # 8. Per-hypothesis risk (the business risk of each hypothesis being the true cause)
+        l_hyp_risk: Optional[torch.Tensor] = None
+        if hr_l is not None and hr_t is not None:
+            valid_hr = hr_t != -100
+            if h_m is not None:
+                valid_hr = valid_hr & h_m.bool()
+            if valid_hr.any():
+                l_hyp_risk = F.binary_cross_entropy_with_logits(hr_l[valid_hr].float(), hr_t[valid_hr].float())
+            else:
+                l_hyp_risk = torch.tensor(0.0, device=hr_l.device, dtype=torch.float32)
 
         # Weighted composite loss
         l_total = (
@@ -286,10 +392,25 @@ class RexMultiTaskLoss(nn.Module):
             + self.weights.verdict_weight * l_verdict
             + self.weights.ortho_weight * l_ortho
         )
+        if l_s is not None:
+            l_total = l_total + self.weights.s_weight * l_s
+        if l_r is not None:
+            l_total = l_total + self.weights.r_weight * l_r
+        if l_gain is not None:
+            l_total = l_total + self.weights.gain_weight * l_gain
+        if l_hyp is not None:
+            l_total = l_total + self.weights.hyp_weight * l_hyp
+        if l_hyp_risk is not None:
+            l_total = l_total + self.weights.hyp_risk_weight * l_hyp_risk
 
         return LossBreakdown(
             total_loss=l_total,
             tool_loss=l_tool,
             verdict_loss=l_verdict,
             ortho_loss=l_ortho,
+            s_loss=l_s,
+            r_loss=l_r,
+            gain_loss=l_gain,
+            hyp_loss=l_hyp,
+            hyp_risk_loss=l_hyp_risk,
         )

@@ -22,7 +22,7 @@ REVIEWED = ("0.8.0", "0.8.1")
 
 def repair_cusparselt(dist):
     old = "Tag: py3-none-manylinux2014_sbsa"
-    wheel = next(p for p in dist.files if str(p).endswith(".dist-info/WHEEL"))
+    wheel = next(p for p in dist.files if Path(p).name == "WHEEL" and Path(p).parent.name.endswith(".dist-info"))
     path = Path(dist.locate_file(wheel))
     data = path.read_text(encoding="utf-8")
     if old not in data.splitlines():

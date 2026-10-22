@@ -33,6 +33,16 @@ def read(name):
         return f.read()
 
 
+def read_workflow(name):
+    """A workflow's text, or None when the repository does not ship that workflow.
+
+    docker.yml, docs.yml and evals.yml were removed in fd10905; their checks run only while
+    the workflow exists, so re-adding one brings its checks back.
+    """
+    path = os.path.join(".github", "workflows", name)
+    return read(path) if os.path.exists(os.path.join(ROOT, path)) else None
+
+
 def version_tuple(text):
     return tuple(int(part) for part in text.split("."))
 
@@ -208,7 +218,7 @@ def _invoked_workflow_tests(yaml_text):
     return invoked
 
 
-docker_workflow = read(os.path.join(".github", "workflows", "docker.yml"))
+docker_workflow = read_workflow("docker.yml") or ""
 release_workflow = read(os.path.join(".github", "workflows", "release.yml"))
 # The Linux `test` job and the release gate both invoke `scripts/test_suites.py` instead of naming
 # their suites inline, so that shared list is a source of suite names too. Without this the
@@ -714,8 +724,8 @@ def _concurrency_block(text):
     return match.group(0) if match else ""
 
 
-_concurrency_workflows = ["ci.yml", "docker.yml", "security.yml"]
-_docs_workflow = read(os.path.join(".github", "workflows", "docs.yml"))
+_concurrency_workflows = [w for w in ("ci.yml", "docker.yml", "security.yml") if read_workflow(w) is not None]
+_docs_workflow = read_workflow("docs.yml") or ""
 _docs_concurrency = _concurrency_block(_docs_workflow)
 if _docs_concurrency and _PER_COMMIT in _docs_concurrency:
     _concurrency_workflows.append("docs.yml")
@@ -748,25 +758,26 @@ for _wf in _concurrency_workflows:
 # never collided: its ref is the tag (`refs/tags/<tag_name>`), so each release had its own group.
 # The job spends 60 minutes downloading weights and the dataset, and a cancelled run uploads no
 # report, so a cancellation reads as a clean gate.
-_EVALS_WORKFLOW = read(os.path.join(".github", "workflows", "evals.yml"))
-# Non-vacuity, independent of the concurrency block: if evals.yml is renamed or its triggers
-# change, this reports instead of the check below passing on a file it did not understand.
-check_true("evals.yml still declares its three triggers",
-           "schedule:" in _EVALS_WORKFLOW
-           and "release:" in _EVALS_WORKFLOW
-           and "workflow_dispatch:" in _EVALS_WORKFLOW)
+_EVALS_WORKFLOW = read_workflow("evals.yml")
+if _EVALS_WORKFLOW is not None:
+    # Non-vacuity, independent of the concurrency block: if evals.yml is renamed or its triggers
+    # change, this reports instead of the check below passing on a file it did not understand.
+    check_true("evals.yml still declares its three triggers",
+               "schedule:" in _EVALS_WORKFLOW
+               and "release:" in _EVALS_WORKFLOW
+               and "workflow_dispatch:" in _EVALS_WORKFLOW)
 
-_EVALS_CANCEL = re.search(
-    r"(?m)^[ \t]*cancel-in-progress:\s*(.+?)\s*$", _concurrency_block(_EVALS_WORKFLOW))
-# An absent key means the Actions default, which is false, so nothing is cancelled. A bare `true`
-# is the only value that discards a run in flight.
-check_true(
-    "evals.yml/cancels no in-flight run",
-    _EVALS_CANCEL is None or _EVALS_CANCEL.group(1).strip().lower() in ("false", "no", "off"),
-    "cancel-in-progress: %s discards a 60-minute run that has already started; a cancelled run "
-    "uploads no report, so it reads as a clean gate"
-    % (_EVALS_CANCEL.group(1) if _EVALS_CANCEL else "true"),
-)
+    _EVALS_CANCEL = re.search(
+        r"(?m)^[ \t]*cancel-in-progress:\s*(.+?)\s*$", _concurrency_block(_EVALS_WORKFLOW))
+    # An absent key means the Actions default, which is false, so nothing is cancelled. A bare
+    # `true` is the only value that discards a run in flight.
+    check_true(
+        "evals.yml/cancels no in-flight run",
+        _EVALS_CANCEL is None or _EVALS_CANCEL.group(1).strip().lower() in ("false", "no", "off"),
+        "cancel-in-progress: %s discards a 60-minute run that has already started; a cancelled run "
+        "uploads no report, so it reads as a clean gate"
+        % (_EVALS_CANCEL.group(1) if _EVALS_CANCEL else "true"),
+    )
 
 # --------------------------------------------------------------- the API reference
 # `rex.__all__` is what `from rex import *` ships and what the README tells people to call, so

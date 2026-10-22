@@ -19,6 +19,8 @@ class StopConfig:
     n_max_calls: int = 6
     risk_threshold: float = 0.30
     epsilon_s: float = 0.05
+    # Off by default: the model's conformal auto-commit (|C| == 1, S < 0.85) is escalated until
+    # q_hat and the verdict temperature are calibrated on real cases, not only on simulated rollouts.
     accept_conformal_verdict: bool = False
 
 

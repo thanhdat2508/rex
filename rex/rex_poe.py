@@ -13,6 +13,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 import torch
 
+from .rex_registry import _flatten_observations
+
 # Comparison operators for deterministic falsification criteria (P2)
 class ComparisonOperator(str, Enum):
     """Supported relational operators for hypothesis falsification rules."""
@@ -74,6 +76,7 @@ class TerminationReason(str, Enum):
     MAX_ROUNDS_REACHED = "max_rounds_reached"
     EMPTY_TOOL_SELECTION = "empty_tool_selection"
     ALL_CATALOGED_ELIMINATED = "all_cataloged_eliminated"
+    STALL = "stall"
 
 
 @dataclass(frozen=True)
@@ -139,13 +142,15 @@ class PoEFalsificationEngine:
         """Evaluate observation telemetry and return updated survival flags.
 
         Args:
-            observations: Dict of metric names to measured scalar/categorical values.
+            observations: Dict of metric names to measured scalar/categorical values, either flat
+                ({metric: value}) or grouped per tool ({tool: {metric: value}}, as packed by Part B).
             current_alive: Current boolean survival state per hypothesis.
             rules: Mapping of hypothesis ID to its list of falsification rules.
 
         Returns:
             New dictionary with updated survival flags (pure function, no mutation).
         """
+        observations = _flatten_observations(observations)
         updated_alive = dict(current_alive)
 
         for hyp_id, is_alive in current_alive.items():
@@ -191,36 +196,46 @@ class HardMaskingManager:
         current_alive: Dict[str, bool],
         tool_hyp_mapping: Dict[str, List[str]],
         called_tools: Optional[Any] = None,
+        general_tools: Optional[Any] = None,
+        allow_unmapped: bool = True,
     ) -> List[bool]:
         """Determine boolean availability for each tool based on surviving hypotheses.
 
         Rule: A tool is disabled (False) if:
         1. It has already been called in prior turns (non-repetition).
-        2. ALL hypotheses that it supports have been eliminated.
+        2. It is not general and all hypotheses that it supports have been eliminated.
         If a tool supports multiple hypotheses (shared tool), it remains active as long
         as at least one supporting hypothesis is still alive.
-        If a tool has no explicit mapping, it defaults to active (True) unless called.
+        If a tool has no explicit mapping, allow_unmapped controls whether it defaults to
+        active (True) or disabled (False, matching Registry.tool_mask).
 
         Args:
             tools: Ordered list of tool names known to the model.
             current_alive: Current boolean survival map for hypotheses.
             tool_hyp_mapping: Mapping of tool_name -> list of supported hypothesis IDs.
             called_tools: Optional sequence or set of tool names executed in prior rounds.
+            general_tools: Optional sequence or set of general tool names always callable.
+            allow_unmapped: If False, unmapped tools (tools from other domains) are masked out (False).
 
         Returns:
             List of boolean flags matching the order of tools.
         """
         called_set = set(called_tools or [])
+        general_set = set(general_tools or [])
         tool_mask = []
         for tool_name in tools:
             if tool_name in called_set:
                 tool_mask.append(False)
                 continue
 
+            if tool_name in general_set:
+                tool_mask.append(True)
+                continue
+
             supported_hyps = tool_hyp_mapping.get(tool_name, [])
             if not supported_hyps:
-                # Unmapped tools remain active by default
-                tool_mask.append(True)
+                # Unmapped tools: False when allow_unmapped=False and a mapping exists
+                tool_mask.append(allow_unmapped if tool_hyp_mapping else True)
                 continue
 
             # Tool remains active if ANY of its supporting hypotheses is alive
@@ -258,17 +273,22 @@ class HybridPoEEngine:
         observations: Dict[str, Any],
         rules: Dict[str, List[FalsificationRule]],
         theta_elim: Optional[float] = None,
+        prev_alive: Optional[Dict[str, bool]] = None,
     ) -> Dict[str, bool]:
         """Compute combined survival map across candidate hypotheses.
 
         Properties:
             - Symbolic rules maintain absolute veto power if criteria are breached.
+            - Falsified hypotheses remain eliminated across rounds (monotonicity L2).
             - Hypotheses with neural score < theta_elim are eliminated.
             - H_novel is unconditionally preserved (open-world residual slot).
-            - Supports hypothesis revival across rounds as full memory M grows.
         """
         thresh = theta_elim if theta_elim is not None else self.default_theta_elim
-        current_alive = {k: True for k in hyp_keys}
+        current_alive = (
+            {k: bool(prev_alive.get(k, True)) for k in hyp_keys}
+            if prev_alive is not None
+            else {k: True for k in hyp_keys}
+        )
 
         # 1. Symbolic rule falsification (hard veto)
         rule_alive = self.falsification_engine.evaluate(observations, current_alive, rules)

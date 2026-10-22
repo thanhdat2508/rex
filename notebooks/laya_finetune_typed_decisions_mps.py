@@ -21,7 +21,7 @@ from pathlib import Path
 import torch
 from huggingface_hub import snapshot_download
 
-from laya.agent import _fix_tokenizer_config
+from rex.agent import _fix_tokenizer_config
 
 MODEL_ID = "convaiinnovations/laya"
 DATASET_ID = "LocalLLaMA/typed-decisions"
@@ -104,7 +104,7 @@ def prepare_items(model_dir, items_path, force=False):
 
 
 def train(args, model_dir, rows_path, device):
-    from laya.train import TrainConfig, finetune
+    from rex.train import TrainConfig, finetune
 
     config = TrainConfig(
         epochs=args.epochs,

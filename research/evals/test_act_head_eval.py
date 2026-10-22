@@ -270,9 +270,10 @@ markdown = format_markdown(loaded)
 check_true("report/markdown_has_question", "act_probability" in markdown, markdown[:200])
 check_true("report/markdown_flags_saturation", "saturat" in markdown.lower(), markdown[:400])
 
-print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
-for f in FAIL:
-    print("  FAIL " + f)
-if not FAIL:
-    print("all act-head eval tests passed")
-sys.exit(1 if FAIL else 0)
+if __name__ == "__main__":
+    print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
+    for f in FAIL:
+        print("  FAIL " + f)
+    if not FAIL:
+        print("all act-head eval tests passed")
+    sys.exit(1 if FAIL else 0)

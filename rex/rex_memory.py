@@ -1,7 +1,7 @@
 """Incremental evidence memory manager and KV-cache extension for Rex (Step A4)."""
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
 

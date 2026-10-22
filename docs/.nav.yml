@@ -18,4 +18,5 @@ nav:
   - Fine-tuning:
       - finetune.md
       - finetune_browser_agent.md
+      - rex-training.md
   - reference

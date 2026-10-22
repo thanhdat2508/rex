@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 DEFAULT_SUFFICIENCY_BIAS_INIT: float = -2.0  # sigmoid(-2.0) ~ 0.1192
 DEFAULT_HEAD_DROPOUT: float = 0.1
@@ -52,10 +51,13 @@ class SufficiencyHead(nn.Module):
 
 
 class RiskHead(nn.Module):
-    """Head R: Estimates operational/regulatory escalation risk R in [0, 1] from thought state h_T.
+    """Head R: Estimates operational/regulatory escalation risk in [0, 1].
 
     Architecture:
-        h_T [B, d] -> Linear(d, hidden_dim) -> LayerNorm -> GELU -> Dropout -> Linear(hidden_dim, 1)
+        x [..., d] -> Linear(d, hidden_dim) -> LayerNorm -> GELU -> Dropout -> Linear(hidden_dim, 1)
+
+    RexDecisionModel applies it to each bridged hypothesis marker to get the risk r_j of that
+    hypothesis being the true cause, and reports R = sum_j p_j * r_j over the verdict distribution.
     """
 
     def __init__(
@@ -104,8 +106,10 @@ class VerdictBridge(nn.Module):
         self.w_v = nn.Linear(d, d, bias=False)
         self.g_v = nn.Parameter(torch.zeros(1))
 
-        # Explicit zero initialization guarantees zero perturbation at checkpoint load
-        nn.init.zeros_(self.w_v.weight)
+        # Initialize w_v with normal distribution and g_v=0:
+        # Initial perturbation is delta = 0 * (W_v * h_T) = 0 (exact Laya parity),
+        # but gradient flow dL/dg_v proportional to (W_v * h_T) is non-zero (breaks zero-grad saddle point T1).
+        nn.init.normal_(self.w_v.weight, mean=0.0, std=0.02)
 
     def forward(self, hyp_markers: torch.Tensor, h_T: torch.Tensor) -> torch.Tensor:
         """Inject thought state h_T into hypothesis markers.
@@ -151,30 +155,37 @@ class HypothesisScorer(nn.Module):
         hyp_embeddings: torch.Tensor,
         M: torch.Tensor,
         memory_mask: Optional[torch.Tensor] = None,
+        return_logits: bool = False,
     ) -> torch.Tensor:
-        """Compute hypothesis survival scores in [0, 1].
+        """Compute hypothesis survival scores in [0, 1] or raw logits.
 
         Args:
             hyp_embeddings: Hypothesis embedding vectors [B, K, d] or [K, d].
             M: Evidence tokens [B, L_mem, d].
             memory_mask: Boolean mask [B, L_mem] where True is valid, False is padding.
+            return_logits: Whether to return unnormalized logits before sigmoid.
 
         Returns:
-            Survival scores [B, K] in range [0, 1].
+            Survival scores [B, K] in range [0, 1], or raw logits if return_logits=True.
         """
         if hyp_embeddings.dim() == 2:
             hyp_embeddings = hyp_embeddings.unsqueeze(0).expand(M.size(0), -1, -1)
 
         if M.size(1) == 0:
+            if return_logits:
+                return torch.zeros((hyp_embeddings.size(0), hyp_embeddings.size(1)), device=M.device, dtype=hyp_embeddings.dtype)
             # Empty evidence -> prior score 0.5 across all hypotheses
-            return torch.full((hyp_embeddings.size(0), hyp_embeddings.size(1)), 0.5, device=M.device)
+            return torch.full((hyp_embeddings.size(0), hyp_embeddings.size(1)), 0.5, device=M.device, dtype=hyp_embeddings.dtype)
 
         q = self.ln_q(hyp_embeddings)
         kv = self.ln_m(M)
         pad_mask = ~memory_mask.bool() if memory_mask is not None else None
 
         attn_out, _ = self.cross_attn(query=q, key=kv, value=kv, key_padding_mask=pad_mask)
-        scores = torch.sigmoid(self.ffn(attn_out).squeeze(-1))
+        logits = self.ffn(attn_out).squeeze(-1)
+        if return_logits:
+            return logits
+        scores = torch.sigmoid(logits)
         return scores
 
 
@@ -284,9 +295,12 @@ class ConformalCalibrator:
             cum_p = 0.0
 
             for j in range(k):
+                p_j = row_probs[j].item()
+                if p_j <= 1e-6 and len(selected) > 0:
+                    break
                 selected.append(names[row_indices[j].item()])
-                cum_p += row_probs[j].item()
-                if cum_p >= threshold:
+                cum_p += p_j
+                if cum_p >= threshold - 1e-6:
                     break
 
             sets.append(selected)

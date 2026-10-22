@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import torch
 
-from .rex_format import collate_rex, encode_evidence, encode_rex_input
+from .rex_format import collate_rex, encode_evidence, encode_rex_input, format_observations
 from .rex_poe import (
     HardMaskingManager,
     HybridPoEEngine,
@@ -19,6 +19,7 @@ from .rex_poe import (
     TerminationReason,
 )
 from .rex_registry import ToolSpec
+from .rex_tools import DEFAULT_R_THRESHOLD, DEFAULT_S_THRESHOLD
 from .rex_types import RexState, RexStepOutput
 
 
@@ -54,6 +55,8 @@ class InvestigatorAgent:
         initial_state: Union[str, dict, list] = "",
         max_rounds: int = 3,
         tool_specs: Optional[Sequence[ToolSpec]] = None,
+        initial_observations: Optional[Dict[str, Any]] = None,
+        stop_on_single_survivor: bool = False,
         **kwargs: Any,
     ) -> InvestigationResult:
         """Execute autonomous multi-round investigation loop.
@@ -65,29 +68,60 @@ class InvestigatorAgent:
             hypotheses: Dictionary mapping hypothesis IDs to textual definitions.
             rules: Falsification rules per hypothesis ID.
             tool_hyp_mapping: Mapping of tool names to supported hypotheses.
-            tool_dispatcher: Callback executing approved tool names and returning observation dict.
+            tool_dispatcher: Callback executing approved tool names and returning observations, preferably
+                grouped per tool ({tool: {metric: value}}): that renders the same evidence text the
+                trainer and Part B use. A flat {metric: value} dict is also accepted.
             initial_state: Initial state or incident metadata string/dict.
             max_rounds: Maximum inquiry budget (rounds).
             tool_specs: Optional rich ToolSpec catalogue.
+            initial_observations: Metrics already known before any tool call (the alert). Falsification
+                rules are applied to them before round 1, as the training rollouts do. Defaults to
+                `initial_state` when that is a dict.
+            stop_on_single_survivor: Stop as soon as one cataloged hypothesis survives. When False the
+                model decides (VERDICT once S is sufficient), like the Part B orchestrator.
 
         Returns:
             InvestigationResult with winner hypothesis, probabilities, traces, and escalation status.
         """
+        # Inference: no dropout and the fixed ponder depth (train mode samples T in [2, 4])
+        self.model.eval()
         hyp_keys = list(hypotheses.keys())
         current_alive = {k: True for k in hyp_keys}
+        if initial_observations is None and isinstance(initial_state, dict):
+            initial_observations = initial_state
+        if initial_observations:
+            # Alert metrics can already falsify hypotheses (rollouts apply registry.falsify to the alert)
+            current_alive = self.poe_engine.evaluate(
+                neural_scores=None,
+                hyp_keys=hyp_keys,
+                observations=initial_observations,
+                rules=rules,
+                prev_alive=current_alive,
+            )
         state_t = initial_state if isinstance(initial_state, str) else json.dumps(initial_state, ensure_ascii=False)
         called_tools: List[str] = []
         traces: List[RoundTrace] = []
         state: Optional[RexState] = None
         last_step_out: Optional[RexStepOutput] = None
+        pending_obs: bool = False
         term_reason = TerminationReason.MAX_ROUNDS_REACHED
 
         device = self.model.tool_embeddings.device
+        general_tools = [
+            spec.name for spec in (tool_specs or []) if getattr(spec, "general", False)
+        ]
+        if not general_tools and hasattr(self.model, "tool_meta"):
+            general_tools = [t for t, meta in self.model.tool_meta.items() if meta.get("general", False)]
 
         for round_idx in range(1, max_rounds + 1):
-            # 1. Derive tool availability mask
+            # 1. Derive tool availability mask (parity with Registry.tool_mask)
             tool_mask_list = self.mask_manager.compute_tool_mask(
-                self.model.tools, current_alive, tool_hyp_mapping, called_tools=called_tools
+                self.model.tools,
+                current_alive,
+                tool_hyp_mapping,
+                called_tools=called_tools,
+                general_tools=general_tools,
+                allow_unmapped=False,
             )
             tool_mask_tensor = torch.tensor([tool_mask_list], dtype=torch.bool, device=device)
 
@@ -121,27 +155,26 @@ class InvestigatorAgent:
                         hyp_names=hyp_keys,
                     )
             else:
-                # Subsequent round: encode observation into bounded evidence
-                ev_encoded = encode_evidence(tok, state_t, round_idx=round_idx, max_tokens=64)
-                ev_ids = torch.tensor([ev_encoded["input_ids"]], dtype=torch.long, device=device)
-                ev_mask = torch.tensor([ev_encoded["attention_mask"]], dtype=torch.bool, device=device)
-
+                # Subsequent round: the previous observations are already in memory (step 5)
                 with torch.no_grad():
                     _, state, step_out = self.model.forward(
                         state=state,
-                        evidence_new=ev_ids,
-                        evidence_mask=ev_mask,
                         tool_mask=tool_mask_tensor,
                         hyp_alive=alive_mask_tensor,
                         tool_specs=tool_specs,
                         hyp_names=hyp_keys,
                     )
+                pending_obs = False
 
             last_step_out = step_out
 
             # 3. Action and tool selection check
             selected_tools = step_out.selected_tools[0] if step_out.selected_tools else []
             proposed_action = step_out.proposed_action[0] if step_out.proposed_action else "CALL_TOOL"
+
+            if proposed_action == "STALL":
+                term_reason = TerminationReason.STALL
+                break
 
             if proposed_action == "VERDICT" or not selected_tools:
                 term_reason = TerminationReason.EMPTY_TOOL_SELECTION
@@ -151,6 +184,7 @@ class InvestigatorAgent:
 
             # 4. Dispatch selected tools
             observations = tool_dispatcher(selected_tools)
+            pending_obs = True
             traces.append(
                 RoundTrace(
                     round_idx=round_idx,
@@ -160,30 +194,38 @@ class InvestigatorAgent:
                 )
             )
 
-            # 5. Hybrid PoE Evaluation (symbolic veto + neural score)
+            # 5. Ingest the new observations into memory, then score hypotheses on the updated memory
+            ev_encoded = encode_evidence(
+                tok, format_observations(observations), round_idx=round_idx + 1, max_tokens=64
+            )
+            ev_ids = torch.tensor([ev_encoded["input_ids"]], dtype=torch.long, device=device)
+            ev_mask = torch.tensor([ev_encoded["attention_mask"]], dtype=torch.bool, device=device)
             with torch.no_grad():
+                state = self.model.ingest_evidence(
+                    state, ev_ids, ev_mask, is_truncated=bool(ev_encoded["is_truncated"])
+                )
                 neural_scores = self.model.hyp_scorer(state.hyp_markers, state.M, state.memory_mask)
 
+            # Hybrid PoE Evaluation (symbolic veto + neural score)
             current_alive = self.poe_engine.evaluate(
                 neural_scores=neural_scores,
                 hyp_keys=hyp_keys,
                 observations=observations,
                 rules=rules,
                 theta_elim=self.theta_elim,
+                prev_alive=current_alive,
             )
 
             # 6. Check termination criteria
             active_count = sum(1 for v in current_alive.values() if v)
             known_active_count = sum(1 for k, v in current_alive.items() if k != "H_novel" and v)
 
-            state_t = json.dumps(observations, ensure_ascii=False)
-
             if known_active_count == 0:
                 # All cataloged hypotheses eliminated; only H_novel remains
                 term_reason = TerminationReason.ALL_CATALOGED_ELIMINATED
                 break
 
-            if active_count == 1 or known_active_count == 1:
+            if active_count == 1 or (stop_on_single_survivor and known_active_count == 1):
                 # Exactly one cataloged survivor remains
                 term_reason = TerminationReason.SINGLE_SURVIVOR
                 break
@@ -192,22 +234,18 @@ class InvestigatorAgent:
                 term_reason = TerminationReason.MAX_ROUNDS_REACHED
                 break
 
-        # Ingest final observations into final verdict pass if observations were made
-        if traces and last_step_out is not None and state is not None:
-            ev_encoded = encode_evidence(tok, state_t, round_idx=len(traces) + 1, max_tokens=64)
-            ev_ids = torch.tensor([ev_encoded["input_ids"]], dtype=torch.long, device=device)
-            ev_mask = torch.tensor([ev_encoded["attention_mask"]], dtype=torch.bool, device=device)
+        # Final verdict pass over the latest ingested observations (no second ingestion, L5)
+        if pending_obs and traces and last_step_out is not None and state is not None:
             alive_mask_list = [current_alive.get(k, True) for k in hyp_keys]
             alive_mask_tensor = torch.tensor([alive_mask_list], dtype=torch.bool, device=device)
 
             with torch.no_grad():
                 _, state, last_step_out = self.model.forward(
                     state=state,
-                    evidence_new=ev_ids,
-                    evidence_mask=ev_mask,
                     hyp_alive=alive_mask_tensor,
                     hyp_names=hyp_keys,
                 )
+            pending_obs = False
 
         if last_step_out is None:
             raise RuntimeError("Model failed to execute forward pass during investigation.")
@@ -226,7 +264,16 @@ class InvestigatorAgent:
             probs = {k: 1.0 / len(probs) for k in probs}
 
         winner = max(probs.items(), key=lambda kv: kv[1])[0]
-        is_escalated = (term_reason == TerminationReason.ALL_CATALOGED_ELIMINATED) or (winner == "H_novel")
+        # Mirrors Part B stop.decide: a STALL, or a spent budget without sufficient evidence, goes to a human
+        # and so does any automated verdict whose risk is above the threshold (HIGH_RISK)
+        final_s = float(last_step_out.s_prob.reshape(-1)[0].item())
+        final_r = float(last_step_out.r_prob.reshape(-1)[0].item())
+        is_escalated = (
+            term_reason in (TerminationReason.ALL_CATALOGED_ELIMINATED, TerminationReason.STALL)
+            or (term_reason == TerminationReason.MAX_ROUNDS_REACHED and final_s < DEFAULT_S_THRESHOLD)
+            or final_r > DEFAULT_R_THRESHOLD
+            or winner == "H_novel"
+        )
 
         return InvestigationResult(
             predicted_hypothesis=winner,

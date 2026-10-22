@@ -8,13 +8,12 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 from rex.orch.agent_port import Case, CaseStatus
 from rex.orch.state_store import (
     CaseOutcome,
     InvalidStateTransitionError,
-    RoundRecord,
     StateStore,
     ToolResult,
 )

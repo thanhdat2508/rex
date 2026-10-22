@@ -6,7 +6,6 @@ tool failure/timeout rates, and percentile latency profiling.
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass, field
 import math
 from typing import Any, Dict, List, Optional
 

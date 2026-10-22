@@ -6,9 +6,9 @@ rejects HEAVY tools, and validates observations against MetricSpec schemas.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import time
-from typing import Any, Callable, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 from rex.rex_registry import MetricSpec, ToolSpec
 

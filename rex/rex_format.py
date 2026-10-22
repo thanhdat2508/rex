@@ -1,4 +1,5 @@
 """Input layout formatting and batch collation for Rex."""
+import re
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import torch
@@ -191,7 +192,48 @@ def collate_rex(
         "hyp_alive": hyp_alive,
         "qtype": torch.zeros(b, dtype=torch.long),
     }
+    if tool_mask_tensor is not None:
+        result["tool_mask"] = tool_mask_tensor
     return result
+
+
+def format_metric_value(val: Any) -> str:
+    """Format metric value concisely: bool as 1/0, rounded float, bounded string."""
+    if isinstance(val, bool):
+        return "1" if val else "0"
+    elif isinstance(val, float):
+        if val.is_integer():
+            return str(int(val))
+        return f"{val:.2f}".rstrip("0").rstrip(".")
+    elif isinstance(val, int):
+        return str(val)
+    elif isinstance(val, str):
+        # Strip control characters and sanitize user strings
+        cleaned = re.sub(r"[\r\n\t]+", " ", val).strip()
+        # Cap user-provided string lengths to prevent token bloat
+        if len(cleaned) > 32:
+            cleaned = cleaned[:29] + "..."
+        return cleaned
+    return str(val)
+
+
+def format_observations(observations: Dict[str, Any]) -> str:
+    """Render one round of tool observations as evidence text.
+
+    Grouped observations ({tool: {metric: value}}) use the Part B packer layout
+    ("tool OK k=v ... | tool OK ..."), so training, InvestigatorAgent and the orchestrator
+    feed the model the same text. Flat observations ({metric: value}) become "k=v ...".
+    """
+    if observations and all(isinstance(v, dict) for v in observations.values()):
+        segments = []
+        for tool_name, metrics in sorted(observations.items()):
+            if not metrics:
+                segments.append(f"{tool_name} OK")
+                continue
+            kv = " ".join(f"{k}={format_metric_value(v)}" for k, v in sorted(metrics.items()))
+            segments.append(f"{tool_name} OK {kv}")
+        return " | ".join(segments)
+    return " ".join(f"{k}={format_metric_value(v)}" for k, v in sorted(observations.items()))
 
 
 def encode_evidence(

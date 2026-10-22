@@ -94,6 +94,7 @@ class HypothesisSpec:
     associated_tools: List[str] = field(default_factory=list)
     falsification_rules: List[FalsificationRule] = field(default_factory=list)
     is_residual: bool = False
+    risk: Optional[float] = None  # business risk R* when this is the true cause; None -> domain risk
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,7 @@ class DomainSpec:
     instruction: str
     alert_metrics: List[str]
     hypotheses: List[HypothesisSpec]
+    risk: Optional[float] = None  # business risk label R* in [0, 1]; None falls back to the default mapping
 
     @property
     def hypotheses_dict(self) -> Dict[str, str]:
@@ -407,6 +409,11 @@ def load_registry(path_or_dict: Union[str, Path, dict]) -> Registry:
                 raise ValueError(f"Domain '{d_token}' hypothesis at index {i} has empty 'id'.")
             h_text = h_cfg.get("text", "").strip()
             is_residual = bool(h_cfg.get("is_residual", False))
+            h_risk = h_cfg.get("risk")
+            if h_risk is not None:
+                h_risk = float(h_risk)
+                if not 0.0 <= h_risk <= 1.0:
+                    raise ValueError(f"Hypothesis '{h_id}' in domain '{d_token}' risk must be in [0, 1], got {h_risk}.")
 
             # Associated tools
             assoc_tools = list(h_cfg.get("associated_tools", []))
@@ -460,6 +467,7 @@ def load_registry(path_or_dict: Union[str, Path, dict]) -> Registry:
                     associated_tools=assoc_tools,
                     falsification_rules=rules,
                     is_residual=is_residual,
+                    risk=h_risk,
                 )
             )
 
@@ -469,11 +477,18 @@ def load_registry(path_or_dict: Union[str, Path, dict]) -> Registry:
                 f"Domain '{d_token}' must end with 'H_novel' as residual hypothesis."
             )
 
+        d_risk = d_cfg.get("risk")
+        if d_risk is not None:
+            d_risk = float(d_risk)
+            if not 0.0 <= d_risk <= 1.0:
+                raise ValueError(f"Domain '{d_token}' risk must be in [0, 1], got {d_risk}.")
+
         domains[d_token] = DomainSpec(
             type_token=d_token,
             instruction=instruction,
             alert_metrics=alert_metrics,
             hypotheses=hypotheses,
+            risk=d_risk,
         )
 
     return Registry(

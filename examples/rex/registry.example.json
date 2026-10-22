@@ -82,11 +82,13 @@
   },
   "domains": {
     "<TYPE_PROMO_ABUSE>": {
+      "risk": 0.1,
       "instruction": "which hypothesis explains this burst of new accounts redeeming promotions?",
       "alert_metrics": ["signup_count_10min", "promo_redemption_rate"],
       "hypotheses": [
         {
           "id": "H_botnet",
+          "risk": 0.15,
           "text": "automated headless botnet farming promo credits across datacenter proxies",
           "associated_tools": ["behavioral_jitter", "ip_reputation"],
           "falsification_rules": [
@@ -96,6 +98,7 @@
         },
         {
           "id": "H_sybil",
+          "risk": 0.2,
           "text": "sybil farm using emulator pools with physical human farm operators",
           "associated_tools": ["device_fingerprint", "network_trace"],
           "falsification_rules": [
@@ -105,6 +108,7 @@
         },
         {
           "id": "H_shared",
+          "risk": 0.02,
           "text": "organic viral campaign traffic aggregating behind regional carrier NAT gateways",
           "associated_tools": ["network_trace", "device_fingerprint"],
           "falsification_rules": [
@@ -114,17 +118,20 @@
         },
         {
           "id": "H_novel",
+          "risk": 0.5,
           "text": "unexplained promotional redemption anomaly outside known attack distribution",
           "is_residual": true
         }
       ]
     },
     "<TYPE_ACCOUNT_TAKEOVER>": {
+      "risk": 0.4,
       "instruction": "which hypothesis explains the unauthorized access anomalies on user accounts?",
       "alert_metrics": ["failed_login_burst", "mfa_bypass_attempt"],
       "hypotheses": [
         {
           "id": "H_credential_replay",
+          "risk": 0.6,
           "text": "automated credential replay targeting accounts using leaked credential lists",
           "associated_tools": ["device_fingerprint", "ip_reputation"],
           "falsification_rules": [
@@ -134,6 +141,7 @@
         },
         {
           "id": "H_session_hijack",
+          "risk": 0.7,
           "text": "stolen session token hijacked from another geographic region",
           "associated_tools": ["geo_ip_lookup", "behavioral_jitter"],
           "falsification_rules": [
@@ -143,6 +151,7 @@
         },
         {
           "id": "H_legitimate_travel",
+          "risk": 0.05,
           "text": "legitimate user travelling internationally with unfamiliar client network",
           "associated_tools": ["auth_history", "behavioral_jitter"],
           "falsification_rules": [
@@ -152,17 +161,20 @@
         },
         {
           "id": "H_novel",
+          "risk": 0.6,
           "text": "unexplained account compromise anomaly outside known attack patterns",
           "is_residual": true
         }
       ]
     },
     "<TYPE_CREDENTIAL_STUFFING>": {
+      "risk": 0.1,
       "instruction": "which hypothesis explains the sudden surge in authentication failures?",
       "alert_metrics": ["failed_login_burst", "velocity_1h"],
       "hypotheses": [
         {
           "id": "H_distributed_botnet",
+          "risk": 0.25,
           "text": "distributed proxy botnet spraying leaked credentials across vast IP space",
           "associated_tools": ["ip_reputation", "network_trace"],
           "falsification_rules": [
@@ -172,6 +184,7 @@
         },
         {
           "id": "H_scripted_attack",
+          "risk": 0.2,
           "text": "local scripted attack running automated headless browser instances",
           "associated_tools": ["behavioral_jitter", "device_fingerprint"],
           "falsification_rules": [
@@ -181,17 +194,20 @@
         },
         {
           "id": "H_novel",
+          "risk": 0.5,
           "text": "unexplained authentication failure anomaly requiring investigation",
           "is_residual": true
         }
       ]
     },
     "<TYPE_API_SCRAPING>": {
+      "risk": 0.05,
       "instruction": "which hypothesis explains the anomalous high-volume API invocation rate?",
       "alert_metrics": ["velocity_1h", "ip_risk_score"],
       "hypotheses": [
         {
           "id": "H_commercial_crawler",
+          "risk": 0.1,
           "text": "datacenter-hosted scraping infrastructure harvesting product catalogue",
           "associated_tools": ["ip_reputation", "network_trace"],
           "falsification_rules": [
@@ -201,6 +217,7 @@
         },
         {
           "id": "H_partner_integration",
+          "risk": 0.02,
           "text": "legitimate commercial partner sync misconfigured to poll at elevated rate",
           "associated_tools": ["device_fingerprint", "geo_ip_lookup"],
           "falsification_rules": [
@@ -210,17 +227,20 @@
         },
         {
           "id": "H_novel",
+          "risk": 0.4,
           "text": "unexplained API consumption anomaly outside known traffic profiles",
           "is_residual": true
         }
       ]
     },
     "<TYPE_PAYMENT_FRAUD>": {
+      "risk": 0.5,
       "instruction": "which hypothesis explains the abnormal checkout patterns and authorization failures?",
       "alert_metrics": ["declined_rate", "velocity_1h"],
       "hypotheses": [
         {
           "id": "H_card_testing",
+          "risk": 0.25,
           "text": "automated card testing script cycling through stolen credit card numbers",
           "associated_tools": ["payment_graph", "behavioral_jitter", "ip_reputation"],
           "falsification_rules": [
@@ -232,6 +252,7 @@
         },
         {
           "id": "H_compromised_merchant",
+          "risk": 0.7,
           "text": "known stolen payment profile linked to past chargeback clusters",
           "associated_tools": ["payment_graph", "geo_ip_lookup", "network_trace"],
           "falsification_rules": [
@@ -242,6 +263,7 @@
         },
         {
           "id": "H_novel",
+          "risk": 0.7,
           "text": "unexplained transactional fraud anomaly requiring manual fraud intervention",
           "is_residual": true
         }

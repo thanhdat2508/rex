@@ -26,13 +26,18 @@ def test_generate_sufficiency_label():
     assert generate_sufficiency_label(["H_novel"], target_hypothesis="H_novel") == 1.0
     assert generate_sufficiency_label(["H_1", "H_novel"], target_hypothesis="H_novel") == 0.0
 
+    # 6. H_novel is never eliminated, so it is not a competing survivor for a cataloged target
+    assert generate_sufficiency_label(["H_1", "H_novel"], target_hypothesis="H_1") == 1.0
+    assert generate_sufficiency_label(["H_1", "H_2", "H_novel"], target_hypothesis="H_1") == 0.0
+
 
 def test_generate_tool_gain_labels():
-    """Verify counterfactual epistemic gain calculation across tools."""
+    """Verify binary counterfactual gain (docs/rex-label-schema.md) across tools."""
     tool_specs = [
         ToolSpec(name="t_macro", returns=["err_rate", "vol"], scope="macro"),
         ToolSpec(name="t_micro", returns=["db_latency"], scope="micro"),
         ToolSpec(name="t_idle", returns=["unused_metric"], scope="macro"),
+        ToolSpec(name="t_vol", returns=["vol"], scope="macro"),
     ]
 
     rules = {
@@ -55,14 +60,21 @@ def test_generate_tool_gain_labels():
 
     gains = generate_tool_gain_labels(alive, tool_specs, observations, rules)
 
-    # t_macro returns err_rate and vol -> eliminates H_1 and H_2 (2 out of 4) -> 2/4 = 0.5
-    assert gains["t_macro"] == 0.5
+    # t_macro returns err_rate and vol -> refutes H_1 and H_2 -> uncovers a key fact -> 1
+    assert gains["t_macro"] == 1.0
+    # t_vol refutes only H_2 -> still 1 (binary gain)
+    assert gains["t_vol"] == 1.0
 
-    # t_micro returns db_latency -> eliminates 0 out of 4 -> 0.0
+    # t_micro returns db_latency -> refutes nothing -> 0.0
     assert gains["t_micro"] == 0.0
 
-    # t_idle has no relevant observations -> 0.0
+    # t_idle has no relevant observations -> 0.0, or -100 (masked) when unobserved metrics are masked
     assert gains["t_idle"] == 0.0
+    masked = generate_tool_gain_labels(alive, tool_specs, observations, rules, mask_unobserved=True)
+    assert masked["t_idle"] == -100.0
+
+    # Already-eliminated hypotheses are not refuted again
+    assert generate_tool_gain_labels(["H_3", "H_novel"], tool_specs, observations, rules)["t_macro"] == 0.0
 
 
 def test_generate_stall_label():
@@ -78,6 +90,10 @@ def test_generate_stall_label():
     tool_gains_active = {"t1": 0.4, "t2": 0.0}
     tool_costs = {"t1": 0.1, "t2": 0.0}
     assert generate_stall_label(s_star=0.0, tool_gains=tool_gains_active, tool_costs=tool_costs) == 0.0
+
+    # Only tools that are still allowed (uncalled, not PoE-masked) can escape STALL
+    assert generate_stall_label(s_star=0.0, tool_gains={"t1": 1.0, "t2": 0.0}, allowed_tools=["t2"]) == 1.0
+    assert generate_stall_label(s_star=0.0, tool_gains={"t1": 1.0, "t2": -100.0}, allowed_tools=["t1", "t2"]) == 0.0
 
 
 def test_generate_redundancy_mask():
