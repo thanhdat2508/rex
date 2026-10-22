@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "torch>=2.0.0",
+    "torch>=2.14.1",
     "transformers>=4.48.0",
     "safetensors>=0.4.0",
     "huggingface_hub>=0.20.0",
@@ -61,7 +61,7 @@ structured = ["pydantic>=2.0.0"]
 # The NumPy cap is not about ONNX: the extra's own resolution (onnx -> ml-dtypes) otherwise
 # pulls NumPy 2, and torch below 2.3 is built against NumPy 1.x and raises "Numpy is not
 # available" when it converts a tensor against 2.x, which `predict()` needs for its final
-# `.numpy()`. This package declares `torch>=2.0.0`, so the extra must not force a NumPy the
+# `.numpy()`. This package declares `torch>=2.14.1`, so the extra must not force a NumPy the
 # declared floor cannot use.
 # It is scoped by marker rather than written as a blanket `numpy<3`, because a hard upper cap
 # binds every `rex[onnx]` install -- including the many on a current torch -- and makes the
