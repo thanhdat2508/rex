@@ -17,6 +17,7 @@ from .state_store import CaseOutcome, InMemoryStateStore, RoundRecord, StateStor
 from .stop import Decision, StopConfig, check_epsilon_stagnation, decide
 from .tool_client import ToolCall, ToolClient, ToolSession, validate_metrics
 from .tool_runner import ToolRunner
+from .gateway import GatewayManager, GatewaySession
 from .trace_store import CaseTrace, InMemoryTraceStore, TraceStep, TraceStore, mask_pii
 
 __all__ = [
@@ -25,6 +26,8 @@ __all__ = [
     "Case",
     "CaseStatus",
     "FakeAgent",
+    "GatewayManager",
+    "GatewaySession",
     "Guard",
     "HandoffPayload",
     "finish_case",
