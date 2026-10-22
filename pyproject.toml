@@ -84,7 +84,7 @@ langgraph = [
 
 # `pip install rex[llamaindex]` adds the LlamaIndex query router & selector integrations (rex.integrations).
 llamaindex = [
-    "llama-index-core>=0.10.0",
+    "llama-index-core>=0.14.25",
 ]
 
 # `pip install rex[crewai]` adds the CrewAI multi-agent delegation router (rex.integrations).
