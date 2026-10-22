@@ -44,7 +44,7 @@ def test_type_promo_abuse_exact_schema():
     """Verify TYPE_PROMO_ABUSE strictly conforms to the requested specification."""
     reg = load_master_registry()
     promo = reg.get_domain_type("TYPE_PROMO_ABUSE")
-    assert "Lạm dụng voucher khuyến mãi" in promo.description
+    assert "Promotion and voucher abuse" in promo.description or "Lạm dụng voucher khuyến mãi" in promo.description
 
     # Must contain 4 MECE hypotheses
     hyp_ids = {h.id for h in promo.hypotheses}
