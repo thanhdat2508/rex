@@ -24,7 +24,7 @@
   },
   "domain_types": {
     "TYPE_PROMO_ABUSE": {
-      "description": "Lạm dụng voucher khuyến mãi qua tài khoản ảo hoặc nông trại thiết bị",
+      "description": "Promotion and voucher abuse via synthetic accounts or device farms",
       "hypotheses": [
         {
           "id": "H_botnet",
@@ -112,7 +112,7 @@
       ]
     },
     "TYPE_CREDENTIAL_STUFFING": {
-      "description": "Tấn công dò quét mật khẩu hàng loạt sử dụng danh sách tài khoản rò rỉ",
+      "description": "Large-scale credential stuffing attacks leveraging breached credential dumps",
       "hypotheses": [
         {
           "id": "H_botnet",
@@ -191,7 +191,7 @@
       ]
     },
     "TYPE_ACCOUNT_TAKEOVER": {
-      "description": "Chiếm đoạt tài khoản người dùng thông qua đánh cắp session hoặc session hijacking",
+      "description": "Account takeover via session hijacking, credential theft, or unauthorized access",
       "hypotheses": [
         {
           "id": "H_botnet",
@@ -263,7 +263,7 @@
       ]
     },
     "TYPE_PAYMENT_FRAUD": {
-      "description": "Gian lận thanh toán, rửa tiền hoặc lạm dụng hoàn tiền thẻ tín dụng",
+      "description": "Payment fraud, transaction laundering, or credit card chargeback abuse",
       "hypotheses": [
         {
           "id": "H_botnet",
@@ -335,7 +335,7 @@
       ]
     },
     "TASK_RISK_INVESTIGATION": {
-      "description": "Kênh điều tra tác vụ rủi ro tổng quát (Universal Risk Investigation Root)",
+      "description": "Universal risk investigation root channel for generalized anomaly assessment",
       "hypotheses": [
         {
           "id": "H_botnet",
@@ -408,7 +408,7 @@
       ]
     },
     "TYPE_API_SCRAPING": {
-      "description": "Tấn công tự động khai thác API, trích xuất dữ liệu hàng loạt hoặc bypass giới hạn tần suất",
+      "description": "Automated API exploitation, bulk data scraping, and rate-limit evasion attacks",
       "hypotheses": [
         {
           "id": "H_botnet",
@@ -480,7 +480,7 @@
       ]
     },
     "TYPE_SYNTHETIC_IDENTITY": {
-      "description": "Gian lận danh tính tổng hợp, làm giả giấy tờ KYC hoặc tài khoản ma nuôi dài hạn",
+      "description": "Synthetic identity fraud, forged KYC documentation, and sleeper accounts",
       "hypotheses": [
         {
           "id": "H_botnet",
@@ -552,7 +552,7 @@
       ]
     },
     "TYPE_INSIDER_COLLUSION": {
-      "description": "Lạm dụng đặc quyền nội bộ, nhân viên gian lận hoặc can thiệp dữ liệu trái phép",
+      "description": "Malicious insider threat, employee collusion, and unauthorized data tampering",
       "hypotheses": [
         {
           "id": "H_botnet",
@@ -624,7 +624,7 @@
       ]
     },
     "TYPE_CHARGEBACK_DISPUTE": {
-      "description": "Gian lận hoàn tiền thân thiện, lừa đảo người bán hoặc lạm dụng tranh chấp bồi hoàn",
+      "description": "Friendly fraud, merchant dispute abuse, and fraudulent chargeback claims",
       "hypotheses": [
         {
           "id": "H_botnet",
@@ -696,7 +696,7 @@
       ]
     },
     "TYPE_MONEY_LAUNDERING_AML": {
-      "description": "Rửa tiền, mượn tài khoản trung chuyển (mule) hoặc chia nhỏ giao dịch (structuring)",
+      "description": "Money laundering, money mule network routing, and micro-transaction structuring",
       "hypotheses": [
         {
           "id": "H_botnet",
@@ -756,6 +756,169 @@
           "id": "H_novel",
           "title": "Novel Layering Protocol",
           "text": "Uncataloged zero-day smart contract mixing or novel cross-chain settlement obfuscation",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    },
+    "TYPE_TRI_PHASIC_ATTACK_LIFECYCLE": {
+      "description": "Tri-phasic investigation bridging API access cadence, risk-based authentication, and transaction velocity fraud",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automated Omnichannel Botnet",
+          "text": "End-to-end script automation traversing API probe endpoints, credential stuffing auth, and card velocity checkout",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_NETWORK_REPUTATION"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.mouse_entropy",
+              "operator": "GTE",
+              "threshold": 0.85,
+              "description": "Biological mouse curvature entropy refutes headless end-to-end script automation"
+            },
+            {
+              "metric": "behavior.checkout_dwell_time_sec",
+              "operator": "GTE",
+              "threshold": 25.0,
+              "description": "Deliberate human form deliberation refutes automated payment card testing script"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Syndicated Multi-Vector Ring",
+          "text": "Coordinated fraud syndicate rotating API sessions, cloned device profiles, and stolen payment card clusters",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "graph.cluster_size",
+              "operator": "EQ",
+              "threshold": 1,
+              "description": "Isolated account identity with zero shared device, card BIN, or credential clique links"
+            },
+            {
+              "metric": "graph.shared_bin_cluster",
+              "operator": "EQ",
+              "threshold": 0,
+              "description": "Zero correlation across payment card issuer BIN trees and linked syndicate nodes"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Shared Enterprise Ingress Collisions",
+          "text": "Legitimate corporate or mobile users sharing carrier CGNAT egress across APIs, logins, and merchant checkouts",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.geo_velocity_kmh",
+              "operator": "GTE",
+              "threshold": 900.0,
+              "description": "Supersonic geographical transit velocity refutes authentic shared enterprise NAT gateway egress"
+            },
+            {
+              "metric": "network.is_datacenter",
+              "operator": "EQ",
+              "threshold": true,
+              "description": "Commercial cloud hosting ASN confirms proxy tunnel, refuting residential mobile CGNAT"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Chained Cross-Layer Exploit",
+          "text": "Uncataloged zero-day attack chaining API protocol anomalies, session token injection, and settlement race conditions",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    },
+    "TYPE_API_AIDED_FINANCIAL_ATO": {
+      "description": "Cross-vector account takeover leveraging programmatic API scraping for credential validation and rapid card liquidation",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automated API ATO Spreader",
+          "text": "Programmatic bot army scraping API endpoints to validate credentials and trigger automated funds liquidation",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_NETWORK_REPUTATION"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.keystroke_jitter_ms",
+              "operator": "GTE",
+              "threshold": 120.0,
+              "description": "High human keystroke variance refutes machine-generated API credential injection cadence"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Distributed Carding Ring",
+          "text": "Coordinated human ring operating cloned devices to pass risk-based authentication and execute card cash-out",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_ACCOUNT_GRAPH",
+            "SLOT_DEVICE_FINGERPRINT"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "graph.linked_payout_overlap",
+              "operator": "EQ",
+              "threshold": 0,
+              "description": "Zero shared financial routing instruments, payout wallets, or multi-account referral graphs"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Legitimate Partner Burst Traffic",
+          "text": "Authentic corporate partner application driving high-velocity API calls and verified payment transactions over shared egress",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.auth_failure_rate",
+              "operator": "GTE",
+              "threshold": 0.85,
+              "description": "Excessive credential authentication failure rate refutes verified corporate partner B2B gateway"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Novel AitM Payment Hijack",
+          "text": "Uncataloged adversary-in-the-middle session token manipulation or novel payment gateway settlement logic exploit",
           "is_residual": true,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
