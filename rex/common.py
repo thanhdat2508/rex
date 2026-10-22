@@ -730,6 +730,7 @@ def build_model(cfg: Dict, encoder_dir: Optional[str] = None, pretrained: bool =
                 head_layers=head_layers,
                 n_act=n_act,
                 no_init=True,
+                tool_meta=rex_cfg.get("tool_meta"),
             )
         return DecisionModel(enc, head_layers, n_act, no_init=True)
     # Training-time Hub load of the base encoder; allow pinning it like the checkpoints.
@@ -749,6 +750,7 @@ def build_model(cfg: Dict, encoder_dir: Optional[str] = None, pretrained: bool =
             tool_prior=rex_cfg.get("tool_prior"),
             head_layers=head_layers,
             n_act=n_act,
+            tool_meta=rex_cfg.get("tool_meta"),
         )
     return DecisionModel(enc, head_layers, n_act)
 

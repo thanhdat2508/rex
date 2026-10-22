@@ -5,7 +5,7 @@ Computes boolean availability masks for candidate tools.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 from .agent_port import Case
 

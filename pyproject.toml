@@ -107,3 +107,7 @@ laya-train = "rex.train_cli:main"
 [project.urls]
 Homepage = "https://github.com/RequinLabs/rex"
 Repository = "https://github.com/RequinLabs/rex"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_rex_*.py"]

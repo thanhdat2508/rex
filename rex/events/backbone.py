@@ -27,6 +27,9 @@ from .falsification import (
 from .mece import DEFAULT_TASK_TOKEN, MECE_HYPOTHESIS_STRINGS, RiskHypothesis
 from .types import EventType
 
+# Encoders whose forward only accepts a 2D/3D 0-1 attention mask, not a 4D additive bias
+_KEEP_MASK_3D_MODEL_TYPES = frozenset({"bert", "roberta", "xlm-roberta", "electra", "albert", "distilbert"})
+
 
 # Canonical order of MECE Hypotheses for tensor formatting and indexing
 CANONICAL_HYPOTHESES: List[RiskHypothesis] = [
@@ -689,6 +692,11 @@ class LayaInvestigationModel(nn.Module):
                 mask_value=SAFE_FP16_MASK_VALUE,
             )
             encoder_attention_mask = extended_attention_mask
+            model_type = getattr(getattr(self.encoder, "config", None), "model_type", "")
+            if model_type in _KEEP_MASK_3D_MODEL_TYPES:
+                # These encoders only take a 2D/3D 0-1 mask (transformers' get_extended_attention_mask);
+                # the bias holds only 0 or mask_value, so a [B, S, S] keep mask carries the same pattern.
+                encoder_attention_mask = (extended_attention_mask[:, 0] == 0).long()
 
         # 3. Encoder forward pass with attention biasing
         encoder_kwargs: Dict[str, Any] = {

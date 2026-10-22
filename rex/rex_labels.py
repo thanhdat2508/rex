@@ -2,17 +2,30 @@
 
 This module provides pure mathematical functions for offline trajectory label generation:
 1. generate_sufficiency_label: Label S* in {0, 1} for epistemic sufficiency head.
-2. generate_tool_gain_labels: Counterfactual information gain labels gain*_k in [0, 1] per tool.
+2. generate_tool_gain_labels: Counterfactual information gain labels gain*_k in {0, 1, -100} per tool.
 3. generate_stall_label: Early learned STALL supervision indicator.
 4. generate_redundancy_mask: Boolean mask filtering out redundant and refuted tool branches.
+
+Label semantics follow docs/rex-label-schema.md.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
-import torch
+if TYPE_CHECKING:
+    from .rex_registry import FalsificationRule, ToolSpec
 
 DEFAULT_S_STAR_THRESHOLD: float = 0.85
+GAIN_UNOBSERVED: float = -100.0
+
+# Default business risk per domain type token, used when the registry domain sets no `risk`.
+DEFAULT_RISK_MAPPING: Dict[str, float] = {
+    "<TYPE_PAYMENT_FRAUD>": 0.5,
+    "<TYPE_ACCOUNT_TAKEOVER>": 0.4,
+    "<TYPE_PROMO_ABUSE>": 0.1,
+    "<TYPE_API_SCRAPING>": 0.05,
+    "<TYPE_CREDENTIAL_STUFFING>": 0.1,
+}
 
 
 def generate_sufficiency_label(
@@ -24,9 +37,11 @@ def generate_sufficiency_label(
 
     Condition:
         S* = 1.0 if the evidence is sufficient to conclusively determine the verdict:
-             (1) Exactly one hypothesis survives and it is the target_hypothesis.
+             (1) The target is the only surviving cataloged hypothesis.
              (2) Or all cataloged hypotheses are eliminated and target is H_novel.
         Otherwise S* = 0.0.
+
+        H_novel is never eliminated, so it is not counted as a competing survivor.
 
     Args:
         alive_hypotheses: List or set of currently surviving hypothesis IDs.
@@ -43,16 +58,13 @@ def generate_sufficiency_label(
     if target_hypothesis not in alive_set:
         return 0.0
 
-    # Singleton survivor
-    if len(alive_set) == 1 and target_hypothesis in alive_set:
-        return 1.0
+    known_alive = alive_set - {"H_novel"}
+    if target_hypothesis == "H_novel":
+        # OOD / Novel case: every cataloged hypothesis has been eliminated
+        return 1.0 if not known_alive else 0.0
 
-    # OOD / Novel case: only H_novel remains among survivors
-    known_alive = [h for h in alive_set if h != "H_novel"]
-    if len(known_alive) == 0 and target_hypothesis == "H_novel":
-        return 1.0
-
-    return 0.0
+    # Cataloged target is the only cataloged survivor
+    return 1.0 if known_alive == {target_hypothesis} else 0.0
 
 
 def generate_tool_gain_labels(
@@ -60,26 +72,27 @@ def generate_tool_gain_labels(
     tool_specs: Sequence[ToolSpec],
     counterfactual_observations: Dict[str, Any],
     falsification_rules: Dict[str, List[FalsificationRule]],
+    mask_unobserved: bool = False,
 ) -> Dict[str, float]:
-    """Compute counterfactual information gain gain*_k in [0.0, 1.0] for every tool.
+    """Compute binary counterfactual information gain gain*_k in {0.0, 1.0, -100.0} for every tool.
 
-    Formula:
-        gain*_k = |{H in Alive : Falsified by Tool k}| / max(1, |Alive|)
+    Definition (docs/rex-label-schema.md, labels.tool_gains):
+        gain*_k = 1.0 if tool k's observations would falsify at least one surviving cataloged hypothesis
+                  (it uncovers an unseen key fact), 0.0 otherwise.
+        If mask_unobserved=True and none of tool k's metrics were recorded, gain*_k = -100.0 (masked from loss).
 
     Args:
         alive_hypotheses: Currently surviving hypothesis IDs.
         tool_specs: Specifications of all candidate tools.
         counterfactual_observations: Complete unmasked ground-truth metric values from world rollout.
         falsification_rules: Mapping from hypothesis ID to its Popperian falsification rules.
+        mask_unobserved: Whether to assign -100.0 to tools whose metrics were unobserved.
 
     Returns:
-        Dictionary mapping tool name to its counterfactual information gain in [0.0, 1.0].
+        Dictionary mapping tool name to its counterfactual information gain (1.0, 0.0 or -100.0).
     """
-    alive_set = set(alive_hypotheses)
-    total_alive = len(alive_set)
-    if total_alive <= 1:
-        # If 0 or 1 hypothesis survives, no further epistemic reduction is achievable
-        return {spec.name: 0.0 for spec in tool_specs}
+    # H_novel cannot be eliminated by standard falsification rules
+    known_alive = set(alive_hypotheses) - {"H_novel"}
 
     gains: Dict[str, float] = {}
 
@@ -87,28 +100,22 @@ def generate_tool_gain_labels(
         tool_name = spec.name
         metrics_provided = set(spec.returns)
 
-        # Check which currently alive hypotheses would be refuted by metrics provided by this tool
-        eliminated_count = 0
-        for hyp_id in alive_set:
-            if hyp_id == "H_novel":
-                # H_novel cannot be eliminated by standard falsification rules
-                continue
+        observed_metrics = [m for m in metrics_provided if m in counterfactual_observations]
+        if mask_unobserved and not observed_metrics and metrics_provided:
+            gains[tool_name] = GAIN_UNOBSERVED
+            continue
 
-            rules = falsification_rules.get(hyp_id, [])
-            # If any rule belonging to this tool's returned metrics evaluates to True, hyp is eliminated
-            hyp_refuted = False
-            for rule in rules:
+        refutes_any = False
+        for hyp_id in known_alive:
+            for rule in falsification_rules.get(hyp_id, []):
                 if rule.metric in metrics_provided and rule.metric in counterfactual_observations:
-                    obs_val = counterfactual_observations[rule.metric]
-                    if rule.eval(obs_val):
-                        hyp_refuted = True
+                    if rule.eval(counterfactual_observations[rule.metric]):
+                        refutes_any = True
                         break
+            if refutes_any:
+                break
 
-            if hyp_refuted:
-                eliminated_count += 1
-
-        # Epistemic reduction ratio
-        gains[tool_name] = float(eliminated_count) / float(total_alive)
+        gains[tool_name] = 1.0 if refutes_any else 0.0
 
     return gains
 
@@ -118,18 +125,23 @@ def generate_stall_label(
     tool_gains: Dict[str, float],
     tool_costs: Optional[Dict[str, float]] = None,
     s_threshold: float = DEFAULT_S_STAR_THRESHOLD,
+    allowed_tools: Optional[Sequence[str]] = None,
 ) -> float:
     """Compute ground-truth learned STALL label in {0.0, 1.0}.
 
-    Condition:
-        STALL* = 1.0 iff S* < s_threshold AND all tools have gain*_k < tau_k.
+    Condition (docs/rex-label-schema.md, labels.is_stall):
+        STALL* = 1.0 iff S* < s_threshold AND no remaining allowed tool has gain*_k > 0.
         Otherwise STALL* = 0.0.
+
+    The cost hurdle tau_k is a dispatcher concern applied to the predicted gain probability
+    (rex_tools.gain_threshold); the label only records whether a tool can still uncover a key fact.
 
     Args:
         s_star: Ground truth sufficiency label (0.0 or 1.0).
         tool_gains: Counterfactual information gains per tool.
-        tool_costs: Tool cost thresholds tau_k (default 0.0 per tool).
+        tool_costs: Unused; kept for call compatibility.
         s_threshold: Sufficiency cutoff threshold.
+        allowed_tools: Tools still callable (uncalled and not PoE-masked). None means every tool.
 
     Returns:
         1.0 if investigation is stagnated/unsolvable, 0.0 otherwise.
@@ -137,14 +149,35 @@ def generate_stall_label(
     if s_star >= s_threshold:
         return 0.0
 
-    costs = tool_costs or {}
-    # Check if any tool produces sufficient gain above its cost hurdle
+    allowed = set(allowed_tools) if allowed_tools is not None else None
     for tool_name, gain in tool_gains.items():
-        tau_k = costs.get(tool_name, 0.0)
-        if gain > tau_k:
+        if gain == GAIN_UNOBSERVED:
+            continue
+        if allowed is not None and tool_name not in allowed:
+            continue
+        if gain > 0.0:
             return 0.0
 
     return 1.0
+
+
+def generate_risk_label(
+    type_token: str,
+    risk_mapping: Optional[Dict[str, float]] = None,
+    default_risk: float = 0.1,
+) -> float:
+    """Compute target risk label R* in [0.0, 1.0] based on domain business policy."""
+    mapping = risk_mapping or DEFAULT_RISK_MAPPING
+    return mapping.get(type_token, default_risk)
+
+
+def generate_hypotheses_survival_labels(
+    alive_hypotheses: Sequence[str],
+    all_hypotheses: Sequence[str],
+) -> List[float]:
+    """Compute binary survival indicators hyp_true in {0.0, 1.0} across all candidate hypotheses."""
+    alive_set = set(alive_hypotheses)
+    return [1.0 if h in alive_set else 0.0 for h in all_hypotheses]
 
 
 def generate_redundancy_mask(

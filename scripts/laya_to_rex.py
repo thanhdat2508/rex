@@ -33,6 +33,13 @@ def parse_args():
         help="Output directory for the new Rex checkpoint.",
     )
     parser.add_argument(
+        "--registry",
+        type=str,
+        default=None,
+        help="Optional Rex registry; its tool descriptions are encoded into tool_embeddings (default: --spec "
+             "when it contains 'tool_specs').",
+    )
+    parser.add_argument(
         "--pad-to-multiple-of",
         type=int,
         default=None,
@@ -92,9 +99,23 @@ def main():
         tool_hidden=tool_hidden,
         tool_dropout=tool_dropout,
         tool_prior=tool_prior,
+        base_cfg=base_cfg,
     )
 
-    # 6. Save checkpoint
+    # 6. Encode tool descriptions so the tool matcher and gain head start from real embeddings (T5)
+    registry_path = args.registry or (args.spec if "tool_specs" in spec else None)
+    if registry_path:
+        from rex.rex_registry import load_registry
+
+        registry = load_registry(registry_path)
+        registry.check_model_tools(rex_model.tools)
+        print(f"Encoding tool descriptions from {registry_path}...")
+        rex_model.set_tool_specs([registry.tool_specs[t] for t in rex_model.tools])
+        rex_model.encode_tool_descriptions([registry.tool_specs[t] for t in rex_model.tools], tok)
+    else:
+        print("No registry given: tool_embeddings stay random until scripts/train_rex.py encodes them.")
+
+    # 7. Save checkpoint
     print(f"Saving Rex checkpoint to {args.out}...")
     save_rex_checkpoint(rex_model, tok, args.out, base_cfg=base_cfg)
 

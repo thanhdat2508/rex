@@ -638,11 +638,19 @@ def _forward(model, batch, device, amp: bool, detach_encoder: bool):
     kwargs = {"detach_encoder": detach_encoder}
     if "option_ids" in batch:
         kwargs.update(position_ids=batch["position_ids"].to(device), option_ids=batch["option_ids"].to(device))
+    if getattr(model, "tool_matcher", None) is not None:
+        # RexDecisionModel: training needs only the logits, not the per-sample tool dispatcher
+        kwargs["dispatch"] = False
     if amp:
         with torch.autocast(device.type, dtype=torch.float16):
-            logits, _act = model(*args, **kwargs)
+            res = model(*args, **kwargs)
     else:
-        logits, _act = model(*args, **kwargs)
+        res = model(*args, **kwargs)
+
+    if isinstance(res, tuple) and len(res) == 3:
+        logits, _state, _step_out = res
+    else:
+        logits, _act = res
     return logits.float()
 
 
@@ -654,6 +662,11 @@ def train_model(model, tok, items: Sequence[Dict[str, Any]], config: TrainConfig
     config.validate()
     if not items:
         raise ValueError("no training items")
+    if getattr(model, "tool_matcher", None) is not None:
+        warnings.warn("laya.train: this is a Rex (arch rex2) model; this loop trains only the verdict path "
+                      "(encoder, head, scorer). The S, R, tool, gain and hypothesis heads, the ponder block and "
+                      "the multi-round memory are not trained here; use scripts/train_rex.py for those.",
+                      RuntimeWarning, stacklevel=2)
     amp = (device.type == "cuda") if config.amp is None else bool(config.amp)
     checkpointing = amp if config.gradient_checkpointing is None else bool(config.gradient_checkpointing)
 

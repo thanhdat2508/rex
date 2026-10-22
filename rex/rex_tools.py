@@ -1,7 +1,7 @@
 """Tool Matcher, Epistemic Information Gain Head, and Three-Branch Dispatcher for Rex (Step A5)."""
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -12,6 +12,22 @@ DEFAULT_MATCHER_TEMPERATURE: float = 0.07
 DEFAULT_BUDGET_CAPS: Tuple[int, ...] = (3, 2, 1)
 DEFAULT_S_THRESHOLD: float = 0.85
 DEFAULT_R_THRESHOLD: float = 0.30
+DEFAULT_GAIN_FLOOR: float = 0.05
+DEFAULT_MAX_COST_THRESHOLD: float = 0.5
+
+
+def gain_threshold(level: str, cost: float, floor: float = DEFAULT_GAIN_FLOOR) -> float:
+    """Minimum predicted gain tau_k a tool must reach to be called.
+
+    Gain labels are binary (docs/rex-label-schema.md), so the gain head predicts the probability
+    that the tool uncovers a key fact. That probability is about values the model has not seen
+    yet, so it stays near the base rate and mainly ranks tools. Cheap READ tools therefore only
+    need the small `floor` (skipped only when the model is confident they are useless); costlier
+    tools need min(0.5, cost), never less than the floor.
+    """
+    if level == "READ" and cost <= 0.0:
+        return floor
+    return max(floor, min(DEFAULT_MAX_COST_THRESHOLD, cost))
 
 
 class ToolMatcherHead(nn.Module):
@@ -97,15 +113,21 @@ class ToolGainHead(nn.Module):
         nn.init.xavier_uniform_(self.mlp[-1].weight)
         nn.init.zeros_(self.mlp[-1].bias)
 
-    def forward(self, h_T: torch.Tensor, tool_embeddings: torch.Tensor) -> torch.Tensor:
-        """Compute information gain estimates in [0, 1].
+    def forward(
+        self,
+        h_T: torch.Tensor,
+        tool_embeddings: torch.Tensor,
+        return_logits: bool = False,
+    ) -> torch.Tensor:
+        """Compute information gain estimates in [0, 1] or raw logits.
 
         Args:
             h_T: Thought state tensor [B, d].
             tool_embeddings: Precomputed tool representations [N_tools, d].
+            return_logits: Whether to return unnormalized logits before sigmoid.
 
         Returns:
-            Expected gain tensor of shape [B, N_tools] in range [0, 1].
+            Expected gain tensor of shape [B, N_tools] in range [0, 1] (or logits if return_logits=True).
         """
         B, d = h_T.shape
         N = tool_embeddings.size(0)
@@ -113,7 +135,10 @@ class ToolGainHead(nn.Module):
         h_exp = h_T.unsqueeze(1).expand(-1, N, -1)
         t_exp = tool_embeddings.unsqueeze(0).expand(B, -1, -1)
         feat = torch.cat([h_exp, t_exp, h_exp * t_exp], dim=-1)  # [B, N, 3*d]
-        return torch.sigmoid(self.mlp(feat).squeeze(-1))         # [B, N]
+        logits = self.mlp(feat).squeeze(-1)                      # [B, N]
+        if return_logits:
+            return logits
+        return torch.sigmoid(logits)                             # [B, N]
 
 
 def dispatch_three_branch(
@@ -134,7 +159,9 @@ def dispatch_three_branch(
 ) -> Tuple[str, List[str], Dict[str, float]]:
     """Execute 3-branch epistemic tool selection and stopping logic.
 
-    Branch 1: If any qualifying tool has gain >= tau_k -> CALL_TOOL (Top-K_t).
+    Sufficiency first: S >= 0.85 and R <= tau_R -> VERDICT; S >= 0.85 and R > tau_R -> STALL
+    (sufficient but risky: more tools cannot lower business risk, so it goes to a human).
+    Branch 1: If any qualifying tool has gain >= tau_k (see gain_threshold) -> CALL_TOOL (Top-K_t).
     Branch 2: If no tool qualifies, and S >= 0.85 and R <= tau_R -> VERDICT.
     Branch 3: If no tool qualifies, and S < 0.85 -> STALL.
 
@@ -154,6 +181,7 @@ def dispatch_three_branch(
     logits_flat = tool_logits.squeeze(0).tolist() if tool_logits.dim() > 1 else tool_logits.tolist()
     s_val = float(s_prob.item())
     r_val = float(r_prob.item())
+    sufficient = s_val >= s_threshold
 
     # Build effective gains and qualifying candidate list
     effective_gains: Dict[str, float] = {}
@@ -175,13 +203,14 @@ def dispatch_three_branch(
         g_i = gains_flat[i]
         effective_gains[name] = g_i
 
-        # Threshold derivation: cheap READ tools have tau_k = 0.0
-        level = levels.get(name, "READ")
-        cost = costs.get(name, 0.0)
-        tau_k = 0.0 if (level == "READ" and cost <= 0.0) else min(0.5, cost)
+        tau_k = gain_threshold(levels.get(name, "READ"), costs.get(name, 0.0))
 
         if not gain_head_trained or g_i >= tau_k:
             qualifying_tools.append((name, g_i, logits_flat[i]))
+
+    # Sufficient evidence: stop investigating (VERDICT), or hand a risky case to a human (STALL)
+    if sufficient:
+        return ("VERDICT" if r_val <= r_threshold else "STALL"), [], effective_gains
 
     # If gain head not trained, bypass gain filtering and select top-K by logits
     if not gain_head_trained:
@@ -189,7 +218,9 @@ def dispatch_three_branch(
             qualifying_tools.sort(key=lambda x: -x[2])  # sort by logits
             selected = [t[0] for t in qualifying_tools[:budget_k]]
             return "CALL_TOOL", selected, effective_gains
-        return "VERDICT" if s_val >= s_threshold else "STALL", [], effective_gains
+        if s_val >= s_threshold and r_val <= r_threshold:
+            return "VERDICT", [], effective_gains
+        return "STALL", [], effective_gains
 
     # Branch 1: At least one tool has gain >= tau_k
     if qualifying_tools:
@@ -200,9 +231,14 @@ def dispatch_three_branch(
 
     # Round 1 Exploratory Guardrail: Round 1 must attempt at least 1 uncalled cheap READ tool
     if round_idx == 1:
+        mask_allowed = (
+            {tool_names[i]: bool(tool_mask[i].item() if isinstance(tool_mask, torch.Tensor) else tool_mask[i])
+             for i in range(len(tool_names))}
+            if tool_mask is not None else {}
+        )
         uncalled_read = [
             name for name in tool_names
-            if name not in called_set and levels.get(name, "READ") == "READ"
+            if name not in called_set and levels.get(name, "READ") == "READ" and mask_allowed.get(name, True)
         ]
         if uncalled_read:
             # Pick highest relevance logit among uncalled read tools
@@ -289,12 +325,21 @@ def evaluate_stall_and_dispatch(
     if action != "STALL":
         return action, selected, False, "NONE", rule_stall, last_read_tried, effective_gains
 
+    # Sufficient but risky: neither buffer applies (another read cannot lower risk; auto-commit needs R <= tau_R)
+    if s_val >= s_threshold:
+        return "STALL", [], True, "LEARNED", rule_stall, last_read_tried, effective_gains
+
     # Action is candidate for STALL -> Apply 2 Safety Buffers
     # Safety Buffer 1: Last-resort cheap READ attempt
     if not last_read_tried:
+        mask_allowed = (
+            {tool_names[i]: bool(tool_mask[i].item() if isinstance(tool_mask, torch.Tensor) else tool_mask[i])
+             for i in range(len(tool_names))}
+            if tool_mask is not None else {}
+        )
         uncalled_read = [
             t for t in tool_names
-            if t not in called_set and levels.get(t, "READ") == "READ"
+            if t not in called_set and levels.get(t, "READ") == "READ" and mask_allowed.get(t, True)
         ]
         if uncalled_read:
             # Dispatch the uncalled read tool with highest relevance logit

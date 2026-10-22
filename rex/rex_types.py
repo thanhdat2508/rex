@@ -29,6 +29,8 @@ class RexState:
         called_tools: List of tool names called so far per batch sample.
         last_read_tried: Guardrail flag indicating if a last-resort cheap read was attempted.
         is_truncated: Whether evidence observation was truncated by the 64-token cap.
+        marker_mask: Boolean validity mask [B, K] of hypothesis slots from turn 1 (False = padding).
+        s_prev: Sufficiency probability per sample from the previous round (for rule_stall telemetry).
     """
 
     h: torch.Tensor
@@ -39,8 +41,10 @@ class RexState:
     hyp_markers: Optional[torch.Tensor] = None
     round_idx: int = 1
     called_tools: List[List[str]] = field(default_factory=list)
-    last_read_tried: bool = False
+    last_read_tried: Union[bool, List[bool]] = False
     is_truncated: bool = False
+    marker_mask: Optional[torch.Tensor] = None
+    s_prev: Optional[List[float]] = None
 
     @classmethod
     def empty(
@@ -76,8 +80,8 @@ class RexStepOutput:
 
     s_logit: torch.Tensor                        # [B, 1]
     s_prob: torch.Tensor                         # [B, 1]
-    r_logit: torch.Tensor                        # [B, 1]
-    r_prob: torch.Tensor                         # [B, 1]
+    r_logit: torch.Tensor                        # [B, 1] logit(r_prob)
+    r_prob: torch.Tensor                         # [B, 1] sum_j verdict_probs_j * hyp_risk_j
     verdict_logits: torch.Tensor                 # [B, K]
     verdict_probs: torch.Tensor                  # [B, K]
     tool_logits: torch.Tensor                    # [B, N_tools]
@@ -94,6 +98,14 @@ class RexStepOutput:
     attn_weights: Optional[torch.Tensor] = None
     gain_head_trained: bool = False
     is_truncated: bool = False
+    tool_gain_logits: Optional[torch.Tensor] = None     # [B, N_tools] raw logits of tool_gains (for BCEWithLogits)
+    hyp_logits: Optional[torch.Tensor] = None           # [B, K] HypothesisScorer survival logits over memory M
+    hyp_scores: Optional[torch.Tensor] = None           # [B, K] sigmoid(hyp_logits)
+    hyp_risk: Optional[torch.Tensor] = None             # [B, K] sigmoid(hyp_risk_logits)
+    hyp_risk_logits: Optional[torch.Tensor] = None      # [B, K] logits of hyp_risk
+    stall_modes: Optional[List[str]] = None
+    stall_reason: List[str] = field(default_factory=list)          # per sample: "NONE", "NO_GAIN" or "HIGH_RISK"
+    alive_hypotheses: List[List[str]] = field(default_factory=list)  # surviving hypothesis names per sample
 
     def to_trace_dict(self, batch_idx: int = 0) -> Dict[str, Any]:
         """Serialize output for trace logging and State Store.
@@ -152,8 +164,10 @@ class RexStepOutput:
             "verdict_probs": verdict_probs_dict,
             "conformal_set": conf_set,
             "stall": stall_val,
-            "stall_mode": self.stall_mode,
+            "stall_mode": self.stall_modes[batch_idx] if (self.stall_modes and batch_idx < len(self.stall_modes)) else self.stall_mode,
+            "stall_reason": self.stall_reason[batch_idx] if self.stall_reason else "NONE",
             "rule_stall": rule_stall_val,
+            "alive_hypotheses": list(self.alive_hypotheses[batch_idx]) if self.alive_hypotheses else [],
             "gain_head_trained": self.gain_head_trained,
             "is_truncated": self.is_truncated,
             "model_version": MODEL_VERSION,

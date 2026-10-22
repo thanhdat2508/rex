@@ -25,8 +25,8 @@ sys.path.insert(0, ROOT)
 
 from huggingface_hub import snapshot_download
 
-from laya.agent import _fix_tokenizer_config
-from laya.train import TrainConfig, finetune
+from rex.agent import _fix_tokenizer_config
+from rex.train import TrainConfig, finetune
 
 
 def main():

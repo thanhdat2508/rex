@@ -5,11 +5,10 @@ Extracts clean structured observations dictionary for Popperian elimination.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-import re
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from rex.rex_format import encode_evidence
+from rex.rex_format import encode_evidence, format_metric_value
 
 from .state_store import ToolResult
 
@@ -21,26 +20,6 @@ class PackedEvidence:
     observations: Dict[str, Any]
     is_truncated: bool = False
     token_count: int = 0
-
-
-def format_metric_value(val: Any) -> str:
-    """Format metric value concisely: bool as 1/0, rounded float, bounded string."""
-    if isinstance(val, bool):
-        return "1" if val else "0"
-    elif isinstance(val, float):
-        if val.is_integer():
-            return str(int(val))
-        return f"{val:.2f}".rstrip("0").rstrip(".")
-    elif isinstance(val, int):
-        return str(val)
-    elif isinstance(val, str):
-        # Strip control characters and sanitize user strings
-        cleaned = re.sub(r"[\r\n\t]+", " ", val).strip()
-        # Cap user-provided string lengths to prevent token bloat
-        if len(cleaned) > 32:
-            cleaned = cleaned[:29] + "..."
-        return cleaned
-    return str(val)
 
 
 def format_tool_result(result: ToolResult) -> str:

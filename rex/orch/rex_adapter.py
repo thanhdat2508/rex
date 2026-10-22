@@ -5,8 +5,7 @@ and HardMaskingManager to execute live neural models inside the orchestrator.
 """
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence
 
 import torch
 
@@ -59,11 +58,18 @@ class RexAdapter(AgentPort):
 
     def _combine_tool_masks(self, available: Dict[str, bool]) -> List[bool]:
         """Combine Part A hard falsification masking with Part B environment availability."""
+        general_tools = [
+            spec.name for spec in (self.tool_specs or []) if getattr(spec, "general", False)
+        ]
+        if not general_tools and hasattr(self.model, "tool_meta"):
+            general_tools = [t for t, meta in self.model.tool_meta.items() if meta.get("general", False)]
         mask_a = self.mask_manager.compute_tool_mask(
             self.model.tools,
             self.alive,
             self.tool_hyp_mapping,
             called_tools=self.called_tools,
+            general_tools=general_tools,
+            allow_unmapped=False,
         )
         return [m_a and available.get(tool_name, True) for m_a, tool_name in zip(mask_a, self.model.tools)]
 
@@ -96,9 +102,20 @@ class RexAdapter(AgentPort):
 
     def start(self, case: Case, available: Dict[str, bool]) -> AgentCommand:
         """Execute turn 1 encoding and model forward pass."""
+        # Inference: no dropout and the fixed ponder depth (train mode samples T in [2, 4])
+        self.model.eval()
         self.state = None
         self.alive = {k: True for k in self.hyp_keys}
         self.called_tools = []
+        if case.state:
+            # Metrics known before any tool call (the alert) can already falsify hypotheses
+            self.alive = self.poe_engine.evaluate(
+                neural_scores=None,
+                hyp_keys=self.hyp_keys,
+                observations=case.state,
+                rules=self.rules,
+                prev_alive=self.alive,
+            )
 
         dev = self.device
         tool_mask_list = self._combine_tool_masks(available)
@@ -149,8 +166,16 @@ class RexAdapter(AgentPort):
 
         dev = self.device
 
-        # 1. Neural hypothesis scoring and Popperian elimination
+        # 1. Encode 64-token bounded evidence and append it to memory
+        ev = encode_evidence(self.tok, text, round_idx=self.state.round_idx + 1, max_tokens=64)
+        ev_ids = torch.tensor([ev["input_ids"]], dtype=torch.long, device=dev)
+        ev_mask = torch.tensor([ev["attention_mask"]], dtype=torch.bool, device=dev)
+
         with torch.no_grad():
+            self.state = self.model.ingest_evidence(
+                self.state, ev_ids, ev_mask, is_truncated=bool(ev.get("is_truncated", False))
+            )
+            # 2. Neural hypothesis scoring on the updated memory and Popperian elimination
             neural_scores = self.model.hyp_scorer(
                 self.state.hyp_markers, self.state.M, self.state.memory_mask
             )
@@ -161,12 +186,8 @@ class RexAdapter(AgentPort):
             observations=observations,
             rules=self.rules,
             theta_elim=self.theta_elim,
+            prev_alive=self.alive,
         )
-
-        # 2. Encode 64-token bounded evidence
-        ev = encode_evidence(self.tok, text, round_idx=self.state.round_idx + 1, max_tokens=64)
-        ev_ids = torch.tensor([ev["input_ids"]], dtype=torch.long, device=dev)
-        ev_mask = torch.tensor([ev["attention_mask"]], dtype=torch.bool, device=dev)
 
         tool_mask_list = self._combine_tool_masks(available)
         tool_mask_tensor = torch.tensor([tool_mask_list], dtype=torch.bool, device=dev)
@@ -178,8 +199,6 @@ class RexAdapter(AgentPort):
         with torch.no_grad():
             _, self.state, step_out = self.model.forward(
                 state=self.state,
-                evidence_new=ev_ids,
-                evidence_mask=ev_mask,
                 tool_specs=self.tool_specs,
                 tool_mask=tool_mask_tensor,
                 hyp_alive=alive_mask_tensor,

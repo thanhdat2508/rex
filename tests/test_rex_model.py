@@ -515,7 +515,6 @@ if __name__ == "__main__":
         test_contextualize_and_decide_equivalence,
         test_contextualize_detach_encoder,
         test_tool_head_shapes_and_dtype,
-        test_tool_head_prior_bias_init,
         test_tool_head_tool_embeddings_property,
         test_rex_decision_model_forward,
         test_rex_forward_outputs,

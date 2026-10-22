@@ -6,8 +6,7 @@ and case resolution outcomes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, Set, runtime_checkable
 
 from .agent_port import Case, CaseStatus
 

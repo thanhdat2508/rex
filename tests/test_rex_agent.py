@@ -28,6 +28,7 @@ def _create_offline_tok() -> BertTokenizer:
 
 
 def _create_mock_agent(n_tools: int = 3, d: int = 32) -> InvestigatorAgent:
+    torch.manual_seed(42)
     cfg = AutoConfig.for_model(
         "bert",
         hidden_size=d,
@@ -81,6 +82,7 @@ def test_investigator_agent_single_survivor_termination():
         tool_hyp_mapping=tool_hyp_mapping,
         tool_dispatcher=mock_dispatcher,
         max_rounds=2,
+        stop_on_single_survivor=True,
     )
 
     assert result.rounds_executed == 1
