@@ -1,0 +1,372 @@
+{
+  "version": "1.0.0",
+  "semantic_tool_slots": {
+    "SLOT_NETWORK": {
+      "canonical_alias": "SLOT_NETWORK_REPUTATION",
+      "description": "Inspect network telemetry, carrier CGNAT indicators, autonomous systems, and proxy egress routing",
+      "token_budget": 16
+    },
+    "SLOT_DEVICE": {
+      "canonical_alias": "SLOT_DEVICE_FINGERPRINT",
+      "description": "Evaluate client hardware virtualization, canvas entropy, anti-detect browser signatures, and device integrity",
+      "token_budget": 15
+    },
+    "SLOT_BEHAVIOR": {
+      "canonical_alias": "SLOT_BEHAVIORAL_CADENCE",
+      "description": "Analyze human physical interaction dynamics, mouse trajectory curvature, and request rhythm entropy",
+      "token_budget": 14
+    },
+    "SLOT_GRAPH": {
+      "canonical_alias": "SLOT_ACCOUNT_GRAPH",
+      "description": "Traverse entity relationship graph, linked account clusters, and shared device credential trees",
+      "token_budget": 14
+    }
+  },
+  "domain_types": {
+    "TYPE_RBA_LOGIN_DEFENSE": {
+      "description": "Risk-based authentication evaluating login telemetry, device entropy, and credential authenticity",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automated Credential Stuffing Botnet",
+          "text": "Automated distributed headless browser or residential botnet executing programmatic login stuffing",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_NETWORK_REPUTATION"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.mouse_entropy",
+              "operator": "GTE",
+              "threshold": 0.85,
+              "description": "Organic curve entropy refutes linear script automation"
+            },
+            {
+              "metric": "behavior.keystroke_jitter_ms",
+              "operator": "GTE",
+              "threshold": 120.0,
+              "description": "High biological typing variance refutes instant automated submission"
+            },
+            {
+              "metric": "device.cloned_hardware",
+              "operator": "EQ",
+              "threshold": false,
+              "description": "Authentic hardware fingerprint refutes anti-detect bot emulator"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Syndicated Account Takeover Ring",
+          "text": "Coordinated fraud syndicate operating cloned devices and breached credential lists for account takeover",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_ACCOUNT_GRAPH",
+            "SLOT_DEVICE_FINGERPRINT"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "graph.cluster_size",
+              "operator": "EQ",
+              "threshold": 1,
+              "description": "Isolated account identity with zero syndicated credential links"
+            },
+            {
+              "metric": "graph.users_on_ip_24h",
+              "operator": "EQ",
+              "threshold": 1,
+              "description": "Single unique user on IP refutes syndicated account farm"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Shared Gateway Login False Alarm",
+          "text": "Legitimate user login traversing carrier CGNAT, corporate proxy, or public gateway infrastructure",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.geo_velocity_kmh",
+              "operator": "GTE",
+              "threshold": 900.0,
+              "description": "Supersonic travel velocity refutes legitimate shared egress false alarm"
+            },
+            {
+              "metric": "network.auth_failure_rate",
+              "operator": "GTE",
+              "threshold": 0.85,
+              "description": "Massive credential rejection rate refutes legitimate shared gateway users"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Uncataloged Authentication Exploit",
+          "text": "Uncataloged zero-day authentication bypass, biometric deepfake injection, or novel session replay exploit",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    },
+    "TYPE_CREDENTIAL_STUFFING": {
+      "description": "Large-scale credential stuffing attacks leveraging breached credential dumps against authentication endpoints",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automated Distributed Stuffing",
+          "text": "Automated execution via scripts, headless browsers, or residential botnets",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.mouse_entropy",
+              "operator": "GTE",
+              "threshold": 0.8,
+              "description": "Natural human mouse interaction refutes automated stuffing script"
+            },
+            {
+              "metric": "behavior.keystroke_jitter_ms",
+              "operator": "GTE",
+              "threshold": 120.0,
+              "description": "High typing delay variance refutes automated credential submission"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Distributed Manual ATO Ring",
+          "text": "Coordinated human fraud operation using cloned profiles or virtual environments",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "device.cloned_hardware",
+              "operator": "EQ",
+              "threshold": false,
+              "description": "Authentic unvirtualized hardware profile refutes multi-profile farm"
+            },
+            {
+              "metric": "graph.credential_overlap",
+              "operator": "EQ",
+              "threshold": 0,
+              "description": "Zero shared password or recovery channel overlap"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Shared Gateway Login Collisions",
+          "text": "Legitimate users traversing shared egress infrastructure such as mobile CGNAT or public WiFi",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_BEHAVIORAL_CADENCE"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.auth_failure_rate",
+              "operator": "GTE",
+              "threshold": 0.85,
+              "description": "Massive failure rate refutes legitimate shared egress users"
+            },
+            {
+              "metric": "network.is_datacenter",
+              "operator": "EQ",
+              "threshold": true,
+              "description": "Commercial cloud hosting ASN confirms proxy tunnel, refuting residential CGNAT"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Novel Auth Exploit",
+          "text": "Uncataloged zero-day abuse pattern, deepfake bypass, or novel business logic exploit",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    },
+    "TYPE_ACCOUNT_TAKEOVER": {
+      "description": "Account takeover via session hijacking, credential theft, or unauthorized access",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automated Token Scraping",
+          "text": "Automated execution via scripts, headless browsers, or residential botnets",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_NETWORK_REPUTATION"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.touch_variance",
+              "operator": "GTE",
+              "threshold": 0.75,
+              "description": "High touch biometrics entropy refutes script replay"
+            },
+            {
+              "metric": "network.is_datacenter",
+              "operator": "EQ",
+              "threshold": true,
+              "description": "Commercial hosting egress refutes organic residential consumer"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Syndicate Farm Takeover",
+          "text": "Coordinated human fraud operation using cloned profiles or virtual environments",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_ACCOUNT_GRAPH",
+            "SLOT_DEVICE_FINGERPRINT"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "graph.credential_overlap",
+              "operator": "EQ",
+              "threshold": 0,
+              "description": "No shared password or recovery channel overlap"
+            },
+            {
+              "metric": "device.cloned_hardware",
+              "operator": "EQ",
+              "threshold": false,
+              "description": "Clean physical device profile refutes syndicated farm"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Shared IP False Alarm",
+          "text": "Legitimate users traversing shared egress infrastructure such as mobile CGNAT or public WiFi",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_BEHAVIORAL_CADENCE"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.geo_velocity_kmh",
+              "operator": "GTE",
+              "threshold": 900.0,
+              "description": "Impossible physical travel velocity refutes shared infrastructure"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Zero-Day Session Bypass",
+          "text": "Uncataloged zero-day abuse pattern, deepfake bypass, or novel business logic exploit",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    },
+    "TASK_RISK_INVESTIGATION": {
+      "description": "Universal risk investigation root channel for generalized anomaly assessment",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automation Execution",
+          "text": "Automated execution via scripts, headless browsers, or residential botnets",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.mouse_entropy",
+              "operator": "GTE",
+              "threshold": 0.85,
+              "description": "Organic curve entropy refutes linear script automation"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Coordinated Syndicate",
+          "text": "Coordinated human fraud operation using cloned profiles or virtual environments",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "graph.cluster_size",
+              "operator": "EQ",
+              "threshold": 1,
+              "description": "Isolated entity with zero syndicated links"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Shared Egress Infrastructure",
+          "text": "Legitimate users traversing shared egress infrastructure such as mobile CGNAT or public WiFi",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.is_cgnat",
+              "operator": "EQ",
+              "threshold": false,
+              "description": "Non-CGNAT dedicated egress refutes carrier NAT sharing"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Uncataloged Attack Pattern",
+          "text": "Uncataloged zero-day abuse pattern, deepfake bypass, or novel business logic exploit",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    }
+  }
+}

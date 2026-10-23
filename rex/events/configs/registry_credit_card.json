@@ -1,0 +1,412 @@
+{
+  "version": "1.0.0",
+  "semantic_tool_slots": {
+    "SLOT_NETWORK": {
+      "canonical_alias": "SLOT_NETWORK_REPUTATION",
+      "description": "Inspect network telemetry, carrier CGNAT indicators, autonomous systems, and proxy egress routing",
+      "token_budget": 16
+    },
+    "SLOT_DEVICE": {
+      "canonical_alias": "SLOT_DEVICE_FINGERPRINT",
+      "description": "Evaluate client hardware virtualization, canvas entropy, anti-detect browser signatures, and device integrity",
+      "token_budget": 15
+    },
+    "SLOT_BEHAVIOR": {
+      "canonical_alias": "SLOT_BEHAVIORAL_CADENCE",
+      "description": "Analyze human physical interaction dynamics, mouse trajectory curvature, and request rhythm entropy",
+      "token_budget": 14
+    },
+    "SLOT_GRAPH": {
+      "canonical_alias": "SLOT_ACCOUNT_GRAPH",
+      "description": "Traverse entity relationship graph, linked account clusters, and shared device credential trees",
+      "token_budget": 14
+    }
+  },
+  "domain_types": {
+    "TYPE_CREDIT_CARD_FRAUD": {
+      "description": "Credit card transaction fraud, counterfeit magstripe abuse, and high-velocity unauthorized purchases",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automated Card Testing Botnet",
+          "text": "Automated card testing botnet probing low-value transactions or high-velocity checkout scripts",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_NETWORK_REPUTATION"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.checkout_dwell_time_sec",
+              "operator": "GTE",
+              "threshold": 25.0,
+              "description": "Deliberate human form deliberation refutes automated payment card testing script"
+            },
+            {
+              "metric": "network.is_datacenter",
+              "operator": "EQ",
+              "threshold": true,
+              "description": "Commercial cloud hosting ASN confirms automated payment script runner"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Syndicated Carding Ring",
+          "text": "Organized carding syndicate utilizing cloned magstripes, stolen BIN batches, or coordinated mule networks",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_ACCOUNT_GRAPH",
+            "SLOT_DEVICE_FINGERPRINT"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "graph.shared_bin_cluster",
+              "operator": "EQ",
+              "threshold": 0,
+              "description": "Zero correlation across payment card issuer BIN trees and linked syndicate nodes"
+            },
+            {
+              "metric": "graph.cluster_size",
+              "operator": "EQ",
+              "threshold": 1,
+              "description": "Isolated transaction account with zero carding ring graph linkages"
+            },
+            {
+              "metric": "device.cloned_hardware",
+              "operator": "EQ",
+              "threshold": false,
+              "description": "Cryptographically verified EMV chip refutes cloned counterfeit card"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Legitimate Travel or Household Usage",
+          "text": "Legitimate cardholder traveling, authorized family member purchasing, or shared corporate card expense",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.geo_velocity_kmh",
+              "operator": "GTE",
+              "threshold": 900.0,
+              "description": "Supersonic geographical transit velocity between card swipes refutes legitimate travel"
+            },
+            {
+              "metric": "network.chargeback_rate",
+              "operator": "GTE",
+              "threshold": 0.2,
+              "description": "Extreme localized merchant chargeback spike refutes legitimate consumer purchase"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Novel Settlement Exploit",
+          "text": "Uncataloged payment gateway race condition, novel settlement arbitrage, or zero-day token manipulation exploit",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    },
+    "TYPE_PAYMENT_FRAUD": {
+      "description": "Payment fraud, transaction laundering, or credit card chargeback abuse",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automated Card Testing",
+          "text": "Automated execution via scripts, headless browsers, or residential botnets",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_NETWORK_REPUTATION"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.checkout_dwell_time_sec",
+              "operator": "GTE",
+              "threshold": 25.0,
+              "description": "Deliberate human checkout deliberation refutes automated card tester"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Carding Ring Operation",
+          "text": "Coordinated human fraud operation using cloned profiles or virtual environments",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_ACCOUNT_GRAPH",
+            "SLOT_DEVICE_FINGERPRINT"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "graph.shared_bin_cluster",
+              "operator": "EQ",
+              "threshold": 0,
+              "description": "No carding ring BIN cluster correlation across accounts"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Shared Gateway Payment",
+          "text": "Legitimate users traversing shared egress infrastructure such as mobile CGNAT or public WiFi",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.chargeback_rate",
+              "operator": "GTE",
+              "threshold": 0.15,
+              "description": "Extreme chargeback rate refutes legitimate shared egress users"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Novel Transaction Exploit",
+          "text": "Uncataloged zero-day abuse pattern, deepfake bypass, or novel business logic exploit",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    },
+    "TYPE_CHARGEBACK_DISPUTE": {
+      "description": "Friendly fraud, merchant dispute abuse, and fraudulent chargeback claims",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automated Claim Flooding",
+          "text": "Automated script mass-filing chargeback dispute claims using scraped order metadata",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_NETWORK_REPUTATION"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.checkout_dwell_time_sec",
+              "operator": "GTE",
+              "threshold": 30.0,
+              "description": "Deliberate human complaint deliberation refutes scripted dispute generation"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Syndicated Friendly Fraud",
+          "text": "Coordinated buyer syndicate systematically ordering merchandise and filing false non-receipt",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_ACCOUNT_GRAPH",
+            "SLOT_DEVICE_FINGERPRINT"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "graph.shared_bin_cluster",
+              "operator": "EQ",
+              "threshold": 0,
+              "description": "No linked financial BIN cluster correlation across disputed buyer accounts"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Legitimate Merchant Logistics Failure",
+          "text": "Genuine buyers experiencing authentic merchant carrier delivery failure or inventory shortage",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.chargeback_rate",
+              "operator": "GTE",
+              "threshold": 0.2,
+              "description": "Extreme localized chargeback spike refutes isolated genuine postal transit failure"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Novel Settlement Loophole",
+          "text": "Uncataloged payment gateway refund arbitrage or novel multi-currency settlement loophole",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    },
+    "TYPE_MONEY_LAUNDERING_AML": {
+      "description": "Money laundering, money mule network routing, and micro-transaction structuring",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automated Structuring Bot",
+          "text": "Automated micro-transaction bot dispersing illicit capital through programmatic structuring scripts",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_NETWORK_REPUTATION"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.touch_variance",
+              "operator": "GTE",
+              "threshold": 0.8,
+              "description": "High biometrics touch variance refutes automated structuring transfer script"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Coordinated Mule Network",
+          "text": "Syndicated network of recruited mule accounts funneling high-velocity illicit funds",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_ACCOUNT_GRAPH",
+            "SLOT_DEVICE_FINGERPRINT"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "graph.cluster_size",
+              "operator": "EQ",
+              "threshold": 1,
+              "description": "Completely isolated node with zero circular transaction or fan-out links"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Legitimate Commercial Gateway Flow",
+          "text": "Legitimate corporate treasury or payroll batch settlement via shared payment gateway",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.auth_failure_rate",
+              "operator": "GTE",
+              "threshold": 0.8,
+              "description": "High authentication failure rate refutes verified corporate treasury batch integration"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Novel Layering Protocol",
+          "text": "Uncataloged zero-day smart contract mixing or novel cross-chain settlement obfuscation",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    },
+    "TASK_RISK_INVESTIGATION": {
+      "description": "Universal risk investigation root channel for generalized anomaly assessment",
+      "hypotheses": [
+        {
+          "id": "H_botnet",
+          "title": "Automation Execution",
+          "text": "Automated execution via scripts, headless browsers, or residential botnets",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "behavior.mouse_entropy",
+              "operator": "GTE",
+              "threshold": 0.85,
+              "description": "Organic curve entropy refutes linear script automation"
+            }
+          ]
+        },
+        {
+          "id": "H_sybil",
+          "title": "Coordinated Syndicate",
+          "text": "Coordinated human fraud operation using cloned profiles or virtual environments",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "graph.cluster_size",
+              "operator": "EQ",
+              "threshold": 1,
+              "description": "Isolated entity with zero syndicated links"
+            }
+          ]
+        },
+        {
+          "id": "H_shared",
+          "title": "Shared Egress Infrastructure",
+          "text": "Legitimate users traversing shared egress infrastructure such as mobile CGNAT or public WiFi",
+          "is_residual": false,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": [
+            {
+              "metric": "network.is_cgnat",
+              "operator": "EQ",
+              "threshold": false,
+              "description": "Non-CGNAT dedicated egress refutes carrier NAT sharing"
+            }
+          ]
+        },
+        {
+          "id": "H_novel",
+          "title": "Uncataloged Attack Pattern",
+          "text": "Uncataloged zero-day abuse pattern, deepfake bypass, or novel business logic exploit",
+          "is_residual": true,
+          "associated_slots": [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH"
+          ],
+          "falsification_criteria": []
+        }
+      ]
+    }
+  }
+}
