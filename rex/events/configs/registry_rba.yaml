@@ -1,0 +1,519 @@
+# ======================================================================================
+# REX RBA DATASET REGISTRY (Popperian MECE Demarcation)
+# Dataset: https://www.kaggle.com/datasets/dasgroup/rba-dataset
+# Risk-Based Authentication, Credential Stuffing & Account Takeover Defense
+# Grounded strictly in RBA Schema: Mouse Dynamics, Keystroke Jitter, Device Fingerprints, IP Velocity
+# Calibrated Hypothesis Density: 18-25 words per hypothesis for optimal token attention
+# ======================================================================================
+
+version: "1.0.0"
+
+semantic_tool_slots:
+  SLOT_NETWORK:
+    canonical_alias: "SLOT_NETWORK_REPUTATION"
+    description: "Inspect network telemetry, carrier CGNAT indicators, autonomous systems (ASNs), residential proxy egress routing, and geographical IP velocities."
+    token_budget: 16
+  SLOT_DEVICE:
+    canonical_alias: "SLOT_DEVICE_FINGERPRINT"
+    description: "Evaluate client hardware virtualization, HTML5 canvas rendering entropy, WebGL shader signatures, anti-detect browser footprints, and mobile device integrity."
+    token_budget: 15
+  SLOT_BEHAVIOR:
+    canonical_alias: "SLOT_BEHAVIORAL_CADENCE"
+    description: "Analyze human physical interaction dynamics, biological mouse trajectory curvature, keystroke flight and dwell jitter, and touch contact area dispersion."
+    token_budget: 14
+  SLOT_GRAPH:
+    canonical_alias: "SLOT_ACCOUNT_GRAPH"
+    description: "Traverse entity relationship topologies, linked account credential clusters, shared password trees, and multi-tenant authentication graphs."
+    token_budget: 14
+
+domain_types:
+  TYPE_RBA_LOGIN_DEFENSE:
+    description: "Evaluates multi-factor login events, biological behavioral dynamics, and device fingerprint entropy to defend user accounts against automated and syndicated authentication attacks."
+    hypotheses:
+      - id: "H_botnet"
+        title: "Automated Credential Stuffing Botnet"
+        text: "Automated distributed headless browser botnet executing high-velocity programmatic credential stuffing across authentication endpoints while attempting to simulate organic human keystroke intervals."
+        is_residual: false
+        associated_slots:
+          [
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_NETWORK_REPUTATION",
+          ]
+        falsification_criteria:
+          - metric: "behavior.mouse_entropy"
+            operator: "GTE"
+            threshold: 0.85
+            description: "Biological mouse trajectory curvature entropy of 0.85 or higher indicates natural human motor micro-variations, decisively refuting linear, synthetic, or scripted headless browser cursor movements."
+          - metric: "behavior.keystroke_jitter_ms"
+            operator: "GTE"
+            threshold: 120.0
+            description: "Typing cadence timing variance exceeding 120.0 ms reflects organic cognitive pauses and neuromuscular flight times, decisively refuting deterministic programmatic credential injection loops."
+          - metric: "device.cloned_hardware"
+            operator: "EQ"
+            threshold: false
+            description: "Verified authentic physical hardware sensor telemetry and untampered WebGL primitives refute virtualized anti-detect browser emulation profiles."
+      - id: "H_sybil"
+        title: "Syndicated Account Takeover Ring"
+        text: "Coordinated cybercrime syndicate operating cloned virtual device profiles and breached credential dumps to manually execute unauthorized account takeovers."
+        is_residual: false
+        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        falsification_criteria:
+          - metric: "graph.cluster_size"
+            operator: "EQ"
+            threshold: 1
+            description: "The authentication identity is an isolated graph node with a cluster size of 1, showing zero credential sharing, zero shared recovery phones, and zero shared cookies, decisively refuting coordinated multi-account account takeover rings."
+          - metric: "graph.users_on_ip_24h"
+            operator: "EQ"
+            threshold: 1
+            description: "Observation of exactly 1 unique user account logging in from the IP address over a 24-hour window decisively refutes multi-account credential stuffing farm operations."
+          - metric: "device.canvas_cluster_size"
+            operator: "EQ"
+            threshold: 1
+            description: "A unique, solitary browser HTML5 canvas rendering fingerprint decisively refutes distributed virtual device farm clusters sharing identical spoofed configurations."
+      - id: "H_shared"
+        title: "Shared Gateway Login False Alarm"
+        text: "Legitimate authenticated consumer login traversing carrier-grade mobile CGNAT gateway, corporate enterprise VPN proxy, or public commercial wireless infrastructure."
+        is_residual: false
+        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
+        falsification_criteria:
+          - metric: "network.geo_velocity_kmh"
+            operator: "GTE"
+            threshold: 900.0
+            description: "Geographical transit speed exceeding 900 km/h between successive logins violates physical commercial flight speeds, decisively refuting authentic traveling consumer logins."
+          - metric: "network.auth_failure_rate"
+            operator: "GTE"
+            threshold: 0.85
+            description: "A catastrophic authentication failure rate exceeding 85% on the egress IP indicates hostile brute-force attacks, decisively refuting legitimate corporate or mobile CGNAT false alarms."
+          - metric: "network.is_datacenter"
+            operator: "EQ"
+            threshold: true
+            description: "Origination from commercial cloud hosting or proxy server ASNs confirms automated proxy tunneling, decisively refuting legitimate residential mobile carrier CGNAT traffic."
+      - id: "H_novel"
+        title: "Uncataloged Authentication Exploit"
+        text: "Uncataloged zero-day authentication bypass vulnerability, novel biometric deepfake injection attack, or unprecedented session state desynchronization exploit technique."
+        is_residual: true
+        associated_slots:
+          [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH",
+          ]
+        falsification_criteria: []
+
+  TYPE_CREDENTIAL_STUFFING:
+    description: "Defends against large-scale automated credential stuffing campaigns deploying breached username and password dumps across distributed residential and proxy networks."
+    hypotheses:
+      - id: "H_botnet"
+        title: "Automated Distributed Stuffing Engine"
+        text: "Programmatic bot army mass-replaying breached username and password pairs across login interfaces using distributed rotating residential proxy nodes."
+        is_residual: false
+        associated_slots:
+          [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+          ]
+        falsification_criteria:
+          - metric: "behavior.mouse_entropy"
+            operator: "GTE"
+            threshold: 0.80
+            description: "Natural continuous mouse curvature dynamics (>= 0.80) reflect biological human neuromuscular control, decisively refuting automated credential stuffing bot scripts."
+          - metric: "behavior.keystroke_jitter_ms"
+            operator: "GTE"
+            threshold: 120.0
+            description: "High human keystroke interval variance exceeding 120.0 ms reflects cognitive hesitation, decisively refuting programmatic form submission cadence."
+      - id: "H_sybil"
+        title: "Distributed Manual ATO Operation"
+        text: "Organized human fraud operators systematically validating stolen high-value credential lists across virtualized anti-detect browser profiles and emulator racks."
+        is_residual: false
+        associated_slots: ["SLOT_DEVICE_FINGERPRINT", "SLOT_ACCOUNT_GRAPH"]
+        falsification_criteria:
+          - metric: "device.cloned_hardware"
+            operator: "EQ"
+            threshold: false
+            description: "Authentic unvirtualized consumer hardware profile refutes multi-profile anti-detect browser farms cycling stolen credential pairs."
+          - metric: "graph.credential_overlap"
+            operator: "EQ"
+            threshold: 0
+            description: "Zero shared password or recovery channel overlap across unrelated tenant account clusters decisively refutes syndicated account takeover campaigns."
+      - id: "H_shared"
+        title: "Shared Gateway Collision Burst"
+        text: "Authentic concurrent subscribers legitimately logging in through shared regional carrier mobile gateway or high-density public transport wireless hub."
+        is_residual: false
+        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_BEHAVIORAL_CADENCE"]
+        falsification_criteria:
+          - metric: "network.auth_failure_rate"
+            operator: "GTE"
+            threshold: 0.85
+            description: "Extreme credential authentication failure rate exceeding 85% indicates hostile brute-force attack traffic, decisively refuting authentic shared consumer gateway logins."
+          - metric: "network.is_datacenter"
+            operator: "EQ"
+            threshold: true
+            description: "Hosting provider ASN allocation confirms commercial proxy tunneling, refuting authentic residential mobile CGNAT traffic."
+      - id: "H_novel"
+        title: "Novel Identity Protocol Exploit"
+        text: "Uncataloged zero-day authentication protocol flaw, identity federation assertion bypass, or unprecedented credential validation logic loophole."
+        is_residual: true
+        associated_slots:
+          [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH",
+          ]
+        falsification_criteria: []
+
+  TYPE_ACCOUNT_TAKEOVER:
+    description: "Investigates unauthorized account takeovers executed via stolen session tokens, credential replay, or device identity manipulation targeting customer profiles and stored balances."
+    hypotheses:
+      - id: "H_botnet"
+        title: "Automated Token Scraping Engine"
+        text: "Automated headless script utilizing harvested session tokens to programmatically extract sensitive account profiles and initiate unauthorized balance transfers."
+        is_residual: false
+        associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_NETWORK_REPUTATION"]
+        falsification_criteria:
+          - metric: "behavior.touch_variance"
+            operator: "GTE"
+            threshold: 0.75
+            description: "High biological touch interaction variance indicates authentic manual fingertip contact, decisively refuting script-driven session token replay bots."
+          - metric: "network.is_datacenter"
+            operator: "EQ"
+            threshold: true
+            description: "Commercial hosting datacenter egress confirms programmatic automated token scraping pipelines, refuting legitimate mobile consumer interaction."
+      - id: "H_sybil"
+        title: "Syndicated Account Takeover Farm"
+        text: "Coordinated fraud syndicate deploying human operators across anti-detect browsers to manually compromise and liquidate hijacked user accounts."
+        is_residual: false
+        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        falsification_criteria:
+          - metric: "graph.credential_overlap"
+            operator: "EQ"
+            threshold: 0
+            description: "Zero shared password or recovery channel overlap across compromised target accounts decisively refutes coordinated account takeover rings."
+          - metric: "device.cloned_hardware"
+            operator: "EQ"
+            threshold: false
+            description: "Clean physical hardware sensor profile refutes virtualized syndicate device farms operating across anti-detect browsers."
+      - id: "H_shared"
+        title: "Shared Gateway False Positive"
+        text: "Genuine account owner accessing personal profile while connected through corporate enterprise proxy, mobile carrier NAT, or university network."
+        is_residual: false
+        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_BEHAVIORAL_CADENCE"]
+        falsification_criteria:
+          - metric: "network.geo_velocity_kmh"
+            operator: "GTE"
+            threshold: 900.0
+            description: "Impossible physical travel velocity exceeding 900 km/h between account events decisively refutes authentic user shared network infrastructure access."
+          - metric: "network.auth_failure_rate"
+            operator: "GTE"
+            threshold: 0.80
+            description: "Abnormal failure rate exceeding 80% confirms malicious attack traffic rather than legitimate corporate workforce gateway access."
+      - id: "H_novel"
+        title: "Zero-Day Session Hijack Exploit"
+        text: "Uncataloged session resumption vulnerability, novel cross-site cookie extraction flaw, or zero-day WebSocket authorization hijack technique."
+        is_residual: true
+        associated_slots:
+          [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH",
+          ]
+        falsification_criteria: []
+
+  TYPE_PASSWORD_SPRAYING:
+    description: "Identifies horizontal password spraying attacks targeting widespread corporate or consumer directories at cadences engineered to stay below lockout thresholds."
+    hypotheses:
+      - id: "H_botnet"
+        title: "Programmatic Low-and-Slow Engine"
+        text: "Automated distributed script testing common passwords horizontally across enterprise directory accounts at cadences engineered to evade lockout thresholds."
+        is_residual: false
+        associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_NETWORK_REPUTATION"]
+        falsification_criteria:
+          - metric: "behavior.keystroke_jitter_ms"
+            operator: "GTE"
+            threshold: 120.0
+            description: "Natural typing delay dispersion exceeding 120.0 ms reflects organic human motor control, decisively refuting programmatic low-and-slow credential submission scripts."
+          - metric: "network.is_datacenter"
+            operator: "EQ"
+            threshold: true
+            description: "Hosting provider ASN indicates automated credential spraying proxy egress infrastructure, refuting legitimate domestic consumer logins."
+      - id: "H_sybil"
+        title: "Distributed Manual Spraying Clique"
+        text: "Coordinated fraud group manually spraying leaked enterprise passwords across target organizational directories using rotating virtualized residential browser sessions."
+        is_residual: false
+        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        falsification_criteria:
+          - metric: "graph.cluster_size"
+            operator: "EQ"
+            threshold: 1
+            description: "An isolated target account with zero cross-user credential spraying correlation links decisively refutes distributed manual spraying cliques."
+          - metric: "device.cloned_hardware"
+            operator: "EQ"
+            threshold: false
+            description: "Authentic hardware fingerprint and untampered client runtime refute rotating virtual browser profile cliques."
+      - id: "H_shared"
+        title: "Enterprise SSO Gateway Traffic"
+        text: "Legitimate enterprise workforce concurrently authenticating through corporate single sign-on gateway or unified enterprise proxy infrastructure."
+        is_residual: false
+        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
+        falsification_criteria:
+          - metric: "network.auth_failure_rate"
+            operator: "GTE"
+            threshold: 0.80
+            description: "An abnormal authentication failure rate exceeding 80% indicates hostile directory attacks, decisively refuting legitimate enterprise SSO gateway traffic."
+          - metric: "network.geo_velocity_kmh"
+            operator: "GTE"
+            threshold: 900.0
+            description: "Supersonic geographic distance between successive logins violates physical transit feasible limits, decisively refuting shared office egress."
+      - id: "H_novel"
+        title: "Novel Identity Federation Bypass"
+        text: "Uncataloged SAML assertion forgery vulnerability or zero-day OAuth token redirection flaw bypassing enterprise authentication policies."
+        is_residual: true
+        associated_slots:
+          [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH",
+          ]
+        falsification_criteria: []
+
+  TYPE_SESSION_HIJACKING:
+    description: "Detects adversary-in-the-middle (AitM) session token theft, unauthorized session cookie replay, and WebSocket session hijacking on established user accounts."
+    hypotheses:
+      - id: "H_botnet"
+        title: "Automated Cookie Replay Bot"
+        text: "Automated headless crawler replaying stolen browser authentication cookies without generating corresponding organic human interaction biometrics."
+        is_residual: false
+        associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_DEVICE_FINGERPRINT"]
+        falsification_criteria:
+          - metric: "behavior.mouse_entropy"
+            operator: "GTE"
+            threshold: 0.85
+            description: "Continuous organic mouse curvature entropy exceeding 0.85 reflects ongoing human pointer control, decisively refuting automated headless cookie injection sessions."
+          - metric: "device.cloned_hardware"
+            operator: "EQ"
+            threshold: false
+            description: "Consistent client hardware fingerprint and untampered cryptographic primitives match legitimate authenticated session holders, refuting replay on foreign devices."
+      - id: "H_sybil"
+        title: "Syndicated Token Resale Operation"
+        text: "Organized cybercrime syndicate utilizing stolen authentication session tokens to coordinate unauthorized multi-account takeover across geographically distributed browser farm infrastructure."
+        is_residual: false
+        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        falsification_criteria:
+          - metric: "graph.cluster_size"
+            operator: "EQ"
+            threshold: 1
+            description: "Zero multi-tenant token reuse or linked unauthorized session correlation nodes decisively refutes organized token resale operations."
+          - metric: "device.canvas_cluster_size"
+            operator: "EQ"
+            threshold: 1
+            description: "A unique single-client canvas profile with zero cluster correlation decisively refutes distributed token harvesting syndicates."
+      - id: "H_shared"
+        title: "Legitimate Dynamic IP Handoff"
+        text: "Legitimate authenticated consumer mobile subscriber switching between cellular data and residential Wi-Fi connection while maintaining active session."
+        is_residual: false
+        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_BEHAVIORAL_CADENCE"]
+        falsification_criteria:
+          - metric: "network.geo_velocity_kmh"
+            operator: "GTE"
+            threshold: 900.0
+            description: "Supersonic geographic jump velocity exceeding 900 km/h between active session requests refutes authentic cellular to Wi-Fi handoffs."
+          - metric: "network.is_datacenter"
+            operator: "EQ"
+            threshold: true
+            description: "Hosting datacenter egress confirms commercial proxy routing, refuting legitimate cellular IP dynamic reallocation."
+      - id: "H_novel"
+        title: "Novel Session Desynchronization"
+        text: "Uncataloged HTTP request smuggling vulnerability or novel WebSocket session desynchronization exploit corrupting authentication state."
+        is_residual: true
+        associated_slots:
+          [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH",
+          ]
+        falsification_criteria: []
+
+  TYPE_RESIDENTIAL_PROXY_BOTNET:
+    description: "Identifies distributed residential proxy botnets rotating exit nodes and IP addresses to bypass reputation blacklists during credential injection attacks."
+    hypotheses:
+      - id: "H_botnet"
+        title: "Automated Proxy Infiltration Engine"
+        text: "Automated credential stuffing bot tunneling authentication attempts through rotating residential exit nodes to evade traditional IP reputation filters."
+        is_residual: false
+        associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_DEVICE_FINGERPRINT"]
+        falsification_criteria:
+          - metric: "behavior.mouse_entropy"
+            operator: "GTE"
+            threshold: 0.85
+            description: "Organic cursor trajectory curvature entropy exceeding 0.85 refutes automated headless browser execution over residential proxies."
+          - metric: "behavior.touch_variance"
+            operator: "GTE"
+            threshold: 0.75
+            description: "High touch biometrics entropy confirms authentic fingertip physical interaction, decisively refuting script-driven headless browser replay."
+      - id: "H_sybil"
+        title: "Coordinated Proxy Rental Ring"
+        text: "Organized fraud syndicate operating leased proxy networks to coordinate distributed multi-account takeover operations across multiple virtual nodes."
+        is_residual: false
+        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        falsification_criteria:
+          - metric: "graph.cluster_size"
+            operator: "EQ"
+            threshold: 1
+            description: "An isolated entity with zero shared proxy egress or syndicated credential links decisively refutes coordinated proxy rental rings."
+          - metric: "device.cloned_hardware"
+            operator: "EQ"
+            threshold: false
+            description: "Authentic consumer hardware signature refutes virtualized anti-detect browser profiles used by proxy syndicates."
+      - id: "H_shared"
+        title: "Legitimate Carrier NAT Egress"
+        text: "Authentic mobile consumer subscribers legitimately sharing regional carrier-grade mobile gateway infrastructure while authenticating into user accounts."
+        is_residual: false
+        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
+        falsification_criteria:
+          - metric: "network.auth_failure_rate"
+            operator: "GTE"
+            threshold: 0.85
+            description: "An extreme authentication failure rate exceeding 85% indicates hostile attack traffic, decisively refuting legitimate shared carrier CGNAT users."
+          - metric: "network.is_cgnat"
+            operator: "EQ"
+            threshold: false
+            description: "A dedicated residential static IP allocation refutes legitimate shared carrier-grade NAT false positive claims."
+      - id: "H_novel"
+        title: "Novel Egress Spoofing Exploit"
+        text: "Uncataloged IPv6 sub-allocation cycling or novel BGP egress route hijacking technique evading autonomous system reputation scoring."
+        is_residual: true
+        associated_slots:
+          [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH",
+          ]
+        falsification_criteria: []
+
+  TYPE_MOBILE_EMULATOR_FARM:
+    description: "Detects click and account farms running virtualized mobile emulators with spoofed OEM hardware fingerprints to mass-register and compromise accounts."
+    hypotheses:
+      - id: "H_botnet"
+        title: "Automated Emulator Tap Pipeline"
+        text: "Automated scripts driving cloud Android emulator farms with synthetic touch event coordinates to mass-register and validate accounts."
+        is_residual: false
+        associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_DEVICE_FINGERPRINT"]
+        falsification_criteria:
+          - metric: "behavior.touch_variance"
+            operator: "GTE"
+            threshold: 0.80
+            description: "Organic biological touch dispersion exceeding 0.80 refutes programmatic emulator tap injection algorithms."
+          - metric: "device.cloned_hardware"
+            operator: "EQ"
+            threshold: false
+            description: "Authentic physical sensor profile and untampered hardware attestation refute virtualized OEM emulator signatures."
+      - id: "H_sybil"
+        title: "Syndicated Mobile Click Farm"
+        text: "Human click farm operators manually manipulating large physical racks of tethered mobile devices to simulate authentic consumer engagement."
+        is_residual: false
+        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        falsification_criteria:
+          - metric: "graph.cluster_size"
+            operator: "EQ"
+            threshold: 1
+            description: "An isolated device node with zero shared hardware or payout account connections decisively refutes syndicated mobile click farm rings."
+          - metric: "device.canvas_cluster_size"
+            operator: "EQ"
+            threshold: 1
+            description: "A unique single canvas profile with zero farm correlation refutes synchronized device farm firmware clones."
+      - id: "H_shared"
+        title: "Legitimate Domestic Family Devices"
+        text: "Legitimate household family members using identical smartphone models on domestic Wi-Fi connection during everyday personal account logins."
+        is_residual: false
+        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
+        falsification_criteria:
+          - metric: "network.geo_velocity_kmh"
+            operator: "GTE"
+            threshold: 900.0
+            description: "Impossible physical transit velocity exceeding 900 km/h between device logins refutes authentic domestic household device clusters."
+          - metric: "network.auth_failure_rate"
+            operator: "GTE"
+            threshold: 0.85
+            description: "Extreme credential failure rate exceeding 85% indicates hostile attack traffic, decisively refuting legitimate domestic family household usage."
+      - id: "H_novel"
+        title: "Novel Hypervisor Masking Exploit"
+        text: "Uncataloged kernel rootkit device spoofing or novel hardware security module emulation exploit concealing virtualization indicators."
+        is_residual: true
+        associated_slots:
+          [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH",
+          ]
+        falsification_criteria: []
+
+  TASK_RISK_INVESTIGATION:
+    description: "Universal risk investigation root channel for risk-based authentication triage, identity protection, and credential stuffing incident analysis."
+    hypotheses:
+      - id: "H_botnet"
+        title: "Automated Execution Infiltration"
+        text: "Automated headless browser execution or residential botnet executing programmatic login credential injection across public endpoints."
+        is_residual: false
+        associated_slots:
+          [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+          ]
+        falsification_criteria:
+          - metric: "behavior.mouse_entropy"
+            operator: "GTE"
+            threshold: 0.85
+            description: "Organic biological mouse trajectory curvature entropy exceeding 0.85 decisively refutes linear script automation and headless crawler bots."
+          - metric: "behavior.keystroke_jitter_ms"
+            operator: "GTE"
+            threshold: 120.0
+            description: "Biological typing delay variance exceeding 120.0 ms confirms natural cognitive rhythm, decisively refuting automated credential injection cadence."
+      - id: "H_sybil"
+        title: "Coordinated Fraud Syndicate"
+        text: "Coordinated human fraud syndicate operating cloned virtual device profiles and breached credential dumps across multiple accounts."
+        is_residual: false
+        associated_slots: ["SLOT_DEVICE_FINGERPRINT", "SLOT_ACCOUNT_GRAPH"]
+        falsification_criteria:
+          - metric: "graph.cluster_size"
+            operator: "EQ"
+            threshold: 1
+            description: "An isolated entity node exhibiting zero syndicated credential links or multi-account clique ties decisively refutes coordinated fraud syndicates."
+          - metric: "device.cloned_hardware"
+            operator: "EQ"
+            threshold: false
+            description: "Clean physical hardware sensor profile and valid device attestation refute syndicated virtualized device farms."
+      - id: "H_shared"
+        title: "Shared Gateway Egress False Alarm"
+        text: "Legitimate user login traversing carrier CGNAT, corporate enterprise proxy, or public commercial wireless gateway infrastructure."
+        is_residual: false
+        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
+        falsification_criteria:
+          - metric: "network.is_cgnat"
+            operator: "EQ"
+            threshold: false
+            description: "Dedicated non-CGNAT egress allocation refutes carrier NAT sharing, confirming an individual non-shared access path."
+          - metric: "network.geo_velocity_kmh"
+            operator: "GTE"
+            threshold: 900.0
+            description: "Impossible physical travel velocity exceeding 900 km/h between logins decisively refutes legitimate shared network infrastructure access."
+      - id: "H_novel"
+        title: "Uncataloged Zero-Day Exploit"
+        text: "Uncataloged zero-day abuse pattern, biometric deepfake bypass, or novel business logic authentication exploit technique."
+        is_residual: true
+        associated_slots:
+          [
+            "SLOT_NETWORK_REPUTATION",
+            "SLOT_DEVICE_FINGERPRINT",
+            "SLOT_BEHAVIORAL_CADENCE",
+            "SLOT_ACCOUNT_GRAPH",
+          ]
+        falsification_criteria: []
