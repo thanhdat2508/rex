@@ -3,6 +3,7 @@
 # Dataset: https://www.kaggle.com/datasets/tangodelta/api-access-behaviour-anomaly-dataset
 # API Security, Automated Crawlers, Token Rotation & Microservice Anomaly Detection
 # Grounded strictly in API Access Schema: Endpoints, Headers, Status Codes, Request Interval Jitter
+# Calibrated Hypothesis Density: 18-25 words per hypothesis for optimal token attention
 # ======================================================================================
 
 version: "1.0.0"
@@ -10,28 +11,28 @@ version: "1.0.0"
 semantic_tool_slots:
   SLOT_NETWORK:
     canonical_alias: "SLOT_NETWORK_REPUTATION"
-    description: "Inspect network telemetry, carrier CGNAT indicators, autonomous systems, and proxy egress routing"
+    description: "Inspect network-layer telemetry, autonomous system numbers (ASNs), hosting and datacenter IP classifications, HTTP status code distributions, and API gateway rate-limit enforcement counters."
     token_budget: 16
   SLOT_DEVICE:
     canonical_alias: "SLOT_DEVICE_FINGERPRINT"
-    description: "Evaluate API client SDK token, user agent headers, TLS JA3 signatures, and client session integrity"
+    description: "Evaluate API client SDK identities, User-Agent header entropy, TLS client hello fingerprints (JA3/JA4), anti-detect browser signatures, and virtualized client execution indicators."
     token_budget: 15
   SLOT_BEHAVIOR:
     canonical_alias: "SLOT_BEHAVIORAL_CADENCE"
-    description: "Analyze endpoint graph transition entropy, inter-request delay jitter, and payload size variance"
+    description: "Analyze microservice endpoint transition graph entropy, inter-request arrival interval jitter distributions, payload volume deviations, and algorithmic execution cadence."
     token_budget: 14
   SLOT_GRAPH:
     canonical_alias: "SLOT_ACCOUNT_GRAPH"
-    description: "Traverse tenant relationship graph, shared API key clusters, and cross-account access paths"
+    description: "Traverse multi-tenant relationship topologies, shared developer API credential clusters, cross-tenant authorization paths, and coordinated client identity networks."
     token_budget: 14
 
 domain_types:
   TYPE_API_ACCESS_ANOMALY:
-    description: "API access pattern anomaly, session sequence graph violations, and programmatic scraper detection"
+    description: "Monitors structural deviations in API invocation patterns, sequence graph traversal anomalies across REST and GraphQL microservices, and automated crawling infrastructure attempting unauthorized business logic exploitation or bulk data extraction."
     hypotheses:
       - id: "H_botnet"
         title: "Automated API Crawler Bot"
-        text: "Automated distributed headless crawler or scraping script querying API endpoints at high cadence"
+        text: "Automated distributed headless crawler or scraping script querying REST endpoints at high programmatic cadence while attempting to evade rate limits."
         is_residual: false
         associated_slots:
           [
@@ -42,46 +43,46 @@ domain_types:
           - metric: "behavior.request_interval_jitter_ms"
             operator: "GTE"
             threshold: 150.0
-            description: "High delay jitter variance refutes machine script scraper pacing"
+            description: "A temporal request interval jitter of 150.0 ms or higher reflects stochastic human cognitive pacing and variable network transport latency, decisively refuting deterministic sleep loops, automated timer threads, and headless programmatic scraper cadence."
           - metric: "behavior.endpoint_transition_entropy"
             operator: "GTE"
             threshold: 0.85
-            description: "High navigation graph curve entropy refutes linear automated crawler"
+            description: "An endpoint transition graph entropy of 0.85 or higher demonstrates non-deterministic, human-driven exploratory navigation across UI states, decisively refuting sequential linear crawling algorithms, brute-force parameter sweeps, or automated spider recursion."
           - metric: "network.is_datacenter"
             operator: "EQ"
             threshold: true
-            description: "Commercial cloud hosting ASN confirms programmatic crawler infrastructure"
+            description: "Traffic egress originating from verified commercial datacenter or cloud hosting Autonomous System Numbers (ASNs) confirms server-side botnet or automated proxy infrastructure, decisively refuting authentic residential end-user access."
       - id: "H_sybil"
         title: "Coordinated API Exploitation Syndicate"
-        text: "Organized ring using rotating API keys and distributed virtual nodes for bulk extraction or abuse"
+        text: "Organized ring utilizing rotating developer API keys and distributed virtual proxy nodes to execute bulk microservice data extraction."
         is_residual: false
         associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
         falsification_criteria:
           - metric: "graph.cluster_size"
             operator: "EQ"
             threshold: 1
-            description: "Isolated client node with zero credential or tenant correlation links"
+            description: "The observed client entity represents an isolated topological node with exactly 1 member in its credential cluster, exhibiting zero shared API keys, shared session tokens, or cross-tenant identity linkage, decisively refuting coordinated multi-account syndicate operations."
           - metric: "graph.tenant_egress_overlap"
             operator: "EQ"
             threshold: 0
-            description: "Zero cross-tenant key sharing across API access paths"
+            description: "The complete absence of overlapping egress IP addresses or shared gateway signatures across disparate tenant boundaries conclusively refutes coordinated cross-tenant data harvesting syndicates."
       - id: "H_shared"
         title: "Legitimate Enterprise Tenant or Gateway"
-        text: "Authorized enterprise client or shared gateway driving legitimate high-volume peak traffic bursts"
+        text: "Authorized corporate enterprise client or shared gateway driving legitimate high-volume peak traffic bursts during regular business operations."
         is_residual: false
         associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "network.http_error_rate"
             operator: "GTE"
             threshold: 0.40
-            description: "Excessive 4xx/5xx error rate refutes verified enterprise partner integration"
+            description: "An anomalous HTTP client and server error rate (4xx/5xx) exceeding 40% reflects hostile reconnaissance or malformed payload spraying, decisively refuting verified contractual enterprise B2B partner gateway traffic."
           - metric: "network.rate_limit_hits_1h"
             operator: "GTE"
             threshold: 50
-            description: "Massive rate-limit violations refute legitimate contractual enterprise gateway"
+            description: "Accumulating 50 or more HTTP 429 rate-limit violations within a 1-hour rolling window demonstrates aggressive volumetric quota exhaustion, decisively refuting SLA-governed enterprise partner integrations."
       - id: "H_novel"
         title: "Novel API Logic Exploit"
-        text: "Uncataloged GraphQL introspection abuse or novel business logic extraction exploit technique"
+        text: "Uncataloged GraphQL introspection abuse or novel business logic extraction exploit technique manipulating microservice authorization boundaries."
         is_residual: true
         associated_slots:
           [
@@ -93,45 +94,45 @@ domain_types:
         falsification_criteria: []
 
   TYPE_API_SCRAPING:
-    description: "Automated API exploitation, bulk data scraping, and rate-limit evasion attacks"
+    description: "Detects unauthorized bulk data exfiltration, automated catalog harvesting, and competitive intelligence scraping pipelines systematically querying public and authenticated microservice endpoints."
     hypotheses:
       - id: "H_botnet"
-        title: "Automated API Scraping"
-        text: "Automated distributed headless crawler or scraping script querying API endpoints"
+        title: "Programmatic Bulk Scraper Engine"
+        text: "Automated distributed headless crawler script systematically harvesting public and private API endpoints using programmatic request pipelines."
         is_residual: false
         associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_NETWORK_REPUTATION"]
         falsification_criteria:
           - metric: "behavior.endpoint_transition_entropy"
             operator: "GTE"
             threshold: 0.85
-            description: "High organic navigation entropy refutes programmed sequential endpoint scraping"
+            description: "High endpoint transition entropy (>= 0.85) indicates diversified, human-like route traversal rather than repetitive scraping templates, decisively refuting automated programmatic catalog harvesting scripts."
           - metric: "behavior.request_interval_jitter_ms"
             operator: "GTE"
             threshold: 150.0
-            description: "High human delay variance refutes automated programmatic scraper pacing"
+            description: "Inter-request delay jitter of 150.0 ms or greater demonstrates organic human timing variance, decisively refuting automated programmatic pagination scrapers executing timed batch requests."
       - id: "H_sybil"
         title: "Coordinated Scraping Syndicate"
-        text: "Organized ring using rotating API keys and distributed virtual browser nodes"
+        text: "Organized scraping ring deploying rotating tenant credentials and distributed headless browser instances to bypass data extraction quotas."
         is_residual: false
         associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
         falsification_criteria:
           - metric: "graph.cluster_size"
             operator: "EQ"
             threshold: 1
-            description: "Isolated client node with zero credential or tenant correlation links"
+            description: "A solitary client identity node with zero linked API keys, shared session states, or coordinated proxy associations decisively refutes distributed scraping syndicates operating multi-account proxy rings."
       - id: "H_shared"
-        title: "Legitimate High-Volume Tenant"
-        text: "Authorized enterprise client or shared gateway driving legitimate peak traffic bursts"
+        title: "Legitimate High-Volume Tenant Burst"
+        text: "Authorized enterprise client or partner integration service legitimately driving high-volume peak traffic bursts across public microservice interfaces."
         is_residual: false
         associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "network.is_datacenter"
             operator: "EQ"
             threshold: true
-            description: "Unregistered datacenter egress refutes verified enterprise partner connection"
+            description: "Egress routing through unverified commercial hosting or bulletproof datacenter subnets confirms automated scraper infrastructure, decisively refuting legitimate contractual enterprise partner data pipelines."
       - id: "H_novel"
-        title: "Novel API Logic Exploit"
-        text: "Uncataloged GraphQL introspection abuse or novel business logic extraction exploit technique"
+        title: "Novel Microservice Scraping Exploit"
+        text: "Uncataloged microservice caching desynchronization or novel gRPC protocol introspection flaw enabling bulk unauthorized record exfiltration."
         is_residual: true
         associated_slots:
           [
@@ -143,53 +144,53 @@ domain_types:
         falsification_criteria: []
 
   TYPE_API_BOLA_IDOR_ABUSE:
-    description: "Broken object level authorization exploitation, parameter tampering, and tenant data harvesting"
+    description: "Detects Broken Object Level Authorization (BOLA/IDOR) exploits where adversaries manipulate object identifiers, database primary keys, or UUID parameters within API calls to illegally access cross-tenant records."
     hypotheses:
       - id: "H_botnet"
-        title: "Automated IDOR Fuzzer"
-        text: "Automated enumeration script sequentially fuzzing object IDs and GUIDs across REST endpoints"
+        title: "Automated IDOR Fuzzing Script"
+        text: "Automated enumeration script sequentially fuzzing resource identifiers and GUIDs across REST endpoints to harvest sensitive customer records."
         is_residual: false
         associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_NETWORK_REPUTATION"]
         falsification_criteria:
           - metric: "behavior.endpoint_transition_entropy"
             operator: "GTE"
             threshold: 0.85
-            description: "High navigation graph diversity refutes sequential resource identifier fuzzing cadence"
+            description: "Elevated transition entropy across application endpoints indicates natural task-oriented navigation rather than sequential parameter enumeration, decisively refuting automated IDOR fuzzing scripts."
           - metric: "network.http_error_rate"
             operator: "GTE"
             threshold: 0.50
-            description: "High 403 Forbidden error spikes confirm automated brute-force parameter fuzzing"
+            description: "A sustained HTTP 403 Forbidden or 404 Not Found error rate exceeding 50% indicates aggressive brute-force parameter fuzzing, confirming automated IDOR probe scripts."
       - id: "H_sybil"
-        title: "Syndicated Data Extraction Ring"
-        text: "Coordinated ring operating multiple authorized tenant accounts to systematically scrape rival customer records"
+        title: "Syndicated Cross-Tenant Extraction Ring"
+        text: "Coordinated ring operating multiple authorized tenant accounts to systematically scrape rival customer records across shared database partitions."
         is_residual: false
         associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
         falsification_criteria:
           - metric: "graph.tenant_egress_overlap"
             operator: "EQ"
             threshold: 0
-            description: "Zero unauthorized cross-tenant object access attempts or shared tenant extraction paths"
+            description: "Complete absence of cross-tenant query overlap or shared IP egress paths across distinct customer boundaries decisively refutes syndicated cross-tenant data extraction rings."
           - metric: "device.cloned_hardware"
             operator: "EQ"
             threshold: false
-            description: "Authentic corporate client fingerprint refutes rotating virtualized scraping nodes"
+            description: "Cryptographically verified, consistent developer SDK client signatures and stable hardware profiles refute rotating virtualized headless scraper instances used by coordinated syndicates."
       - id: "H_shared"
         title: "Legitimate Multi-Tenant Batch Sync"
-        text: "Authorized enterprise integration service executing legitimate batch data synchronization across subsidiaries"
+        text: "Authorized enterprise integration service executing legitimate batch data synchronization across corporate subsidiaries under shared partner agreement."
         is_residual: false
         associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "network.auth_failure_rate"
             operator: "GTE"
             threshold: 0.80
-            description: "Extreme authorization failure rate refutes verified corporate enterprise partner integration"
+            description: "An authorization failure rate exceeding 80% indicates unauthorized horizontal privilege escalation attempts, decisively refuting legitimate enterprise multi-tenant batch data synchronization."
           - metric: "network.rate_limit_hits_1h"
             operator: "GTE"
             threshold: 50
-            description: "Repeated rate-limiting violations refute contractual authorized enterprise batch synchronization"
+            description: "Exceeding 50 rate-limiting threshold events per hour indicates unthrottled parameter fuzzing, decisively refuting authorized contractual enterprise batch synchronization pipelines."
       - id: "H_novel"
         title: "Novel BOLA Privilege Escalation"
-        text: "Uncataloged JSON Web Token signature confusion or novel multi-tenant memory leak exploit"
+        text: "Uncataloged JSON Web Token signature confusion or novel multi-tenant memory leak exploit bypassing backend object access controls."
         is_residual: true
         associated_slots:
           [
@@ -201,53 +202,53 @@ domain_types:
         falsification_criteria: []
 
   TYPE_API_TOKEN_STUFFING:
-    description: "High-frequency API authorization token spraying, stolen bearer key enumeration, and secret validation"
+    description: "Investigates volumetric credential and bearer token stuffing against API authentication gateways, identifying stolen JWT validation, API key spray attacks, and secret enumeration across microservice boundaries."
     hypotheses:
       - id: "H_botnet"
         title: "Automated Token Validator Bot"
-        text: "Programmatic bot army mass-testing leaked API keys and bearer tokens against authentication endpoints"
+        text: "Programmatic bot army mass-testing leaked API keys and bearer tokens against authentication endpoints to discover valid credentials."
         is_residual: false
         associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_NETWORK_REPUTATION"]
         falsification_criteria:
           - metric: "behavior.request_interval_jitter_ms"
             operator: "GTE"
             threshold: 150.0
-            description: "High inter-request delay variance refutes automated programmatic bearer token testing script"
+            description: "Inter-request timing jitter exceeding 150.0 ms exhibits organic human cognitive variance, decisively refuting high-cadence programmatic token spray engines and automated credential testing loops."
           - metric: "network.is_datacenter"
             operator: "EQ"
             threshold: true
-            description: "Commercial cloud hosting ASN confirms programmatic token testing pipeline infrastructure"
+            description: "Connection origination from commercial cloud hosting providers or proxy datacenters confirms automated token validation infrastructure, refuting authentic mobile or web end-user sessions."
       - id: "H_sybil"
         title: "Distributed Key Harvesting Ring"
-        text: "Coordinated fraud group rotating forged authorization headers across decentralized residential proxies"
+        text: "Coordinated fraud group rotating forged authorization headers across decentralized residential proxies to validate dark web API secret dumps."
         is_residual: false
         associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
         falsification_criteria:
           - metric: "graph.cluster_size"
             operator: "EQ"
             threshold: 1
-            description: "Isolated API key node with zero shared header signatures or credential clique links"
+            description: "An isolated client identity possessing no linked authorization headers, shared secret hashes, or proxy clique associations decisively refutes distributed token harvesting rings."
           - metric: "device.cloned_hardware"
             operator: "EQ"
             threshold: false
-            description: "Consistent developer client SDK fingerprint refutes rotating virtualized proxy nodes"
+            description: "Authentic, stable developer SDK device signatures with consistent cryptographic primitives refute distributed virtual anti-detect browser nodes operating credential dumps."
       - id: "H_shared"
         title: "Legitimate OAuth Client Rotation"
-        text: "Authorized corporate mobile app rotating ephemeral OAuth access tokens during legitimate active usage"
+        text: "Authorized corporate mobile client rotating ephemeral OAuth access tokens during legitimate active usage across mobile cellular networks."
         is_residual: false
         associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "network.auth_failure_rate"
             operator: "GTE"
             threshold: 0.85
-            description: "Excessive token authentication failure rate refutes valid corporate OAuth client token refresh"
+            description: "A catastrophic token rejection rate exceeding 85% indicates hostile credential spraying, decisively refuting legitimate OAuth client token refresh cycles."
           - metric: "network.geo_velocity_kmh"
             operator: "GTE"
             threshold: 900.0
-            description: "Supersonic geographical transit velocity refutes authentic consumer mobile token rotation"
+            description: "Geographical transit velocity exceeding 900 km/h between successive token validations violates physical travel constraints, decisively refuting authentic consumer mobile device roaming."
       - id: "H_novel"
         title: "Novel Token Cryptographic Forgery"
-        text: "Uncataloged elliptic curve zero-signature flaw or novel mutual TLS certificate substitution exploit"
+        text: "Uncataloged elliptic curve zero-signature flaw or novel mutual TLS certificate substitution exploit forging valid service authorizations."
         is_residual: true
         associated_slots:
           [
@@ -259,53 +260,53 @@ domain_types:
         falsification_criteria: []
 
   TYPE_API_RATE_LIMIT_EVASION:
-    description: "Distributed crawler rotating egress endpoints and header fingerprints to bypass gateway rate-limiting"
+    description: "Identifies sophisticated distributed crawling techniques designed to circumvent edge rate-limiting policies, including IP rotation, HTTP header spoofing, and low-and-slow threshold evasion."
     hypotheses:
       - id: "H_botnet"
-        title: "Distributed Scraping Botnet"
-        text: "Programmatic crawler coordinating bursts of requests across thousands of rotating residential exit nodes"
+        title: "Distributed Rate-Limit Evasion Botnet"
+        text: "Programmatic crawler coordinating bursts of requests across thousands of rotating residential exit nodes to bypass edge rate limiters."
         is_residual: false
         associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_NETWORK_REPUTATION"]
         falsification_criteria:
           - metric: "behavior.request_interval_jitter_ms"
             operator: "GTE"
             threshold: 150.0
-            description: "Organic delay dispersion refutes machine-synchronized rate-limit evasion pacing"
+            description: "High delay dispersion and irregular request pacing indicate biological interaction pauses, decisively refuting machine-synchronized pacing algorithms engineered to graze rate-limit thresholds."
           - metric: "network.is_datacenter"
             operator: "EQ"
             threshold: true
-            description: "Commercial cloud hosting ASN confirms programmatic distributed crawler infrastructure"
+            description: "Direct routing through commercial cloud hosting subnets and virtual private server (VPS) providers confirms programmatic distributed botnet infrastructure."
       - id: "H_sybil"
         title: "Coordinated API Quota Farming"
-        text: "Organized ring provisioning multiple developer accounts to aggregate and pool free-tier API quotas"
+        text: "Organized ring provisioning multiple developer accounts to aggregate and pool free-tier API quotas across distributed virtual clients."
         is_residual: false
         associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
         falsification_criteria:
           - metric: "graph.cluster_size"
             operator: "EQ"
             threshold: 1
-            description: "Isolated developer account with zero shared billing, IP, or credential correlations"
+            description: "A single client node exhibiting zero shared billing methods, zero shared IP subnets, and zero credential reuse decisively refutes coordinated free-tier API quota farming syndicates."
           - metric: "device.cloned_hardware"
             operator: "EQ"
             threshold: false
-            description: "Authentic developer client fingerprint refutes virtualized anti-detect browser cluster"
+            description: "An authentic, persistent developer workstation client profile refutes rotating virtualized anti-detect browser instances deployed to bypass client fingerprint quotas."
       - id: "H_shared"
         title: "Legitimate Corporate NAT Burst"
-        text: "Authentic enterprise workforce generating concurrent API calls from behind shared corporate NAT gateway"
+        text: "Authentic enterprise workforce generating concurrent API calls from behind shared corporate NAT gateway during high-volume office hours."
         is_residual: false
         associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "network.http_error_rate"
             operator: "GTE"
             threshold: 0.40
-            description: "Excessive 4xx/5xx HTTP error rate refutes verified enterprise corporate NAT traffic"
+            description: "An elevated HTTP 4xx/5xx failure rate exceeding 40% indicates hostile endpoint probing, decisively refuting authentic corporate workforce traffic behind a shared enterprise NAT."
           - metric: "network.geo_velocity_kmh"
             operator: "GTE"
             threshold: 900.0
-            description: "Impossible physical transit velocity refutes authentic single-office corporate NAT egress"
+            description: "Calculated geographical transit speeds exceeding 900 km/h between API invocations violate physical velocity laws, decisively refuting authentic single-facility corporate NAT egress."
       - id: "H_novel"
         title: "Novel Gateway Header Bypass"
-        text: "Uncataloged HTTP hop-by-hop header injection or novel CDN cache-poisoning rate-limit evasion vulnerability"
+        text: "Uncataloged HTTP hop-by-hop header injection or novel CDN cache-poisoning rate-limit evasion vulnerability deceiving API gateway filters."
         is_residual: true
         associated_slots:
           [
@@ -317,53 +318,53 @@ domain_types:
         falsification_criteria: []
 
   TYPE_GRAPHQL_INTROSPECTION_EXPLOIT:
-    description: "Malicious GraphQL query nesting, schema introspection harvesting, and batch query resource exhaustion"
+    description: "Analyzes malicious GraphQL query patterns, including recursive field nesting, deep introspection harvesting, and batch query resource exhaustion attacks targeting backend execution engines."
     hypotheses:
       - id: "H_botnet"
-        title: "Automated Schema Crawler"
-        text: "Automated GraphQL introspection tool systematically querying schema types and field definitions"
+        title: "Automated GraphQL Schema Crawler"
+        text: "Automated GraphQL introspection tool systematically querying schema types, mutations, and field definitions to map out backend infrastructure."
         is_residual: false
         associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_NETWORK_REPUTATION"]
         falsification_criteria:
           - metric: "behavior.endpoint_transition_entropy"
             operator: "GTE"
             threshold: 0.85
-            description: "High organic query transition entropy refutes linear schema introspection scanning scripts"
+            description: "High query transition entropy across diverse schema operations reflects authentic application UI workflows, decisively refuting systematic automated schema introspection scripts."
           - metric: "network.is_datacenter"
             operator: "EQ"
             threshold: true
-            description: "Datacenter hosting ASN confirms programmatic automated GraphQL scanner pipeline"
+            description: "Query execution originating from cloud hosting or datacenter IP ranges confirms automated security scanner or scraper botnet infrastructure."
       - id: "H_sybil"
         title: "Syndicated Batch Resource Exhaustion"
-        text: "Coordinated attack ring distributing nested recursive GraphQL queries across multiple compromised nodes"
+        text: "Coordinated attack ring distributing nested recursive GraphQL queries across multiple compromised nodes to crash upstream microservice workers."
         is_residual: false
         associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
         falsification_criteria:
           - metric: "graph.cluster_size"
             operator: "EQ"
             threshold: 1
-            description: "Isolated query source with zero syndicated resource exhaustion attack correlations"
+            description: "An isolated client identity with zero correlated query hashes or distributed source IPs decisively refutes coordinated DoS syndicates attempting distributed GraphQL resource exhaustion."
           - metric: "device.cloned_hardware"
             operator: "EQ"
             threshold: false
-            description: "Authentic client application profile refutes rotating virtualized crawler nodes"
+            description: "Authentic, non-virtualized client application runtime fingerprints refute automated headless Chromium nodes executing synchronized GraphQL payload flooding."
       - id: "H_shared"
         title: "Legitimate Frontend Deep Query"
-        text: "Authentic single-page application executing legitimate complex nested GraphQL query for dashboard rendering"
+        text: "Authentic single-page application executing legitimate complex nested GraphQL query for analytics dashboard rendering over domestic network."
         is_residual: false
         associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "network.http_error_rate"
             operator: "GTE"
             threshold: 0.40
-            description: "Extreme query execution failure rate refutes verified production single-page application"
+            description: "A GraphQL query error rate exceeding 40% (syntax errors, validation failures, or timeout exceptions) decisively refutes authorized production single-page application dashboard queries."
           - metric: "network.rate_limit_hits_1h"
             operator: "GTE"
             threshold: 50
-            description: "Severe rate-limiting violations refute legitimate consumer web application dashboard query"
+            description: "Repeated rate-limiting violations exceeding 50 events per hour indicate aggressive batch query abuse, decisively refuting legitimate consumer analytics dashboard usage."
       - id: "H_novel"
         title: "Novel Directive Injection Exploit"
-        text: "Uncataloged custom directive parser crash or zero-day AST parsing denial of service vulnerability"
+        text: "Uncataloged custom directive parser crash or zero-day AST parsing denial of service vulnerability terminating GraphQL server threads."
         is_residual: true
         associated_slots:
           [
@@ -375,11 +376,11 @@ domain_types:
         falsification_criteria: []
 
   TYPE_TRI_PHASIC_ATTACK_LIFECYCLE:
-    description: "Tri-phasic investigation bridging API access cadence, risk-based authentication, and transaction velocity fraud"
+    description: "Coordinates multi-vector threat correlation spanning initial API endpoint reconnaissance, risk-based authentication bypass, and downstream financial transaction velocity fraud across enterprise services."
     hypotheses:
       - id: "H_botnet"
         title: "Automated Omnichannel Botnet"
-        text: "End-to-end script automation traversing API probe endpoints, credential stuffing auth, and card velocity checkout"
+        text: "End-to-end script automation traversing API probe endpoints, credential stuffing auth, and card velocity checkout across connected services."
         is_residual: false
         associated_slots:
           [
@@ -391,42 +392,42 @@ domain_types:
           - metric: "behavior.request_interval_jitter_ms"
             operator: "GTE"
             threshold: 150.0
-            description: "Biological delay jitter variance refutes headless end-to-end script automation"
+            description: "Biological timing jitter exceeding 150.0 ms across multi-stage requests refutes fully automated, script-orchestrated end-to-end attack pipelines."
           - metric: "behavior.endpoint_transition_entropy"
             operator: "GTE"
             threshold: 0.85
-            description: "High navigation graph entropy refutes automated scripted API endpoint probing"
+            description: "High application navigation entropy demonstrates spontaneous human traversal, decisively refuting automated state-machine scripts traversing multi-phase attack vectors."
       - id: "H_sybil"
         title: "Syndicated Multi-Vector Ring"
-        text: "Coordinated fraud syndicate rotating API sessions, cloned device profiles, and stolen payment card clusters"
+        text: "Coordinated fraud syndicate rotating API sessions, cloned device profiles, and stolen payment card clusters across multiple attack phases."
         is_residual: false
         associated_slots: ["SLOT_DEVICE_FINGERPRINT", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "graph.cluster_size"
             operator: "EQ"
             threshold: 1
-            description: "Isolated account identity with zero shared device, card BIN, or credential clique links"
+            description: "Zero linked account nodes or shared payment instruments across the entity graph decisively refute coordinated multi-vector cybercrime syndicates."
           - metric: "graph.shared_bin_cluster"
             operator: "EQ"
             threshold: 0
-            description: "Zero correlation across payment card issuer BIN trees and linked syndicate nodes"
+            description: "Zero correlation across payment card Bank Identification Numbers (BINs) and linked entity clusters decisively refutes syndicated carding operations across attack phases."
       - id: "H_shared"
         title: "Shared Enterprise Ingress Collisions"
-        text: "Legitimate corporate or mobile users sharing carrier CGNAT egress across APIs, logins, and merchant checkouts"
+        text: "Legitimate corporate or mobile users sharing carrier CGNAT egress across APIs, logins, and merchant checkouts during daily business."
         is_residual: false
         associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "network.geo_velocity_kmh"
             operator: "GTE"
             threshold: 900.0
-            description: "Supersonic geographical transit velocity refutes authentic shared enterprise NAT gateway egress"
+            description: "Calculated physical transit velocity exceeding 900 km/h between API access and transaction settlement violates real-world travel limits, refuting shared corporate NAT false alarms."
           - metric: "network.is_datacenter"
             operator: "EQ"
             threshold: true
-            description: "Commercial cloud hosting ASN confirms proxy tunnel, refuting residential mobile CGNAT"
+            description: "Egress routing originating from commercial datacenter hosting confirms automated proxy tunneling, decisively refuting legitimate residential mobile carrier CGNAT traffic."
       - id: "H_novel"
         title: "Chained Cross-Layer Exploit"
-        text: "Uncataloged zero-day attack chaining API protocol anomalies, session token injection, and settlement race conditions"
+        text: "Uncataloged zero-day attack chaining API protocol anomalies, session token injection, and settlement race conditions across enterprise services."
         is_residual: true
         associated_slots:
           [
@@ -438,41 +439,41 @@ domain_types:
         falsification_criteria: []
 
   TYPE_API_AIDED_FINANCIAL_ATO:
-    description: "Cross-vector account takeover leveraging programmatic API scraping for credential validation and rapid card liquidation"
+    description: "Investigates advanced account takeover operations where adversaries utilize automated API endpoints to validate compromised credentials before executing rapid card liquidation on checkout rails."
     hypotheses:
       - id: "H_botnet"
         title: "Automated API ATO Spreader"
-        text: "Programmatic bot army scraping API endpoints to validate credentials and trigger automated funds liquidation"
+        text: "Programmatic bot army scraping API endpoints to validate credentials and trigger automated funds liquidation across connected payment rails."
         is_residual: false
         associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_NETWORK_REPUTATION"]
         falsification_criteria:
           - metric: "behavior.request_interval_jitter_ms"
             operator: "GTE"
             threshold: 150.0
-            description: "High delay jitter variance refutes machine-generated API credential injection cadence"
+            description: "Inter-request timing jitter exceeding 150.0 ms exhibits organic cognitive cadence, decisively refuting programmatic bot engines automating API credential injection and instant checkout."
       - id: "H_sybil"
         title: "Distributed Carding Ring"
-        text: "Coordinated human ring operating cloned devices to pass risk-based authentication and execute card cash-out"
+        text: "Coordinated human ring operating cloned devices to pass risk-based authentication and execute card cash-out across merchant payment APIs."
         is_residual: false
         associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
         falsification_criteria:
           - metric: "graph.linked_payout_overlap"
             operator: "EQ"
             threshold: 0
-            description: "Zero shared financial routing instruments, payout wallets, or multi-account referral graphs"
+            description: "Zero shared payout destination wallets, zero shared bank routing numbers, and zero cross-account referral linkages decisively refute coordinated carding and cash-out syndicates."
       - id: "H_shared"
         title: "Legitimate Partner Burst Traffic"
-        text: "Authentic corporate partner application driving high-velocity API calls and verified payment transactions over shared egress"
+        text: "Authentic corporate partner application driving high-velocity API calls and verified payment transactions over shared egress infrastructure."
         is_residual: false
         associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "network.auth_failure_rate"
             operator: "GTE"
             threshold: 0.85
-            description: "Excessive credential authentication failure rate refutes verified corporate partner B2B gateway"
+            description: "An extreme authentication rejection rate exceeding 85% indicates hostile credential spraying, decisively refuting legitimate B2B partner payment gateway traffic."
       - id: "H_novel"
         title: "Novel AitM Payment Hijack"
-        text: "Uncataloged adversary-in-the-middle session token manipulation or novel payment gateway settlement logic exploit"
+        text: "Uncataloged adversary-in-the-middle session token manipulation or novel payment gateway settlement logic exploit hijacking payment authorizations."
         is_residual: true
         associated_slots:
           [
@@ -484,11 +485,11 @@ domain_types:
         falsification_criteria: []
 
   TASK_RISK_INVESTIGATION:
-    description: "Universal risk investigation root channel for microservices API access and endpoint telemetry"
+    description: "Serves as the root diagnostic triage channel for evaluating unknown API access anomalies, endpoint telemetry deviations, and suspect microservice invocation trajectories."
     hypotheses:
       - id: "H_botnet"
         title: "Automated Scraping Execution"
-        text: "Automated execution via programmatic scripts, headless crawlers, or high-cadence API scraper botnets"
+        text: "Automated execution via programmatic scripts, headless crawlers, or high-cadence API scraper botnets querying public endpoints."
         is_residual: false
         associated_slots:
           [
@@ -500,42 +501,42 @@ domain_types:
           - metric: "behavior.endpoint_transition_entropy"
             operator: "GTE"
             threshold: 0.85
-            description: "Organic endpoint navigation curve entropy refutes linear crawler script automation"
+            description: "Stochastic navigation entropy exceeding 0.85 indicates organic human route discovery, decisively refuting deterministic crawler scripts and linear scraper botnets."
           - metric: "behavior.request_interval_jitter_ms"
             operator: "GTE"
             threshold: 150.0
-            description: "High delay jitter variance refutes machine script scraper pacing"
+            description: "Timing jitter exceeding 150.0 ms indicates biological human typing and navigation pacing, decisively refuting automated headless execution scripts."
       - id: "H_sybil"
         title: "Coordinated API Syndicate"
-        text: "Coordinated fraud syndicate operating rotating API keys, cloned device headers, or multi-tenant farms"
+        text: "Coordinated fraud syndicate operating rotating API keys, cloned device headers, or multi-tenant farms to execute unauthorized extraction."
         is_residual: false
         associated_slots: ["SLOT_DEVICE_FINGERPRINT", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "graph.cluster_size"
             operator: "EQ"
             threshold: 1
-            description: "Isolated API client node with zero syndicated credential links"
+            description: "A strictly isolated entity node with zero shared API keys, session tokens, or infrastructure overlap decisively refutes coordinated multi-account cybercrime syndicates."
           - metric: "graph.tenant_egress_overlap"
             operator: "EQ"
             threshold: 0
-            description: "Zero cross-tenant key sharing across API access paths"
+            description: "Zero cross-tenant key sharing or common IP routing paths decisively refutes organized cross-tenant API exploitation rings."
       - id: "H_shared"
         title: "Shared Enterprise Gateway"
-        text: "Legitimate enterprise users traversing shared corporate NAT proxy, B2B gateway, or cloud edge ingress"
+        text: "Legitimate enterprise users traversing shared corporate NAT proxy, B2B gateway, or cloud edge ingress during normal operations."
         is_residual: false
         associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
         falsification_criteria:
           - metric: "network.http_error_rate"
             operator: "GTE"
             threshold: 0.40
-            description: "Excessive 4xx/5xx HTTP error rate refutes verified enterprise gateway traffic"
+            description: "A sustained HTTP 4xx/5xx failure rate exceeding 40% reflects hostile API fuzzing, decisively refuting legitimate enterprise partner gateway traffic."
           - metric: "network.rate_limit_hits_1h"
             operator: "GTE"
             threshold: 50
-            description: "Massive rate-limit violations refute legitimate contractual enterprise gateway"
+            description: "Exceeding 50 rate-limiting triggers within an hour indicates deliberate volumetric flooding, decisively refuting contractual enterprise client integrations."
       - id: "H_novel"
         title: "Uncataloged API Exploit"
-        text: "Uncataloged GraphQL introspection abuse or novel business logic extraction exploit technique"
+        text: "Uncataloged GraphQL introspection abuse or novel business logic extraction exploit technique compromising microservice endpoints."
         is_residual: true
         associated_slots:
           [

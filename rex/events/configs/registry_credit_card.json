@@ -3,33 +3,33 @@
   "semantic_tool_slots": {
     "SLOT_NETWORK": {
       "canonical_alias": "SLOT_NETWORK_REPUTATION",
-      "description": "Inspect transaction channel, merchant POS terminal geography, transit velocity, and payment gateway routing",
+      "description": "Inspect transaction channel, merchant POS terminal geography, transit velocity, payment gateway routing, and acquiring bank clearing paths.",
       "token_budget": 16
     },
     "SLOT_DEVICE": {
       "canonical_alias": "SLOT_DEVICE_FINGERPRINT",
-      "description": "Evaluate EMV cryptographic chip status, magstripe fallback indicators, PIN errors, and physical card integrity",
+      "description": "Evaluate EMV cryptographic chip status, magstripe fallback indicators, terminal entry modes (PAN keyed vs chip vs contactless), PIN errors, and physical card integrity.",
       "token_budget": 15
     },
     "SLOT_BEHAVIOR": {
       "canonical_alias": "SLOT_BEHAVIORAL_CADENCE",
-      "description": "Analyze transaction cadence velocity, amount deviation from historical median, and error frequency",
+      "description": "Analyze transaction cadence velocity, purchase amount deviation from historical median, and consecutive authorization error frequency.",
       "token_budget": 14
     },
     "SLOT_GRAPH": {
       "canonical_alias": "SLOT_ACCOUNT_GRAPH",
-      "description": "Traverse merchant category codes (MCC), card issuer BIN clusters, and compromised merchant compromise trees",
+      "description": "Traverse merchant category codes (MCC), card issuer BIN clusters, and compromised merchant point-of-compromise (CPP) breach trees.",
       "token_budget": 14
     }
   },
   "domain_types": {
     "TYPE_CREDIT_CARD_FRAUD": {
-      "description": "Credit card transaction fraud, counterfeit magstripe abuse, and high-velocity unauthorized purchases",
+      "description": "Detects unauthorized credit card transactions, counterfeit magnetic stripe exploitation, and high-velocity purchasing fraud across merchant acquirers and payment processors.",
       "hypotheses": [
         {
           "id": "H_botnet",
           "title": "Automated Card Testing Botnet",
-          "text": "Automated card testing botnet executing high-velocity micro-charge authorization probes across merchant gateways",
+          "text": "Automated card testing botnet executing high-velocity micro-charge authorization probes across merchant payment gateways to validate stolen card batches.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_BEHAVIORAL_CADENCE",
@@ -40,20 +40,20 @@
               "metric": "behavior.tx_velocity_1h",
               "operator": "LTE",
               "threshold": 2,
-              "description": "Normal organic transaction velocity refutes high-frequency automated card bot"
+              "description": "A normal consumer transaction cadence of 2 or fewer purchases per hour reflects standard retail behavior, decisively refuting high-frequency automated card testing bot scripts."
             },
             {
               "metric": "behavior.consecutive_error_count",
               "operator": "EQ",
               "threshold": 0,
-              "description": "Zero transaction errors refutes automated credential and CVV guessing script"
+              "description": "Zero authorization declines or CVV/expiration verification errors decisively refutes automated credential and PIN guessing attempts."
             }
           ]
         },
         {
           "id": "H_sybil",
           "title": "Syndicated Carding Ring",
-          "text": "Organized carding syndicate utilizing cloned magstripes, stolen BIN batches, or coordinated mule networks",
+          "text": "Organized carding syndicate utilizing cloned physical magstripes, compromised issuer BIN batches, or coordinated mule networks to liquidate stolen credit lines.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_ACCOUNT_GRAPH",
@@ -64,20 +64,20 @@
               "metric": "graph.shared_bin_cluster",
               "operator": "EQ",
               "threshold": 0,
-              "description": "Zero correlation across payment card issuer BIN trees and linked syndicate nodes"
+              "description": "Zero statistical correlation across payment card Bank Identification Numbers (BINs) and associated account clusters decisively refutes syndicated carding rings exploiting compromised card batches."
             },
             {
               "metric": "device.cloned_hardware",
               "operator": "EQ",
               "threshold": false,
-              "description": "Cryptographically verified EMV chip refutes cloned counterfeit card"
+              "description": "Cryptographically verified EMV chip and PIN handshakes without fallback anomalies refute physical counterfeit magnetic stripe cards used by organized fraud syndicates."
             }
           ]
         },
         {
           "id": "H_shared",
-          "title": "Legitimate Travel or Household Usage",
-          "text": "Legitimate cardholder traveling, authorized family member purchasing, or shared corporate card expense",
+          "title": "Legitimate Cardholder Travel or Expense",
+          "text": "Legitimate cardholder traveling for leisure, authorized family member purchasing household supplies, or routine corporate business expense settlement.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -88,20 +88,20 @@
               "metric": "network.geo_velocity_kmh",
               "operator": "GTE",
               "threshold": 900.0,
-              "description": "Supersonic geographical transit velocity between card swipes refutes legitimate travel"
+              "description": "Supersonic geographical transit velocity between successive card swipes violates commercial air travel limits, decisively refuting legitimate cardholder travel."
             },
             {
               "metric": "network.chargeback_rate",
               "operator": "GTE",
               "threshold": 0.2,
-              "description": "Extreme localized merchant chargeback spike refutes legitimate consumer purchase"
+              "description": "A localized merchant chargeback rate exceeding 20% indicates concentrated fraudulent settlement, decisively refuting legitimate routine consumer shopping purchases."
             }
           ]
         },
         {
           "id": "H_novel",
           "title": "Novel Settlement Exploit",
-          "text": "Uncataloged payment gateway race condition, novel settlement arbitrage, or zero-day token manipulation exploit",
+          "text": "Uncataloged payment gateway race condition, novel merchant settlement arbitrage, or zero-day token manipulation exploit bypassing authorization controls.",
           "is_residual": true,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -114,12 +114,12 @@
       ]
     },
     "TYPE_CARD_PRESENT_COUNTERFEIT": {
-      "description": "Physical POS counterfeit card presentation leveraging cloned magnetic stripes or skimmed credentials",
+      "description": "Investigates in-person Point-of-Sale (POS) fraud involving skimmed track data, cloned magnetic stripes, and fraudulent electronic fallback from EMV chip terminals.",
       "hypotheses": [
         {
           "id": "H_botnet",
-          "title": "Programmatic POS Injector",
-          "text": "Automated hardware tap device programmatically injecting cloned track data into unattended POS terminals",
+          "title": "Programmatic POS Injector Device",
+          "text": "Automated hardware tap device programmatically injecting cloned track data into unattended retail POS terminals at high transaction velocity.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_BEHAVIORAL_CADENCE",
@@ -130,20 +130,20 @@
               "metric": "behavior.tx_velocity_1h",
               "operator": "LTE",
               "threshold": 2,
-              "description": "Organic manual transaction cadence refutes automated hardware tap injection device"
+              "description": "Organic manual transaction cadence of 2 or fewer swipes per hour matches natural consumer retail checkout pacing, decisively refuting automated hardware tap injection devices."
             },
             {
               "metric": "device.cloned_hardware",
               "operator": "EQ",
               "threshold": false,
-              "description": "Authentic physical card EMV cryptographic certificate refutes magnetic stripe skimming copy"
+              "description": "Authentic physical card EMV cryptographic certificate validation and Application Cryptogram (ARQC) generation refute magnetic stripe skimming copies."
             }
           ]
         },
         {
           "id": "H_sybil",
           "title": "Syndicated POS Skimming Ring",
-          "text": "Coordinated fraud ring systematically presenting cloned counterfeit physical plastic across multiple retail stores",
+          "text": "Coordinated fraud syndicate systematically presenting cloned counterfeit physical cards across multiple retail store chains using recruited runner crews.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_ACCOUNT_GRAPH",
@@ -154,20 +154,20 @@
               "metric": "graph.cluster_size",
               "operator": "EQ",
               "threshold": 1,
-              "description": "Isolated payment card entity with zero cloned card syndicate linkages"
+              "description": "An isolated payment card entity with zero cloned card syndicate linkages or runner crew connections decisively refutes organized retail skimming operations."
             },
             {
               "metric": "graph.shared_bin_cluster",
               "operator": "EQ",
               "threshold": 0,
-              "description": "Zero correlation across compromised merchant POS terminals and linked skimming rings"
+              "description": "Zero correlation across compromised merchant POS terminals and linked skimming rings decisively refutes syndicated card distribution networks."
             }
           ]
         },
         {
           "id": "H_shared",
           "title": "Legitimate Magnetic Swipe Fallback",
-          "text": "Authentic cardholder experiencing damaged EMV terminal contact pins resulting in authorized magstripe fallback",
+          "text": "Authentic consumer experiencing damaged EMV terminal contact pins resulting in authorized point-of-sale magnetic stripe swipe fallback.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -178,20 +178,20 @@
               "metric": "network.geo_velocity_kmh",
               "operator": "GTE",
               "threshold": 900.0,
-              "description": "Supersonic travel velocity between terminal swipes refutes legitimate physical cardholder fallback"
+              "description": "Calculated geographical transit velocity exceeding 900 km/h between terminal swipes decisively refutes legitimate physical cardholder fallback."
             },
             {
               "metric": "network.chargeback_rate",
               "operator": "GTE",
               "threshold": 0.15,
-              "description": "Extreme merchant chargeback rate refutes authentic hardware terminal chip reader malfunction"
+              "description": "An extreme merchant chargeback rate exceeding 15% confirms systematic terminal fraud, decisively refuting authentic hardware terminal chip reader malfunction."
             }
           ]
         },
         {
           "id": "H_novel",
           "title": "Novel EMV Protocol Tampering",
-          "text": "Uncataloged chip-and-pin cryptographic downgrade or novel dynamic data authentication bypass vulnerability",
+          "text": "Uncataloged chip-and-pin cryptographic downgrade or novel dynamic data authentication bypass vulnerability compromising terminal integrity.",
           "is_residual": true,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -204,12 +204,12 @@
       ]
     },
     "TYPE_CARD_NOT_PRESENT_ECOM": {
-      "description": "E-commerce card-not-present fraud, CVV credential guessing, and automated merchant checkout attacks",
+      "description": "Monitors Card-Not-Present (CNP) e-commerce transactions executed using compromised cardholder credentials, account takeover, or intercepted virtual card numbers across online checkouts.",
       "hypotheses": [
         {
           "id": "H_botnet",
           "title": "Automated E-Commerce Carding Bot",
-          "text": "Automated headless carding bot rotating proxy networks to validate stolen credit card numbers",
+          "text": "Automated headless carding bot rotating proxy networks to systematically validate stolen credit card numbers across online checkout forms.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_BEHAVIORAL_CADENCE",
@@ -220,20 +220,20 @@
               "metric": "behavior.tx_velocity_1h",
               "operator": "LTE",
               "threshold": 2,
-              "description": "Organic customer transaction cadence refutes automated rapid card validation testing script"
+              "description": "Low organic transaction velocity of 2 or fewer orders per hour indicates deliberate consumer checkout deliberation, decisively refuting programmatic e-commerce card stuffing botnets."
             },
             {
               "metric": "network.is_datacenter",
               "operator": "EQ",
               "threshold": true,
-              "description": "Commercial hosting datacenter egress confirms automated e-commerce checkout script runner"
+              "description": "Commercial hosting datacenter egress confirms automated e-commerce checkout script runners, decisively refuting genuine consumer residential internet browsing."
             }
           ]
         },
         {
           "id": "H_sybil",
           "title": "Distributed Online Carding Syndicate",
-          "text": "Organized ring utilizing purchased dark web credential lists to place fraudulent e-commerce orders",
+          "text": "Organized ring utilizing purchased dark web credential batches to place fraudulent e-commerce orders shipped to recruited reshipping mules.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_ACCOUNT_GRAPH",
@@ -244,20 +244,20 @@
               "metric": "graph.linked_payout_overlap",
               "operator": "EQ",
               "threshold": 0,
-              "description": "Zero shared reshipping addresses, payout wallets, or linked syndicate mule accounts"
+              "description": "Zero shared reshipping addresses, zero shared payout wallets, and zero linked syndicate mule accounts decisively refute coordinated e-commerce carding rings."
             },
             {
               "metric": "device.cloned_hardware",
               "operator": "EQ",
               "threshold": false,
-              "description": "Authentic customer device profile refutes rotating virtualized anti-detect browser cluster"
+              "description": "Authentic customer device profile and stable hardware cryptographic identity refute rotating virtualized anti-detect browser clusters deployed by carding syndicates."
             }
           ]
         },
         {
           "id": "H_shared",
           "title": "Legitimate Online Guest Checkout",
-          "text": "Legitimate consumer ordering online without stored profile using residential ISP or corporate proxy",
+          "text": "Legitimate consumer ordering online without stored payment profile using domestic residential Internet service or corporate enterprise proxy.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -268,20 +268,20 @@
               "metric": "network.auth_failure_rate",
               "operator": "GTE",
               "threshold": 0.85,
-              "description": "Repeated card verification failure rate refutes authentic customer online guest checkout"
+              "description": "Repeated card verification failure rate exceeding 85% indicates hostile credential guessing, decisively refuting authentic customer online guest checkout."
             },
             {
               "metric": "network.chargeback_rate",
               "operator": "GTE",
               "threshold": 0.2,
-              "description": "Extreme localized payment chargeback spike refutes legitimate consumer e-commerce order"
+              "description": "An extreme localized payment chargeback spike exceeding 20% confirms fraudulent order origination, decisively refuting legitimate consumer e-commerce orders."
             }
           ]
         },
         {
           "id": "H_novel",
           "title": "Novel 3D-Secure Protocol Bypass",
-          "text": "Uncataloged payment gateway token substitution or novel 3D-Secure authentication handshake race condition",
+          "text": "Uncataloged payment gateway token substitution or novel 3D-Secure authentication handshake race condition intercepting verification codes.",
           "is_residual": true,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -294,12 +294,12 @@
       ]
     },
     "TYPE_GEO_VELOCITY_IMPOSSIBLE_TRAVEL": {
-      "description": "Successive transaction events exhibiting impossible geographical transit velocities between physical locations",
+      "description": "Analyzes successive card transaction events exhibiting impossible geographical transit velocities between physical locations, indicating credential cloning or multi-party unauthorized plastic sharing.",
       "hypotheses": [
         {
           "id": "H_botnet",
           "title": "Automated Distributed Multi-Geo Bot",
-          "text": "Automated card tester concurrently triggering payment authorizations across distant geographic servers",
+          "text": "Automated card tester concurrently triggering payment authorizations across distant geographic servers to probe multi-currency merchant accounts.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_BEHAVIORAL_CADENCE",
@@ -310,20 +310,20 @@
               "metric": "behavior.tx_velocity_1h",
               "operator": "LTE",
               "threshold": 2,
-              "description": "Deliberate human transaction pacing refutes multi-geo automated authorization script"
+              "description": "Deliberate human transaction pacing of 2 or fewer transactions per hour decisively refutes multi-geo automated authorization scripts."
             },
             {
               "metric": "network.is_datacenter",
               "operator": "EQ",
               "threshold": true,
-              "description": "Cloud hosting provider ASN confirms automated distributed proxy authorization pipeline"
+              "description": "Cloud hosting provider ASN confirms automated distributed proxy authorization pipelines, refuting authentic physical cardholder presence."
             }
           ]
         },
         {
           "id": "H_sybil",
           "title": "Distributed Counterfeit Carding Cell",
-          "text": "Multi-city carding syndicate presenting cloned physical card plastics at disparate retail locations simultaneously",
+          "text": "Multi-city carding syndicate presenting cloned physical card plastics at disparate retail locations simultaneously to outpace fraud alerts.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_ACCOUNT_GRAPH",
@@ -334,20 +334,20 @@
               "metric": "graph.cluster_size",
               "operator": "EQ",
               "threshold": 1,
-              "description": "Completely isolated card entity with zero cross-city carding ring correlations"
+              "description": "A completely isolated card entity with zero cross-city carding ring correlations decisively refutes multi-city syndicated carding cells."
             },
             {
               "metric": "device.cloned_hardware",
               "operator": "EQ",
               "threshold": false,
-              "description": "Authentic cryptographic EMV chip validation refutes duplicated counterfeit physical card"
+              "description": "Authentic cryptographic EMV chip validation without magnetic fallback refutes duplicated counterfeit physical cards distributed across multiple locations."
             }
           ]
         },
         {
           "id": "H_shared",
           "title": "Authorized Joint Account Holders",
-          "text": "Legitimate spouses or business partners concurrently transacting in separate cities using authorized cards",
+          "text": "Legitimate spouses or business partners concurrently transacting in separate cities using authorized secondary cards linked to account.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -358,20 +358,20 @@
               "metric": "network.geo_velocity_kmh",
               "operator": "GTE",
               "threshold": 2500.0,
-              "description": "Extreme velocity exceeding supersonic commercial aviation refutes legitimate joint account travel"
+              "description": "Extreme velocity exceeding supersonic commercial aviation speeds (>= 2500 km/h) decisively refutes legitimate joint account travel or family card sharing."
             },
             {
               "metric": "network.chargeback_rate",
               "operator": "GTE",
               "threshold": 0.2,
-              "description": "High payment dispute spike refutes authentic authorized secondary cardholder purchasing"
+              "description": "A high payment dispute spike exceeding 20% confirms unauthorized card exploitation, decisively refuting authentic authorized secondary cardholder purchasing."
             }
           ]
         },
         {
           "id": "H_novel",
           "title": "Novel Settlement Geo-Spoofing",
-          "text": "Uncataloged merchant acquirer terminal spoofing or novel payment processor timezone desynchronization exploit",
+          "text": "Uncataloged merchant acquirer terminal spoofing or novel payment processor timezone desynchronization exploit altering physical transaction coordinates.",
           "is_residual": true,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -384,12 +384,12 @@
       ]
     },
     "TYPE_RAPID_VELOCITY_CASH_OUT": {
-      "description": "Rapid consecutive transactions draining card credit limits prior to cardholder fraud alert notification",
+      "description": "Identifies rapid consecutive transactions designed to drain card credit lines or merchant gift card balances prior to cardholder fraud alert notification or bank account freezing.",
       "hypotheses": [
         {
           "id": "H_botnet",
           "title": "High-Frequency Liquidation Bot",
-          "text": "Automated checkout script rapidly executing consecutive high-value transactions within seconds",
+          "text": "Automated checkout script rapidly executing consecutive high-value transactions within seconds to maximize stolen credit limit extraction.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_BEHAVIORAL_CADENCE",
@@ -400,20 +400,20 @@
               "metric": "behavior.tx_velocity_1h",
               "operator": "LTE",
               "threshold": 2,
-              "description": "Organic customer purchasing cadence refutes high-frequency automated liquidation script"
+              "description": "Organic customer purchasing cadence of 2 or fewer purchases per hour decisively refutes high-frequency automated liquidation scripts."
             },
             {
               "metric": "network.is_datacenter",
               "operator": "EQ",
               "threshold": true,
-              "description": "Commercial cloud infrastructure confirms programmatic automated liquidation pipeline"
+              "description": "Commercial cloud hosting infrastructure confirms programmatic automated liquidation pipelines, refuting legitimate consumer in-store or mobile transactions."
             }
           ]
         },
         {
           "id": "H_sybil",
           "title": "Coordinated Cash-Out Crew",
-          "text": "Syndicated fraud team rapidly clearing merchant high-value merchandise across multiple retail stores",
+          "text": "Syndicated fraud team rapidly purchasing high-value electronics and gift cards across multiple physical merchant stores in parallel.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_ACCOUNT_GRAPH",
@@ -424,20 +424,20 @@
               "metric": "graph.cluster_size",
               "operator": "EQ",
               "threshold": 1,
-              "description": "Single isolated card record with zero correlation to known cash-out crews"
+              "description": "A single isolated card record with zero correlation to known cash-out crews decisively refutes syndicated physical liquidation operations."
             },
             {
               "metric": "graph.shared_bin_cluster",
               "operator": "EQ",
               "threshold": 0,
-              "description": "Zero correlation across compromised credit card BIN trees and liquidation accounts"
+              "description": "Zero correlation across compromised credit card BIN trees and liquidation accounts decisively refutes coordinated cash-out crews."
             }
           ]
         },
         {
           "id": "H_shared",
           "title": "Legitimate High-Volume Holiday Shopping",
-          "text": "Genuine cardholder executing rapid consecutive purchases during holiday sales or home relocation",
+          "text": "Genuine consumer executing rapid consecutive purchases during major holiday discount events, home relocation, or emergency medical expenditures.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -448,20 +448,20 @@
               "metric": "network.chargeback_rate",
               "operator": "GTE",
               "threshold": 0.2,
-              "description": "Abnormal chargeback rate spike refutes legitimate consumer holiday shopping burst"
+              "description": "An abnormal chargeback rate spike exceeding 20% confirms systematic fraudulent extraction, decisively refuting legitimate consumer holiday shopping bursts."
             },
             {
               "metric": "network.auth_failure_rate",
               "operator": "GTE",
               "threshold": 0.8,
-              "description": "High payment authorization failure rate refutes authentic verified consumer purchasing"
+              "description": "A high payment authorization failure rate exceeding 80% indicates stolen card guessing, decisively refuting authentic verified consumer purchasing."
             }
           ]
         },
         {
           "id": "H_novel",
           "title": "Novel Settlement Race Condition",
-          "text": "Uncataloged multi-gateway authorization race condition or novel real-time balance exhaustion loophole",
+          "text": "Uncataloged multi-gateway authorization race condition or novel real-time balance exhaustion loophole overdrawing credit accounts.",
           "is_residual": true,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -474,12 +474,12 @@
       ]
     },
     "TYPE_MERCHANT_COLLUSION_DISPUTE": {
-      "description": "Friendly fraud dispute abuse, fraudulent chargebacks, and collusive merchant terminal operations",
+      "description": "Detects friendly fraud dispute abuse, fraudulent chargebacks, and collusive merchant terminal operations engineered to siphon funds through synthetic refund arbitration.",
       "hypotheses": [
         {
           "id": "H_botnet",
           "title": "Automated Dispute Filing Script",
-          "text": "Automated script programmatically filing high volumes of fraudulent non-receipt dispute claims",
+          "text": "Automated bot mass-generating chargeback dispute requests using scraped transaction metadata to exploit merchant refund arbitration windows.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_BEHAVIORAL_CADENCE",
@@ -490,20 +490,20 @@
               "metric": "behavior.tx_velocity_1h",
               "operator": "LTE",
               "threshold": 2,
-              "description": "Normal single transaction claim pacing refutes automated mass dispute generation script"
+              "description": "Normal single transaction claim pacing of 2 or fewer dispute submissions per hour decisively refutes automated mass dispute generation scripts."
             },
             {
               "metric": "network.is_datacenter",
               "operator": "EQ",
               "threshold": true,
-              "description": "Commercial datacenter IP confirms programmatic botnet claim submission pipeline"
+              "description": "Commercial datacenter IP allocation confirms programmatic botnet claim submission pipelines, refuting authentic consumer dispute filings."
             }
           ]
         },
         {
           "id": "H_sybil",
           "title": "Collusive Merchant-Buyer Ring",
-          "text": "Organized ring colluding with merchant accounts to execute fraudulent purchases and structured chargebacks",
+          "text": "Organized syndicate colluding with merchant accounts to execute fraudulent purchases followed by systematic structured non-delivery dispute claims.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_ACCOUNT_GRAPH",
@@ -514,20 +514,20 @@
               "metric": "graph.shared_bin_cluster",
               "operator": "EQ",
               "threshold": 0,
-              "description": "Zero correlation across disputed transaction cards and merchant ownership entities"
+              "description": "Zero correlation across disputed transaction cards and merchant ownership entities decisively refutes organized merchant-buyer collusion syndicates."
             },
             {
               "metric": "graph.cluster_size",
               "operator": "EQ",
               "threshold": 1,
-              "description": "Isolated buyer entity with zero syndicated dispute ring network linkages"
+              "description": "An isolated buyer entity with zero syndicated dispute ring network linkages decisively refutes coordinated chargeback abuse rings."
             }
           ]
         },
         {
           "id": "H_shared",
           "title": "Authentic Logistics Delivery Failure",
-          "text": "Genuine buyer experiencing authentic postal transit failure, damaged merchandise, or billing error",
+          "text": "Genuine consumer experiencing authentic carrier shipping failure, damaged parcel delivery, or merchant billing administrative error.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -538,20 +538,20 @@
               "metric": "network.chargeback_rate",
               "operator": "GTE",
               "threshold": 0.25,
-              "description": "Extreme localized chargeback spike refutes isolated genuine postal carrier transit failure"
+              "description": "An extreme localized chargeback spike exceeding 25% on the merchant account refutes isolated genuine postal carrier transit failures."
             },
             {
               "metric": "network.geo_velocity_kmh",
               "operator": "GTE",
               "threshold": 900.0,
-              "description": "Supersonic travel velocity refutes authentic local consumer merchant logistics dispute"
+              "description": "Supersonic travel velocity exceeding 900 km/h between dispute filing and physical delivery coordinates refutes authentic local consumer merchant logistics disputes."
             }
           ]
         },
         {
           "id": "H_novel",
           "title": "Novel Dispute Arbitrage Exploit",
-          "text": "Uncataloged card network dispute rules arbitrage or novel multi-currency settlement loophole",
+          "text": "Uncataloged card network dispute rules arbitrage or novel multi-currency settlement loophole evading merchant representment defenses.",
           "is_residual": true,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -564,12 +564,12 @@
       ]
     },
     "TYPE_HIGH_RISK_MCC_STRUCTURING": {
-      "description": "Transaction structuring, money mule routing, and capital dispersion across high-risk merchant categories",
+      "description": "Investigates transaction structuring, money mule routing, and capital dispersion across high-risk merchant categories (casinos, cryptocurrency exchanges, wire transfers, and luxury goods).",
       "hypotheses": [
         {
           "id": "H_botnet",
           "title": "Automated Micro-Structuring Bot",
-          "text": "Automated structuring bot dispersing capital through programmatic micro-charges below reporting thresholds",
+          "text": "Automated structuring bot dispersing capital through programmatic micro-charges below regulatory reporting thresholds across gambling and crypto merchants.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_BEHAVIORAL_CADENCE",
@@ -580,20 +580,20 @@
               "metric": "behavior.tx_velocity_1h",
               "operator": "LTE",
               "threshold": 2,
-              "description": "Single isolated purchase refutes automated programmatic micro-charge structuring script"
+              "description": "A single isolated purchase of 2 or fewer transactions per hour decisively refutes automated programmatic micro-charge structuring scripts."
             },
             {
               "metric": "network.is_datacenter",
               "operator": "EQ",
               "threshold": true,
-              "description": "Hosting provider ASN confirms programmatic automated payment structuring pipeline"
+              "description": "Hosting provider ASN confirms programmatic automated payment structuring pipelines, refuting genuine consumer retail transactions."
             }
           ]
         },
         {
           "id": "H_sybil",
           "title": "Coordinated Mule Liquidation Ring",
-          "text": "Syndicated network of recruited mule cardholders laundering funds through gambling or crypto merchants",
+          "text": "Syndicated network of recruited mule cardholders laundering illicit funds through high-risk jewelry, casino, or cryptocurrency liquidation points.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_ACCOUNT_GRAPH",
@@ -604,20 +604,20 @@
               "metric": "graph.cluster_size",
               "operator": "EQ",
               "threshold": 1,
-              "description": "Completely isolated account node with zero circular transaction or mule network links"
+              "description": "A completely isolated account node with zero circular transaction or mule network links decisively refutes coordinated mule liquidation rings."
             },
             {
               "metric": "graph.linked_payout_overlap",
               "operator": "EQ",
               "threshold": 0,
-              "description": "Zero shared financial instruments, payout wallets, or multi-account referral graphs"
+              "description": "Zero shared financial instruments, payout wallets, or multi-account referral graphs decisively refute syndicated money laundering cartels."
             }
           ]
         },
         {
           "id": "H_shared",
-          "title": "Legitimate Entertainment Expenditure",
-          "text": "Legitimate consumer occasionally purchasing gaming entertainment, lottery tickets, or luxury jewelry",
+          "title": "Legitimate Personal Leisure Expenditure",
+          "text": "Legitimate consumer occasionally purchasing licensed gaming entertainment, official state lottery tickets, or personal luxury jewelry gifts.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -628,20 +628,20 @@
               "metric": "network.auth_failure_rate",
               "operator": "GTE",
               "threshold": 0.8,
-              "description": "Extreme authorization rejection rate refutes genuine verified consumer entertainment purchase"
+              "description": "An extreme authorization rejection rate exceeding 80% confirms card validation probing, decisively refuting genuine verified consumer entertainment purchases."
             },
             {
               "metric": "network.chargeback_rate",
               "operator": "GTE",
               "threshold": 0.2,
-              "description": "Abnormal merchant chargeback rate refutes legitimate personal leisure expenditure"
+              "description": "An abnormal merchant chargeback rate exceeding 20% confirms fraudulent liquidation, decisively refuting legitimate personal leisure expenditures."
             }
           ]
         },
         {
           "id": "H_novel",
           "title": "Novel Financial Layering Protocol",
-          "text": "Uncataloged decentralized payment gateway mixing or novel cross-border currency structuring technique",
+          "text": "Uncataloged decentralized payment gateway mixing or novel cross-border currency structuring technique evading AML detection models.",
           "is_residual": true,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -654,12 +654,12 @@
       ]
     },
     "TASK_RISK_INVESTIGATION": {
-      "description": "Universal risk investigation root channel for payment transactions and card authorization telemetry",
+      "description": "Universal risk investigation root channel for financial transaction fraud, credit line protection, and merchant settlement integrity analysis.",
       "hypotheses": [
         {
           "id": "H_botnet",
           "title": "Automated Velocity Card Testing",
-          "text": "Automated card testing bot executing high-velocity sequential transactions across merchant payment gateways",
+          "text": "Automated card testing bot executing high-velocity sequential transactions across merchant payment gateways to test authorization validity.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -671,20 +671,20 @@
               "metric": "behavior.tx_velocity_1h",
               "operator": "LTE",
               "threshold": 2,
-              "description": "Normal single transaction pacing refutes automated high-frequency card testing script"
+              "description": "Normal consumer transaction pacing of 2 or fewer charges per hour decisively refutes automated high-frequency card testing scripts."
             },
             {
               "metric": "behavior.consecutive_error_count",
               "operator": "EQ",
               "threshold": 0,
-              "description": "Clean authorization without PIN or CVV errors refutes automated bot testing"
+              "description": "Clean authorization without PIN or CVV errors decisively refutes automated credential guessing bots."
             }
           ]
         },
         {
           "id": "H_sybil",
           "title": "Coordinated Carding Syndicate",
-          "text": "Coordinated fraud syndicate operating cloned physical card profiles and distributed mule networks",
+          "text": "Coordinated fraud syndicate operating cloned physical card profiles and distributed mule networks across multiple merchant locations.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_DEVICE_FINGERPRINT",
@@ -695,20 +695,20 @@
               "metric": "graph.cluster_size",
               "operator": "EQ",
               "threshold": 1,
-              "description": "Isolated card entity with zero linked carding syndicate connections"
+              "description": "An isolated card entity with zero linked carding syndicate connections decisively refutes organized carding syndicates."
             },
             {
               "metric": "device.cloned_hardware",
               "operator": "EQ",
               "threshold": false,
-              "description": "Cryptographically verified EMV chip refutes cloned counterfeit magnetic stripe"
+              "description": "Cryptographically verified EMV chip transactions with valid cryptograms refute cloned physical counterfeit magnetic stripes."
             }
           ]
         },
         {
           "id": "H_shared",
           "title": "Legitimate Cardholder Travel",
-          "text": "Legitimate cardholder traveling, authorized family member purchasing, or regular commercial subscription renewal",
+          "text": "Legitimate cardholder traveling, authorized family member purchasing, or regular commercial subscription renewal on personal accounts.",
           "is_residual": false,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
@@ -719,20 +719,20 @@
               "metric": "network.geo_velocity_kmh",
               "operator": "GTE",
               "threshold": 900.0,
-              "description": "Impossible physical transit velocity between merchant locations refutes legitimate travel"
+              "description": "Calculated transit speed exceeding 900 km/h between transactions violates physical movement feasibility, decisively refuting legitimate cardholder travel."
             },
             {
               "metric": "network.chargeback_rate",
               "operator": "GTE",
               "threshold": 0.2,
-              "description": "Extreme merchant chargeback spike refutes legitimate consumer payment transaction"
+              "description": "A localized merchant chargeback spike exceeding 20% confirms fraudulent merchant exposure, decisively refuting legitimate consumer shopping."
             }
           ]
         },
         {
           "id": "H_novel",
           "title": "Uncataloged Payment Exploit",
-          "text": "Uncataloged point-of-sale firmware exploit, novel settlement race condition, or zero-day token manipulation",
+          "text": "Uncataloged point-of-sale firmware exploit, novel settlement race condition, or zero-day token manipulation bypassing authorization controls.",
           "is_residual": true,
           "associated_slots": [
             "SLOT_NETWORK_REPUTATION",
