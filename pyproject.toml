@@ -74,11 +74,11 @@ onnx = ["onnx", "onnxruntime", "onnxscript",
 
 # `pip install rex[langchain]` adds the LangChain / LangGraph integrations (rex.integrations).
 langchain = [
-    "langchain-core>=0.2.0",
+    "langchain-core>=1.7.0",
     "langgraph>=0.1.0",
 ]
 langgraph = [
-    "langchain-core>=0.2.0",
+    "langchain-core>=1.7.0",
     "langgraph>=0.1.0",
 ]
 
