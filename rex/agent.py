@@ -892,8 +892,10 @@ class Agent(HookRegistry):
                 last = e
         if self._fast is None:
             if strict:
-                raise last
-            warnings.warn("Warning: laya fast path unavailable (%s); using the stock forward." % last,
+                if last is not None:
+                    raise last
+                raise RuntimeError("Rex fast path failed to initialize")
+            warnings.warn("Warning: Rex fast path unavailable (%s); using the stock forward." % last,
                           RuntimeWarning)
             return False
         self._stock_forward = self.model.forward
