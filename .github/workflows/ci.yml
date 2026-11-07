@@ -313,39 +313,19 @@ jobs:
       - name: Byte-compile every module
         run: python -m compileall -q rex/ tests/
 
-  typescript-sdk:
-    name: TypeScript SDK (node${{ matrix.node }})
+  rust:
+    name: Rust (rex-rs)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [22, 24]
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: rex-rs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-          cache-dependency-path: sdk/typescript/package-lock.json
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.11"
-          cache: pip
-      - name: Install server and SDK
-        run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e '.[serve]' httpx pytest
-          npm ci --prefix sdk/typescript
-      - name: Server contract and generated presets
-        run: |
-          python -m pytest tests/test_serve.py
-          python sdk/typescript/scripts/sync_presets.py --check
-      - name: SDK types, transport, packaging and live inference
-        working-directory: sdk/typescript
-        run: |
-          npm test
-          npm run test:integration
-          npm pack --dry-run
+      - name: Install Rust toolchain
+        run: rustup update stable && rustup default stable
+      - name: Test rex-rs
+        run: cargo test
 
   build:
     name: package

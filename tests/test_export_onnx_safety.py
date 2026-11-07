@@ -7,7 +7,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location(
-    "laya_ts_export_onnx", root / "laya-ts" / "scripts" / "export_onnx.py"
+    "rex_ts_export_onnx", root / "rex-ts" / "scripts" / "export_onnx.py"
 )
 exporter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(exporter)
