@@ -1,7 +1,10 @@
 use super::{CryptoError, ModelKey};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::sync::RwLock;
 use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,10 +24,13 @@ pub struct ChallengeResponse {
 pub struct LicenseManager {
     client: Client,
     license_server_url: Option<String>,
+    expires_at: AtomicU64,
+    session_token: RwLock<Option<String>>,
+    required_api_key: Option<String>,
 }
 
 impl LicenseManager {
-    pub fn new(license_server_url: Option<String>) -> Self {
+    pub fn new(license_server_url: Option<String>, required_api_key: Option<String>) -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(10))
             .build()
@@ -33,6 +39,9 @@ impl LicenseManager {
         Self {
             client,
             license_server_url,
+            expires_at: AtomicU64::new(0),
+            session_token: RwLock::new(None),
+            required_api_key,
         }
     }
 
@@ -47,6 +56,8 @@ impl LicenseManager {
         if let Some(key_str) = direct_key_hex {
             if !key_str.trim().is_empty() {
                 info!("Acquired model decryption key from direct configuration.");
+                // Static direct key has indefinite expiry (0)
+                self.expires_at.store(0, Ordering::Relaxed);
                 return ModelKey::from_hex(key_str);
             }
         }
@@ -95,9 +106,62 @@ impl LicenseManager {
             CryptoError::LicenseError(format!("Invalid response from license server: {}", e))
         })?;
 
+        // Store active expiry and session token
+        self.expires_at.store(body.expires_at, Ordering::Relaxed);
+        let mut token_lock = self.session_token.write().await;
+        *token_lock = Some(body.session_token);
+
         ModelKey::from_hex(&body.encrypted_key_hex)
     }
+
+    /// Checks if the current license is within its validity period.
+    pub fn is_valid(&self) -> bool {
+        let exp = self.expires_at.load(Ordering::Relaxed);
+        if exp == 0 {
+            return true; // No expiration constraint configured
+        }
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        now < exp
+    }
+
+    /// Enforces license validity; returns an error if license has expired.
+    pub fn enforce_valid(&self) -> Result<(), CryptoError> {
+        if !self.is_valid() {
+            let exp = self.expires_at.load(Ordering::Relaxed);
+            return Err(CryptoError::LicenseError(format!(
+                "License expired at unix timestamp {}",
+                exp
+            )));
+        }
+        Ok(())
+    }
+
+    /// Verifies Authorization header (Bearer token or configured API key).
+    pub async fn verify_authorization(&self, auth_header: Option<&str>) -> bool {
+        let token_guard = self.session_token.read().await;
+        let expected_token = self.required_api_key.as_deref().or(token_guard.as_deref());
+
+        if let Some(expected) = expected_token {
+            match auth_header {
+                Some(header_val) => {
+                    let provided = header_val
+                        .strip_prefix("Bearer ")
+                        .unwrap_or(header_val)
+                        .trim();
+                    provided == expected
+                }
+                None => false,
+            }
+        } else {
+            true // No authentication required if neither API key nor session token is configured
+        }
+    }
 }
+
+pub type SharedLicenseManager = Arc<LicenseManager>;
 
 /// Simple platform-neutral machine fingerprint
 fn get_system_fingerprint() -> String {

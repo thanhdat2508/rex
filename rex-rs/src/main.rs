@@ -34,6 +34,10 @@ struct Args {
     #[arg(short = 's', long, env = "REX_LICENSE_SERVER")]
     license_server: Option<String>,
 
+    /// Optional API key / Bearer token required for clients
+    #[arg(long, env = "REX_API_KEY")]
+    api_key: Option<String>,
+
     /// Bind IP address
     #[arg(long, default_value = "0.0.0.0", env = "REX_HOST")]
     host: String,
@@ -71,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Resolve decryption key (direct or license handshake)
-    let license_mgr = LicenseManager::new(args.license_server);
+    let license_mgr = Arc::new(LicenseManager::new(args.license_server, args.api_key));
     let model_key = license_mgr
         .resolve_model_key(args.key.as_deref(), args.license_key.as_deref())
         .await?;
@@ -97,6 +101,7 @@ async fn main() -> anyhow::Result<()> {
 
     let state = AppState {
         engine: Arc::new(engine),
+        license_mgr,
         model_name: meta.model_name,
         model_version: meta.model_version,
         startup_time,

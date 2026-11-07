@@ -1,3 +1,4 @@
+use crate::crypto::license::SharedLicenseManager;
 use crate::domain::{
     HypothesisKind, PoEMask, PoERoundResult, RexState, TelemetryEvent,
 };
@@ -21,6 +22,7 @@ use tracing::info;
 #[derive(Clone)]
 pub struct AppState {
     pub engine: SharedEngine,
+    pub license_mgr: SharedLicenseManager,
     pub model_name: String,
     pub model_version: String,
     pub startup_time: u64,
@@ -48,6 +50,7 @@ pub struct InvestigateResponse {
 pub struct HealthResponse {
     pub status: String,
     pub model_loaded: bool,
+    pub license_valid: bool,
     pub model_name: String,
     pub model_version: String,
     pub uptime_seconds: u64,
@@ -70,6 +73,7 @@ async fn health_handler(State(state): State<AppState>) -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok".to_string(),
         model_loaded: true,
+        license_valid: state.license_mgr.is_valid(),
         model_name: state.model_name.clone(),
         model_version: state.model_version.clone(),
         uptime_seconds: now.saturating_sub(state.startup_time),
@@ -81,6 +85,28 @@ async fn investigate_handler(
     headers: HeaderMap,
     Json(payload): Json<InvestigateRequest>,
 ) -> Response {
+    // 1. Enforce license validity
+    if let Err(e) = state.license_mgr.enforce_valid() {
+        return (
+            StatusCode::PAYMENT_REQUIRED,
+            Json(serde_json::json!({
+                "error": "License expired or invalid",
+                "detail": e.to_string()
+            })),
+        )
+            .into_response();
+    }
+
+    // 2. Verify authorization
+    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
+    if !state.license_mgr.verify_authorization(auth_header).await {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "Unauthorized: invalid Bearer token or API key" })),
+        )
+            .into_response();
+    }
+
     let is_sse = payload.stream.unwrap_or(false)
         || headers
             .get(header::ACCEPT)

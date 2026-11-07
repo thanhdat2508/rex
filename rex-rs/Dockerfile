@@ -8,7 +8,7 @@ FROM rust:1-bookworm AS builder
 WORKDIR /usr/src/rex-rs
 
 # Cache dependencies
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml Cargo.lock* ./
 RUN mkdir -p src/bin && \
     echo "fn main() {}" > src/main.rs && \
     echo "fn main() {}" > src/bin/pack.rs && \

@@ -39,8 +39,10 @@ async fn test_full_encrypted_runtime_lifecycle() {
     )
     .unwrap();
 
+    let license_mgr = Arc::new(rex_rs::crypto::license::LicenseManager::new(None, None));
     let state = AppState {
         engine: Arc::new(engine),
+        license_mgr,
         model_name: meta.model_name,
         model_version: meta.model_version,
         startup_time: 1731000000,
@@ -113,4 +115,58 @@ async fn test_full_encrypted_runtime_lifecycle() {
         .to_str()
         .unwrap()
         .contains("text/event-stream"));
+}
+
+#[tokio::test]
+async fn test_license_auth_enforcement() {
+    let raw_model = b"ACTUAL_ONNX_MODEL_TENSOR_BYTES_STREAM_42";
+    let engine = InMemoryModelEngine::from_decrypted_buffer(
+        raw_model.to_vec(),
+        "rex-poe-investigator".to_string(),
+        "2.1.0".to_string(),
+    )
+    .unwrap();
+
+    let license_mgr = Arc::new(rex_rs::crypto::license::LicenseManager::new(
+        None,
+        Some("client-secret-token".to_string()),
+    ));
+
+    let state = AppState {
+        engine: Arc::new(engine),
+        license_mgr,
+        model_name: "rex-poe-investigator".to_string(),
+        model_version: "2.1.0".to_string(),
+        startup_time: 1731000000,
+    };
+
+    let app = create_router(state);
+
+    let inv_payload = serde_json::json!({
+        "target_entity": "198.51.100.24",
+        "stream": false
+    });
+
+    // 1. Missing Authorization header -> 401 Unauthorized
+    let unauthed_req = Request::builder()
+        .uri("/api/v1/investigate")
+        .method("POST")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&inv_payload).unwrap()))
+        .unwrap();
+
+    let resp = app.clone().oneshot(unauthed_req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+
+    // 2. Correct Authorization header -> 200 OK
+    let authed_req = Request::builder()
+        .uri("/api/v1/investigate")
+        .method("POST")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::AUTHORIZATION, "Bearer client-secret-token")
+        .body(Body::from(serde_json::to_vec(&inv_payload).unwrap()))
+        .unwrap();
+
+    let authed_resp = app.oneshot(authed_req).await.unwrap();
+    assert_eq!(authed_resp.status(), StatusCode::OK);
 }
