@@ -1552,7 +1552,7 @@ class _InnerLangFailure:
                      batch_size=None, lang=None):
         self.langs.append(lang)
         if lang is not None:
-            self._helper(state, lang=lang)  # raises TypeError naming 'lang'
+            self._helper(state, lang=lang)  # type: ignore # raises TypeError naming 'lang'
         return {"model": "stub", "answers": {"via": "predict_long", "lang": lang}, "usage": {}}
 
 
