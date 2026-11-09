@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Reproducible local setup for Laya on this machine (macOS on Intel x86_64).
+# Reproducible local setup for Rex on this machine (macOS on Intel x86_64).
 #
 # Creates an isolated virtualenv, installs the only PyTorch release that still ships a
 # macOS Intel wheel, installs the newest transformers that runs on it, downloads the three
-# Laya checkpoints, and verifies the result with a real forward pass.
+# Rex checkpoints, and verifies the result with a real forward pass.
 #
-# Usage:   ./setup_laya.sh [--skip-models] [--skip-verify]
+# Usage:   ./setup_rex.sh [--skip-models] [--skip-verify]
 # Idempotent: re-running only fixes what is missing.
 set -euo pipefail
 
@@ -18,7 +18,7 @@ export PIP_CACHE_DIR="$ROOT/.pip-cache"
 export HF_HOME="$ROOT/.hf-cache"
 export HF_HUB_DISABLE_TELEMETRY=1
 export TOKENIZERS_PARALLELISM=false
-export USE_TF=0          # Laya is torch-only; a stray TensorFlow install can deadlock loading
+export USE_TF=0          # Rex is torch-only; a stray TensorFlow install can deadlock loading
 export USE_TORCH=1
 
 SKIP_MODELS=0
@@ -61,7 +61,7 @@ say "Dependencies"
   "safetensors>=0.4.0" \
   "huggingface_hub>=0.34.0,<1.0"
 
-say "Installing the laya package (editable)"
+say "Installing the rex package (editable)"
 "$VENV/bin/python" -m pip install --quiet -e "$ROOT"
 
 if [ "$SKIP_MODELS" -eq 0 ]; then

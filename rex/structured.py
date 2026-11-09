@@ -1,18 +1,18 @@
-"""Schema-driven decisions: turn a JSON schema (or a pydantic model) into Laya questions.
+"""Schema-driven decisions: turn a JSON schema (or a pydantic model) into Rex questions.
 
-Pure Python and torch-free, so `import laya` stays light. The mapping is a documented subset:
+Pure Python and torch-free, so `import rex` stays light. The mapping is a documented subset:
 an object of properties, each an enum choice, a boolean, or a bounded integer scale. Anything
 that cannot be answered from a fixed option set (free strings, arrays, nested objects) is
 rejected with an error that names the path.
 
-    import laya
+    import rex
 
     class Ticket(BaseModel):
         department: Literal["billing", "support", "sales"]
         urgency: Literal[0, 1, 2]
         needs_human: bool
 
-    values = laya.decide(agent, state, schema=Ticket)
+    values = rex.decide(agent, state, schema=Ticket)
 """
 from __future__ import annotations
 

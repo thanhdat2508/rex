@@ -5,14 +5,14 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c.svg)](https://pytorch.org/)
-[![Architecture](https://img.shields.io/badge/Architecture-Rex2%20%7C%20PoE%20%7C%20MECE-success.svg)](#neural-architecture--dual-head-projections)
-[![SLA](https://img.shields.io/badge/SLA-Sub--Second%20%28%3C1s%29-brightgreen.svg)](#operational-slas--performance-benchmarks)
-[![Security](https://img.shields.io/badge/VPC%20Security-Zero%20Inbound%20Ports-orange.svg)](#enterprise-security--outbound-only-mcp)
+[![Architecture](https://img.shields.io/badge/Architecture-Rex2%20%7C%20PoE%20%7C%20MECE-success.svg)](#neural-architecture-dual-head-projections)
+[![SLA](https://img.shields.io/badge/SLA-Sub--Second%20%28%3C1s%29-brightgreen.svg)](#operational-slas-performance-benchmarks)
+[![Security](https://img.shields.io/badge/VPC%20Security-Zero%20Inbound%20Ports-orange.svg)](#4-enterprise-security-zero-inbound-ports)
 
 **Autonomous, Non-Autoregressive Popperian Decision & Multi-Turn Investigation Engine**  
 _Built for Risk-Based Authentication (RBA), Account Takeover (ATO) Prevention, Sybil Defense, and Real-Time Fraud Incident Investigation._
 
-[Key Innovations](#key-architectural-pillars) • [Neural Architecture](#neural-architecture--dual-head-projections) • [Multi-Turn Loop](#multi-turn-closed-loop-investigation-cycle) • [Quickstart](#quickstart) • [WAF Backtesting](#action-dispatch--incident-remediation) • [Training & Loss](#multi-task-training--loss-dynamics)
+[Key Innovations](#key-architectural-pillars) • [Neural Architecture](#neural-architecture-dual-head-projections) • [Multi-Turn Loop](#multi-turn-closed-loop-investigation-cycle) • [Quickstart](#quickstart) • [WAF Backtesting](#action-dispatch-incident-remediation) • [Training & Loss](#multi-task-training-loss-dynamics)
 
 </div>
 
@@ -525,7 +525,7 @@ rex-train \
 ### Reference Kaggle Notebook
 
 A complete, self-contained end-to-end training notebook for the Risk-Based Authentication (RBA) dataset is located at:
-[`notebooks/rex_rba_kaggle_training.ipynb`](notebooks/rex_rba_kaggle_training.ipynb)
+[`notebooks/rex_rba_kaggle_training.ipynb`](https://github.com/RequinLabs/rex/blob/main/notebooks/rex_rba_kaggle_training.ipynb)
 
 The notebook guides you through:
 
@@ -590,5 +590,5 @@ pytest tests/
 
 ## License
 
-Rex is licensed under the [Apache License, Version 2.0](LICENSE).  
+Rex is licensed under the [Apache License, Version 2.0](https://github.com/RequinLabs/rex/blob/main/LICENSE).  
 Copyright © 2026 RequinLabs / Rex Contributors.

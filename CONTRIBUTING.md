@@ -1,12 +1,12 @@
 # Contributing
 
-Thanks for helping improve Laya. This guide keeps reviews fast and the history clean.
+Thanks for helping improve Rex. This guide keeps reviews fast and the history clean.
 
 By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Scope
 
-Laya is a fast, local, on-device decision engine. Keep additions in that spirit: they should run
+Rex is a fast, local, on-device decision engine. Keep additions in that spirit: they should run
 in the user's own process or on their own hardware, with no dependency on a hosted service or an
 external API. A feature that only works against a hosted backend is out of scope for the core
 package; it belongs in a separate integration or a community project.
@@ -21,7 +21,7 @@ package; it belongs in a separate integration or a community project.
 
 ## Development setup
 
-Laya supports Python 3.10 to 3.13. Use a virtual environment so nothing leaks into your system.
+Rex supports Python 3.10 to 3.13. Use a virtual environment so nothing leaks into your system.
 
 ```bash
 python -m venv .venv
@@ -67,14 +67,13 @@ needs CUDA, and `tests/test_local_e2e.py` and `tests/test_mcp_local_e2e.py` expe
 Before opening a pull request, run the lint and compile checks the CI runs:
 
 ```bash
-ruff check laya/ --select=E9,F63,F7,F82,F401,F811 --line-length=120
-python -m compileall -q laya/ tests/
+ruff check rex/ --select=E9,F63,F7,F82,F401,F811 --line-length=120
+python -m compileall -q rex/ tests/
 ```
 
 ## Documentation
 
-The site at [nandhakishorm.github.io/laya](https://nandhakishorm.github.io/laya/) builds from
-`docs/` with Zensical, and its API reference builds from the docstrings in `laya/`. A new page
+The project documentation builds from `docs/` with Zensical, and its API reference builds from the docstrings in `rex/`. A new page
 appears under Guides without a config change; to put it somewhere else, add it to
 [`docs/.nav.yml`](docs/.nav.yml). For a docs or docstring change, build the site the way the CI
 does:
@@ -140,7 +139,7 @@ Use the issue templates and include:
 
 - What you expected and what you got.
 - A minimal reproduction, ideally a short script.
-- Your Laya version (`python -c "import laya; print(laya.__version__)"`), Python version, OS, and
+- Your Rex version (`python -c "import rex; print(rex.__version__)"`), Python version, OS, and
   device or backend (CPU, CUDA, MPS, ONNX).
 
 ## Reviews

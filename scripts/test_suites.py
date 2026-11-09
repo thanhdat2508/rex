@@ -115,6 +115,7 @@ SCRIPT_SUITES = [
     "tests/test_orch_rex_adapter.py",
     "tests/test_orch_backends.py",
     "tests/test_orch_e2e.py",
+    "tests/test_rex_gateway_rpc.py",
 ]
 
 PYTEST_SUITES = [

@@ -352,17 +352,14 @@ def _cmd_run(args) -> int:
     else:
         if args.calibration:
             raise EvalError("--calibration requires --onnx; for the torch Router calibrate via fit_temperatures")
-        try:
-            import rex as _rex
-        except Exception:
-            import laya as _rex
+        from . import Router as _Router
         try:
             pins: Dict[str, Any] = {}
             if revision is not None:
                 pins["revision"] = revision
             if revisions:
                 pins["revisions"] = revisions
-            router = _rex.Router(device=args.device, preload=False, **pins)
+            router = _Router(device=args.device, preload=False, **pins)
         except ValueError as exc:
             # `Router` already rejects a checkpoint name it does not know -- normalising case,
             # surrounding spaces and aliases on the way -- with the option list in the message.

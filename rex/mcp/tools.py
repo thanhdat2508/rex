@@ -48,9 +48,9 @@ def get_available_presets() -> dict[str, dict[str, Any]]:
     them, so a preset added in a newer version shows up here as soon as it is importable.
     """
     try:
-        import rex as laya
+        import rex as rex_mod
     except Exception:
-        import laya
+        rex_mod = None
 
     aliases: dict[str, list[str]] = {}
     for alias, target in PRESET_ALIASES.items():
@@ -61,7 +61,7 @@ def get_available_presets() -> dict[str, dict[str, Any]]:
         entry: dict[str, Any] = {"questions": attr}
         if name in aliases:
             entry["aliases"] = sorted(aliases[name])
-        builder = getattr(laya, attr, None)
+        builder = getattr(rex_mod, attr, None) if rex_mod else None
         if builder is not None:
             questions = builder()
             entry["n_questions"] = len(questions)
@@ -1284,3 +1284,15 @@ def laya_decide(
     if device:
         out["device"] = device
     return out
+
+
+# Canonical rex_* aliases for MCP tool implementations
+rex_predict = laya_predict
+rex_route = laya_route
+rex_shortlist = laya_shortlist
+rex_preset = laya_preset
+rex_status = laya_status
+rex_predict_batch = laya_predict_batch
+rex_route_batch = laya_route_batch
+rex_decide = laya_decide
+

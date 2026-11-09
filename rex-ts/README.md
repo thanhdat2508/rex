@@ -1,11 +1,11 @@
-# laya-ts
+# rex-ts
 
-TypeScript inference for Laya (`Agent.predict`, `Router`, `lang`, `email`, `presets`, `shortlist`, `hooks`) on Node and the browser via split ONNX (`encoder.onnx` + `head.onnx`). ESM-only (`"type": "module"`); no CJS build — import from ESM or bundle.
+TypeScript inference for Rex (`Agent.predict`, `Router`, `lang`, `email`, `presets`, `shortlist`, `hooks`) on Node and the browser via split ONNX (`encoder.onnx` + `head.onnx`). ESM-only (`"type": "module"`); no CJS build — import from ESM or bundle.
 
 ## Export weights (once per checkpoint)
 
 ```bash
-python laya-ts/scripts/export_onnx.py --model-dir <ckpt> --out-dir ./model
+python rex-ts/scripts/export_onnx.py --model-dir <ckpt> --out-dir ./model
 # writes encoder.onnx, head.onnx + copies tokenizer.json, rl_agent_config.json
 # verifies torch vs ONNX match within 1e-4 (skip with --no-verify)
 ```
@@ -13,14 +13,21 @@ python laya-ts/scripts/export_onnx.py --model-dir <ckpt> --out-dir ./model
 ## Node (CPU/CUDA)
 
 ```ts
-import { Agent, Router } from "laya-ts";
+import { Agent, Router } from "rex-ts";
 
 const agent = await Agent.load("./model"); // local dir, or ("convaiinnovations/laya", { subfolder: "multilingual" })
 const router = new Router();
 router.attach("english", agent);
-const out = await router.predict({ body: "charged twice, refund please" }, {
-  intent: { type: "choice", instructions: "What does the customer want?", criteria: { refund: "money back", other: "anything else" } },
-});
+const out = await router.predict(
+  { body: "charged twice, refund please" },
+  {
+    intent: {
+      type: "choice",
+      instructions: "What does the customer want?",
+      criteria: { refund: "money back", other: "anything else" },
+    },
+  },
+);
 console.log(out.answers.intent);
 ```
 
@@ -29,11 +36,15 @@ CUDA: `Agent.load("./model", { device: "cuda" })` (falls back to CPU with a warn
 ## Browser (WebGPU → WASM fallback)
 
 ```ts
-import { Agent } from "laya-ts";
+import { Agent } from "rex-ts";
 
 const agent = await Agent.load("https://example.com/models/laya"); // serves encoder.onnx, head.onnx, tokenizer.json, rl_agent_config.json
 const out = await agent.predict("charged twice", {
-  d: { type: "choice", instructions: "pick", criteria: { refund: "money back", other: "rest" } },
+  d: {
+    type: "choice",
+    instructions: "pick",
+    criteria: { refund: "money back", other: "rest" },
+  },
 });
 ```
 
@@ -49,24 +60,36 @@ synchronous `route()`, so it is not awaited and a rejection there is only logged
 
 ```ts
 const tracer = {
-  onPredictStart(ctx) { console.time(ctx.runId); },
-  onPredictEnd(ctx) { console.timeEnd(ctx.runId); console.log(ctx.model, ctx.usage, ctx.elapsedMs); },
+  onPredictStart(ctx) {
+    console.time(ctx.runId);
+  },
+  onPredictEnd(ctx) {
+    console.timeEnd(ctx.runId);
+    console.log(ctx.model, ctx.usage, ctx.elapsedMs);
+  },
 };
 const router = new Router({ hooks: [tracer], hooksRaise: false }); // telemetry must not fail a request
 await router.withHooks([auditHook], () => router.predict(state, questions)); // scoped install
 
 // a start hook may rewrite ctx.states / ctx.questions, or serve a cached result:
-const cache = { onPredictStart(ctx) { const hit = lookup(ctx.states[0]); if (hit) ctx.skip([hit]); } };
+const cache = {
+  onPredictStart(ctx) {
+    const hit = lookup(ctx.states[0]);
+    if (hit) ctx.skip([hit]);
+  },
+};
 // an onRoute hook may replace ctx.decision (e.g. pin a checkpoint)
 
 // subclass BaseHook to override only the events you need:
 class MetricsHook extends BaseHook {
-  onPredictEnd(ctx) { record(ctx.usage); }
+  onPredictEnd(ctx) {
+    record(ctx.usage);
+  }
 }
 
 // process-wide defaults run before installed and per-call hooks for every Agent/Router,
 // so a tracer or metrics hook does not have to be threaded through every construction:
-setDefaultHooks([new MetricsHook()]);  // addDefaultHook(...) appends; clearDefaultHooks() resets
+setDefaultHooks([new MetricsHook()]); // addDefaultHook(...) appends; clearDefaultHooks() resets
 ```
 
 ## Structured decisions (`decide`)
@@ -106,10 +129,10 @@ you guess from character counts (issue #174; mirrors Python #181):
 
 ```ts
 const out = await agent.predict(longState, questions);
-out.usage.truncated;             // true when any state token was dropped
-out.usage.state_tokens;          // encoded length of the full state
-out.usage.state_tokens_dropped;  // worst case across the questions
-out.usage.truncated_questions;   // ids of the questions whose head left too little room
+out.usage.truncated; // true when any state token was dropped
+out.usage.state_tokens; // encoded length of the full state
+out.usage.state_tokens_dropped; // worst case across the questions
+out.usage.truncated_questions; // ids of the questions whose head left too little room
 ```
 
 The fields are absent only where no state was ever encoded (empty question schema, or a
@@ -119,14 +142,14 @@ start hook that supplied the result).
 
 The same budget also cuts the options themselves: each is capped at 48 tokens, and once they
 overflow `head_max_len` all of them are re-capped at `max(4, (head_max_len - 16) // n)`. Two
-options that share a prefix can come out of that cut as the *same* token span, so the question
+options that share a prefix can come out of that cut as the _same_ token span, so the question
 can no longer name them apart while still answering normally — and an answer chosen from 42
 distinguishable spans of 58 has an accuracy ceiling of 72% that nothing else in the response
 mentions (issue #538; mirrors Python `laya.common.collapsed_options`):
 
 ```ts
-out.usage.options;   // absent when every option kept a span of its own
-out.usage.options?.intent;  // { total: 58, distinct: 42, tokens_per_option: 4 }
+out.usage.options; // absent when every option kept a span of its own
+out.usage.options?.intent; // { total: 58, distinct: 42, tokens_per_option: 4 }
 ```
 
 `total` is what the question defines, not the markers that reached the sequence, so a report
@@ -144,14 +167,16 @@ const results = await agent.predictBatch(states, questions, { batchSize: 32 });
 
 // Router: heterogeneous requests — route first, then each checkpoint scores its requests
 // in as few forward passes as possible. Results keep input order and carry `routing`.
-const decisions = router.routeBatch(requests);          // validate + route, nothing loads
+const decisions = router.routeBatch(requests); // validate + route, nothing loads
 const routed = await router.predictBatch(requests, 32); // == router.predictMany(...)
 // Per-call hooks are composed like predict: installed hooks first, then this list,
 // then onPredictStart / onPredictEnd. null and [] add nothing. hooksRaise overrides
 // the Router's policy for this call. The list runs once per request, including onRoute.
 const traced = await router.predictBatch(requests, null, {
   hooks: [tracer],
-  onPredictEnd(ctx) { console.log(ctx.usage); },
+  onPredictEnd(ctx) {
+    console.log(ctx.usage);
+  },
   hooksRaise: false,
 });
 
@@ -188,18 +213,17 @@ checkpoint's temperature for matching requests — keys normalise to the base su
 ```ts
 const agent = await Agent.load("convaiinnovations/laya", {
   lang_temperatures: {
-    de: { temperature: [1.2, 1.2, 1.2] },                 // fitted on German evals
+    de: { temperature: [1.2, 1.2, 1.2] }, // fitted on German evals
     ja: { temperature_by_options: { "choice:11+": 1.4 } }, // buckets only, base temperature kept
   },
 });
-await agent.systemOne(state, questions, { lang: "de" });   // uses the German temperature
-await router.predict(state, questions);                    // Router forwards the detected language
+await agent.systemOne(state, questions, { lang: "de" }); // uses the German temperature
+await router.predict(state, questions); // Router forwards the detected language
 ```
 
 `Router.predict` forwards an explicit `lang` verbatim and otherwise the detected language
 (never `"en"` — matching Python, where detection only names non-English languages), so an
 override applies exactly to the requests it was fitted on.
-
 
 ## Example (repo root)
 

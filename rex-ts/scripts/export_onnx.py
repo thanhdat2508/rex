@@ -1,10 +1,10 @@
-"""Export a Laya checkpoint to split ONNX (encoder.onnx + head.onnx).
+"""Export a Rex checkpoint to split ONNX (encoder.onnx + head.onnx).
 
 Source of truth stays ``model.safetensors``; this script produces the two ONNX
-files the ``laya-ts`` Node/Web providers load. Run once per checkpoint:
-    python laya-ts/scripts/export_onnx.py --repo convaiinnovations/laya --out-dir ./model
-    python laya-ts/scripts/export_onnx.py --repo convaiinnovations/laya --subfolder multilingual --out-dir ./model-ml
-    python laya-ts/scripts/export_onnx.py --model-dir <local ckpt> --out-dir ./model
+files the ``rex-ts`` Node/Web providers load. Run once per checkpoint:
+    python rex-ts/scripts/export_onnx.py --repo convaiinnovations/rex --out-dir ./model
+    python rex-ts/scripts/export_onnx.py --repo convaiinnovations/rex --subfolder multilingual --out-dir ./model-ml
+    python rex-ts/scripts/export_onnx.py --model-dir <local ckpt> --out-dir ./model
 
 With ``--repo`` the checkpoint is downloaded from Hugging Face (safetensors +
 tokenizer + encoder) into the HF cache first, then converted. With
@@ -23,8 +23,8 @@ import os
 import shutil
 
 try:
-    from laya.common import build_model
-except ImportError:  # --help must work without torch installed
+    from rex.common import build_model
+except ImportError:
     build_model = None
 
 DEFAULT_REPO = "convaiinnovations/laya"

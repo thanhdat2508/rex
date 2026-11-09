@@ -63,7 +63,8 @@ except Exception:  # running from a source checkout without install metadata
     try:
         import rex as _rex
     except Exception:
-        import laya as _rex
+        from .. import __version__ as _ver
+        _rex = type("Module", (), {"__version__": _ver})()
 
     _REX_VERSION = getattr(_rex, "__version__", "")
 
@@ -211,7 +212,7 @@ def _preset_builder(attr_name: str) -> dict:
     try:
         import rex as _lib
     except Exception:
-        import laya as _lib
+        import rex as _lib
 
     builder = getattr(_lib, attr_name, None)
     if builder is None:

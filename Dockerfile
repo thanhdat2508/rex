@@ -38,9 +38,9 @@ FROM ${PYTHON_IMAGE} AS runtime
 ARG MODELSCOPE_MODEL=""
 ARG MODELSCOPE_REVISION="master"
 
-LABEL org.opencontainers.image.title="Laya Docker quickstart" \
-      org.opencontainers.image.source="https://github.com/NandhaKishorM/laya" \
-      org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.title="Rex Docker quickstart" \
+    org.opencontainers.image.source="https://github.com/RequinLabs/rex" \
+    org.opencontainers.image.licenses="Apache-2.0"
 
 # torch 2.14 swaps some eager CUDA ops (bmm, topk, sum, norms) for Triton kernels that it
 # compiles on the first inference, which needs a C compiler this image does not carry: the
@@ -74,11 +74,11 @@ COPY docker/prefetch_modelscope.py /opt/laya/prefetch_modelscope.py
 # handed to the runtime user afterwards, because the tokenizer-compatibility fix writes into the
 # snapshot on first load.
 RUN if [ -n "$MODELSCOPE_MODEL" ]; then \
-      python /opt/laya/prefetch_modelscope.py \
-        --model "$MODELSCOPE_MODEL" \
-        --revision "$MODELSCOPE_REVISION" \
-        --cache-dir "$HF_HOME/hub" \
-      && chown -R laya:laya /home/laya/.cache; \
+    python /opt/laya/prefetch_modelscope.py \
+    --model "$MODELSCOPE_MODEL" \
+    --revision "$MODELSCOPE_REVISION" \
+    --cache-dir "$HF_HOME/hub" \
+    && chown -R laya:laya /home/laya/.cache; \
     fi
 
 USER laya

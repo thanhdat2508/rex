@@ -164,3 +164,25 @@ def test_dry_run_simulation_detects_flawed_rules():
     passed, _ = simulate_falsification_dynamics(reg_flawed)
     # Even with mock value, let's verify report generation runs cleanly
     assert isinstance(passed, bool)
+
+
+def test_rba_registry_passes_static_audit():
+    """Verify that registry_rba.yaml and registry_rba.json pass all Step 4 static audit gates."""
+    from pathlib import Path
+
+    rba_yaml_path = Path(__file__).parent.parent / "rex" / "events" / "configs" / "registry_rba.yaml"
+    rba_json_path = Path(__file__).parent.parent / "rex" / "events" / "configs" / "registry_rba.json"
+
+    reg_yaml = load_master_registry(rba_yaml_path)
+    report_yaml = run_static_registry_audit(reg_yaml, raise_on_error=True)
+    assert report_yaml.passed is True
+    assert report_yaml.mece_passed is True
+    assert report_yaml.compatibility_passed is True
+    assert report_yaml.simulation_passed is True
+    assert len(report_yaml.violations) == 0
+
+    reg_json = load_master_registry(rba_json_path)
+    report_json = run_static_registry_audit(reg_json, raise_on_error=True)
+    assert report_json.passed is True
+    assert len(report_json.violations) == 0
+
