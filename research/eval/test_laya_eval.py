@@ -140,7 +140,7 @@ class _FakeAgent:
 
 
 _fa = _FakeAgent()
-from laya.common import QTYPES  # noqa: E402
+from rex.common import QTYPES  # noqa: E402
 
 check("temp/clamped path is used by default",
       temperature_for(_fa, QTYPES["choice"], 20), 0.5)

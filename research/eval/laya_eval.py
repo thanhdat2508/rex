@@ -134,7 +134,7 @@ def score_cases(agent, cases) -> List[Any]:
     here so the caller can score under more than one regime from one pass.
     """
     import torch
-    from laya.common import QTYPES, build_sequence, collate_items, render_options, uses_parallel_layout
+    from rex.common import QTYPES, build_sequence, collate_items, render_options, uses_parallel_layout
 
     max_len = agent.cfg.get("max_len", 512)
     head_max_len = agent.cfg.get("head_max_len", 192)
@@ -181,7 +181,7 @@ def temperature_for(agent, qtype: int, k: int, unclamped: bool = False) -> float
     to ``[TEMP_MIN, TEMP_MAX]``. With ``unclamped=True`` it is the checkpoint's raw
     value, which is what the committed pre-#42 sweep was produced with.
     """
-    from laya.common import temp_bucket
+    from rex.common import temp_bucket
     bucket = temp_bucket(qtype, k)
     if unclamped:
         return float(agent.temperature_by_options_raw.get(
@@ -248,7 +248,7 @@ def run_language(agent, lang: str, per_lang: int, n_opts: int, seed: int = SEED,
                  unclamped: bool = False) -> Dict[str, Any]:
     """Evaluate one language and return its report plus per-case records."""
     import numpy as np
-    from laya.common import QTYPES
+    from rex.common import QTYPES
 
     rows = load_language(lang)
     cases, gold, option_keys = build_suite(
@@ -323,7 +323,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print("no languages selected", file=sys.stderr)
         return 2
 
-    import laya
+    import rex as laya
 
     started = time.time()
     agent = laya.load(args.model, device=args.device, subfolder=args.subfolder)

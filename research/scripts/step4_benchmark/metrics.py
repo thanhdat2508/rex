@@ -22,7 +22,7 @@ from typing import Sequence
 
 import numpy as np
 
-from laya.common import ece_score
+from rex.common import ece_score
 
 
 def accuracy(correct: Sequence[float]) -> float:

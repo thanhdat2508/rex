@@ -49,7 +49,7 @@ def quantize_model(model_path: str, output_path: str, per_channel: bool = False)
 
 
 def int8_output_path(output_path: str) -> str:
-    """`laya.onnx` -> `laya.int8.onnx`, next to the fp32 export it was quantized from."""
+    """`rex.onnx` -> `rex.int8.onnx`, next to the fp32 export it was quantized from."""
     root, ext = os.path.splitext(output_path)
     return "%s.int8%s" % (root, ext or ".onnx")
 

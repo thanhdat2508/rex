@@ -51,7 +51,7 @@ def _normalise(values: List[float]) -> List[float]:
 
 def evaluate_checkpoint(checkpoint_dir: str, test_meta: List[Dict[str, Any]],
                         device: str = "auto", temperatures: str = "shipped") -> Dict[str, Any]:
-    import laya
+    import rex as laya
 
     agent = laya.load(checkpoint_dir, device=device)
     if temperatures == "raw":

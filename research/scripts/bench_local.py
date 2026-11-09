@@ -33,8 +33,8 @@ import torch  # noqa: E402
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, REPO)   # `import laya` works without an installed package
 
-import laya  # noqa: E402
-from laya.common import QTYPES, build_sequence, collate_items, render_options, temp_bucket  # noqa: E402
+import rex as laya  # noqa: E402
+from rex.common import QTYPES, build_sequence, collate_items, render_options, temp_bucket  # noqa: E402
 
 ROOT = os.environ.get("LAYA_MODELS", os.path.expanduser("~/laya_models"))
 MODELS = {"english": os.path.join(ROOT, "laya"),

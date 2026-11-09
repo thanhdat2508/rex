@@ -369,7 +369,7 @@ def parse_langs(values: Optional[Sequence[str]]) -> List[str]:
 
 def routes(states: Sequence[str]) -> Dict[str, int]:
     """Which checkpoint `Router` would pick for each state, counted. Routing only, no weights."""
-    from laya.router import Router
+    from rex.router import Router
 
     router = Router()
     counts: Dict[str, int] = {}
@@ -397,7 +397,7 @@ def parity(agent, states: Optional[Sequence[str]] = None, lang: str = "en") -> f
 
     system_one rounds probabilities to 4 decimals, so agreement shows up as <= 5e-5.
     """
-    from laya.common import QTYPES
+    from rex.common import QTYPES
 
     spec = LANGUAGES[lang]
     states = spec["states"] if states is None else states
@@ -417,7 +417,7 @@ def parity(agent, states: Optional[Sequence[str]] = None, lang: str = "en") -> f
 
 def choice_parity(agent, states: Optional[Sequence[str]] = None, lang: str = "en") -> float:
     """`parity` for the choice control's questions, keyed by option name as system_one reports them."""
-    from laya.common import QTYPES
+    from rex.common import QTYPES
 
     spec = LANGUAGES[lang]
     states = spec["states"] if states is None else states
@@ -467,7 +467,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
 
-    import laya
+    import rex as laya
 
     started = time.time()
     agent = laya.load(args.model, device=args.device, subfolder=args.subfolder)

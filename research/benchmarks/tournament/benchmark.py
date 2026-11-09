@@ -18,8 +18,8 @@ from huggingface_hub import hf_hub_download
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-import laya  # noqa: E402
-from laya.evals import ece  # noqa: E402
+import rex as laya  # noqa: E402
+from rex.evals import ece  # noqa: E402
 
 REVISIONS = {
     "mteb/banking77": "18072d2685ea682290f7b8924d94c62acc19c0b2",

@@ -90,7 +90,7 @@ def main(argv=None) -> int:
     before, before_source = load_detector(args.before_ref, "laya_lang_before")
     after, after_source = load_detector(args.after_ref, "laya_lang_after")
     sys.path.insert(0, str(REPO_ROOT))
-    from laya import router as router_module
+    from rex import router as router_module
 
     router = router_module.Router(default="english")
     original_analyse = router_module.analyse

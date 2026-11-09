@@ -72,8 +72,8 @@ def main():
         os.environ.update(HF_HUB_OFFLINE='1', USE_TF='0', USE_TORCH='1', TOKENIZERS_PARALLELISM='false')
         import torch
         import transformers
-        import laya
-        from laya.common import build_sequence, serialize_state, render_options
+        import rex as laya
+        from rex.common import build_sequence, serialize_state, render_options
         torch.set_num_threads(2)
         start = time.perf_counter()
         agent = laya.load(str(args.checkpoint.resolve()), device=args.device)

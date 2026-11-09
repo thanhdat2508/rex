@@ -31,7 +31,7 @@ def main():
     parser.add_argument("--calibration", default=None)
     args = parser.parse_args()
 
-    import laya
+    import rex as laya
     import torch
 
     started = time.perf_counter()
