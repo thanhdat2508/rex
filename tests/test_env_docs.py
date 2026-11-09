@@ -111,9 +111,9 @@ def walk(base: str, *dirs: str):
 
 
 def package_names() -> Dict[str, Set[str]]:
-    """LAYA_* names appearing in a string constant anywhere under laya/."""
+    """LAYA_* names appearing in a string constant anywhere under rex/."""
     found: Dict[str, Set[str]] = {}
-    for path in walk(ROOT, "laya"):
+    for path in walk(ROOT, "rex"):
         if not path.endswith(".py"):
             continue
         tree = ast.parse(read(path), filename=path)
@@ -128,7 +128,7 @@ def environ_call_names() -> Set[str]:
     """The narrow capture: names passed straight to os.environ.get/[]. Only used to show
     that it misses part of the set, which is why package_names() is the one that gates."""
     found: Set[str] = set()
-    for path in walk(ROOT, "laya"):
+    for path in walk(ROOT, "rex"):
         if not path.endswith(".py"):
             continue
         tree = ast.parse(read(path), filename=path)
@@ -228,7 +228,7 @@ def prose_units():
             para.append(line)
         if para:
             yield "%s:%d" % (rel, start), "\n".join(para)
-    for path in walk(ROOT, "laya"):
+    for path in walk(ROOT, "rex"):
         if not path.endswith(".py"):
             continue
         rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
@@ -296,7 +296,7 @@ def main() -> int:
     # the two rows this suite was written for, pinned to the page that carries them, so a
     # later edit that deletes one fails by name rather than only as a set difference
     anchors = {"LAYA_MAX_CONCURRENT": "docs/docker.md",
-               "LAYA_MPS_AMP_MIN_ROWS": "README.md"}
+               "LAYA_MPS_AMP_MIN_ROWS": "BENCHMARKS.md"}
     for name, page in sorted(anchors.items()):
         check_true("%s is documented on %s" % (name, page),
                    page in docs.get(name, set()), sorted(docs.get(name, set())))

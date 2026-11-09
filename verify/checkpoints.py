@@ -79,7 +79,8 @@ def main():
                     help="re-record sha256/size for the files on disk (use after a deliberate update)")
     args = ap.parse_args()
 
-    manifest = json.load(open(MANIFEST))
+    with open(MANIFEST, encoding="utf-8") as _mf:
+        manifest = json.load(_mf)
     if args.fetch:
         os.makedirs(args.models, exist_ok=True)
         for entry in manifest["checkpoints"]:

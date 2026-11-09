@@ -95,7 +95,30 @@ _LAZY_ATTRS = {
 }
 
 
+_SUBMODULES = {
+    "confidence",
+    "email",
+    "hooks",
+    "lang",
+    "losses",
+    "presets",
+    "rex_format",
+    "rex_model",
+    "rex_poe",
+    "rex_vocab",
+    "router",
+    "structured",
+}
+
+
 def __getattr__(name):
+    if name in _SUBMODULES:
+        import importlib
+
+        mod = importlib.import_module("." + name, __name__)
+        globals()[name] = mod
+        return mod
+
     try:
         module_name, attr = _LAZY_ATTRS[name]
     except KeyError:
@@ -108,7 +131,7 @@ def __getattr__(name):
 
 
 def __dir__():
-    return sorted(list(globals()) + list(_LAZY_ATTRS))
+    return sorted(list(globals()) + list(_LAZY_ATTRS) + list(_SUBMODULES))
 
 
 __all__ = [

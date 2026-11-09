@@ -86,7 +86,7 @@ if len(od) > 1:
 
 check_true("pyproject/core parses", len(core) == 5, core)
 check("pyproject/extra tables found", sorted(extras),
-      ["crewai", "fast", "langchain", "langgraph", "llamaindex", "mcp", "onnx", "serve",
+      ["crewai", "fast", "langchain", "langgraph", "llamaindex", "mcp", "onnx", "orch", "serve",
        "structured"])
 declared = list(core) + [s for names in extras.values() for s in names]
 expected = sorted(set(declared))
