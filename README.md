@@ -437,6 +437,25 @@ print("Classification:", result["answers"]["threat_category"]["choice"])  # bec_
 print("Confidence    :", result["answers"]["threat_category"]["confidence"])
 ```
 
+#### Batch Processing & Lifecycle Hooks
+
+Execute high-throughput batch predictions with custom hooks:
+
+```python
+results = router.predict_batch(requests)
+```
+
+* **Per-call hooks reach the batch path.** `Router.predict_batch` takes `hooks`, `on_predict_start`, `on_predict_end`, `hooks_raise` and `hooks_timeout`, matching `predict`; `Router.route_batch` takes `hooks`, `hooks_raise` and `hooks_timeout`, since it fires only `on_route` and has no predict events for the convenience callables to bind to (#909). The batched dispatch also composes installed hooks properly, so a `set_default_hooks` default no longer fires on `predict` and silently vanishes on `predict_batch`.
+
+#### Long Context Document Scanning
+
+For long documents exceeding standard context length, `agent.predict_long(state, questions)` windows the state:
+
+- A state that already fits one window is passed straight to `system_one` (identical output, plus `usage["windows"] = 1`). Without an explicit `window`, that is any state the questions leave room for, since `system_one` reads it whole. The key is total: `1` single window, `N` scanned windows, `0` a hook answered the document before the model read any of it.
+- Hooks wrap the inference that answers the state, so on a scanned document `on_predict_start` fires once with `ctx.states` holding the decoded windows, not the state you passed in (it was tokenized to produce them). A start hook may replace that list: the answers are aggregated over whatever reached inference, and `usage["windows"]` counts those states. What a rewritten scan costs is the attribution -- `answer["window"]` names a span of *your* document, so it is only reported when the scan reached inference unchanged. A hook that means to answer the document calls `ctx.skip(...)` instead: its result comes back with no `answer["window"]` and `usage["windows"]` at 0, because no window scored it.
+
+A smaller `window` isolates a short deciding span better (it becomes a larger fraction of its window); the default favors context and throughput. Either way the window is capped at the room the questions leave for the state inside `max_len`, so a window is never re-truncated on the way to the model and `token_start`/`token_end` describe the span it read.
+
 ### 3. Outbound MCP Tool Integration
 
 Deploy the Rex MCP server for seamless integration with Model Context Protocol agents:

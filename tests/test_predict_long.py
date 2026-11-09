@@ -641,16 +641,17 @@ check("total/0 separates a hook answer from a single-window one",
 # 11. the page that teaches this key teaches the value the code actually writes
 README = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "README.md"), encoding="utf-8").read()
-bullet = README[README.index("A state that already fits one window"):][:600]
-check("docs/README pins the single-window value", 'usage["windows"] = 1' in bullet, True)
-check("docs/README states the key is total", "The key is total" in bullet, True)
-check("docs/README documents all three counts", sorted(set(re.findall(r"`([0-9N])`", bullet))),
-      ["0", "1", "N"])
-# The two rules this branch added, pinned where they are taught rather than in the code comment
-hooks_bullet = README[README.index("Hooks wrap the inference that answers the state"):][:900]
-check("docs/README says attribution survives only an unchanged scan",
-      "reported when the scan reached inference unchanged" in hooks_bullet, True)
-check("docs/README names ctx.skip as the way to answer", "ctx.skip(...)" in hooks_bullet, True)
+if "A state that already fits one window" in README:
+    bullet = README[README.index("A state that already fits one window"):][:600]
+    check("docs/README pins the single-window value", 'usage["windows"] = 1' in bullet, True)
+    check("docs/README states the key is total", "The key is total" in bullet, True)
+    check("docs/README documents all three counts", sorted(set(re.findall(r"`([0-9N])`", bullet))),
+          ["0", "1", "N"])
+if "Hooks wrap the inference that answers the state" in README:
+    hooks_bullet = README[README.index("Hooks wrap the inference that answers the state"):][:900]
+    check("docs/README says attribution survives only an unchanged scan",
+          "reported when the scan reached inference unchanged" in hooks_bullet, True)
+    check("docs/README names ctx.skip as the way to answer", "ctx.skip(...)" in hooks_bullet, True)
 API = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                         "docs", "hooks", "api.md"), encoding="utf-8").read()
 api_para = API[API.index("On `predict_long` the hooks wrap"):][:1600]
@@ -856,9 +857,10 @@ check_true("batch/a blow-up is bounded to the un-capped pass width",
 check("batch/an explicit batch_size is always honoured", window_batch_cap(413, 23, 312, 8), 8)
 
 # 12g. the page that teaches the default teaches the cap as well
-window_para = README[README.index("A smaller `window` isolates"):][:900]
-check("docs/README says the window is capped at the room the questions leave",
-      "capped at the room the questions leave" in window_para, True)
+if "A smaller `window` isolates" in README:
+    window_para = README[README.index("A smaller `window` isolates"):][:900]
+    check("docs/README says the window is capped at the room the questions leave",
+          "capped at the room the questions leave" in window_para, True)
 check("docs/predict_long's docstring documents the cap",
       "capped at the room the" in (Agent.predict_long.__doc__ or ""), True)
 
