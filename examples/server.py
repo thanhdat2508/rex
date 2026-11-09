@@ -129,7 +129,7 @@ _log = logging.getLogger("rex.example-server")
 # --------------------------------------------------------------------------- #
 
 
-MODELS = tuple(getattr(laya, "DEFAULT_MODELS", {}) or ("english", "multilingual", "typed-decisions"))
+MODELS = tuple(getattr(rex, "DEFAULT_MODELS", {}) or ("english", "multilingual", "typed-decisions"))
 
 # `rex.router.normalise_name` is core's one model resolver: it trims, lower-cases, maps
 # `_ALIASES`, and then checks `DEFAULT_MODELS`. Every other surface hands a caller's model string
@@ -290,7 +290,7 @@ class Question(BaseModel):
     @field_validator("type")
     @classmethod
     def _known_type(cls, v: str) -> str:
-        known = set(getattr(laya, "QTYPES", {}) or {})
+        known = set(getattr(rex, "QTYPES", {}) or {})
         if known and v not in known:
             raise ValueError(f"unknown question type {v!r}; expected one of {sorted(known)}")
         return v
@@ -498,14 +498,14 @@ def models(request: Request):
         # `allowed` alone would under-report the endpoint: a checkpoint may also be named by any
         # alias core resolves, in any casing. Both lists come from rex.router, not from this file.
         "aliases": dict(sorted(MODEL_ALIASES.items())),
-        "models": {k: list(v) for k, v in (getattr(laya, "DEFAULT_MODELS", {}) or {}).items()},
+        "models": {k: list(v) for k, v in (getattr(rex, "DEFAULT_MODELS", {}) or {}).items()},
     }
     return _models_page(payload) if _wants_html(request) else payload
 
 
 @app.get("/qtypes")
 def qtypes() -> Dict[str, Any]:
-    return {"types": sorted(getattr(laya, "QTYPES", {}) or {})}
+    return {"types": sorted(getattr(rex, "QTYPES", {}) or {})}
 
 
 @app.get("/presets")
@@ -3515,7 +3515,7 @@ def index(request: Request) -> HTMLResponse:
     presets_js = _PRESETS_JSON.replace("<", "\\u003c")
     boot = (
         f"<script>const EXAMPLE = {_script_json(example)}; const PRESETS = {presets_js};"
-        f" const QTYPES = {_script_json(sorted(getattr(laya, 'QTYPES', {}) or {}) or ['choice', 'score', 'noul'])};"
+        f" const QTYPES = {_script_json(sorted(getattr(rex, 'QTYPES', {}) or {}) or ['choice', 'score', 'noul'])};"
         f" const LIMITS = {_script_json({'questions': MAX_QUESTIONS, 'stateChars': MAX_STATE_CHARS})};"
         f" const CERTAINTY_LABEL = {_script_json(_CERTAINTY_LABEL)};"
         "</script>"

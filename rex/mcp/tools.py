@@ -891,11 +891,14 @@ def laya_preset(
 
 def _remote_status(router: Any, preload: bool) -> dict:
     """``laya_status`` for a remote router: the server's own /health, no torch import here."""
-    versions: dict[str, str | None] = {"laya": None}
-    try:
-        versions["laya"] = getattr(__import__("laya"), "__version__", "unknown")
-    except Exception:
-        pass
+    versions: dict[str, str | None] = {"rex": None, "laya": None}
+    for pkg in ("rex", "laya"):
+        try:
+            versions[pkg] = getattr(__import__(pkg), "__version__", "unknown")
+        except Exception:
+            pass
+    if versions["laya"] is None and versions["rex"] is not None:
+        versions["laya"] = versions["rex"]
     out: dict[str, Any] = {
         "mode": "remote",
         "base_url": router.base_url,
@@ -924,16 +927,19 @@ def laya_status(*, router: Any = None, loaded: list[str] | None = None, preload:
         return _remote_status(router, preload)
     report = device_report()
     versions: dict[str, str | None] = {
+        "rex": None,
         "laya": None,
         "torch": report.get("torch_version"),
         "transformers": None,
     }
-    for pkg in ("laya", "transformers"):
+    for pkg in ("rex", "laya", "transformers"):
         try:
             mod = __import__(pkg)
             versions[pkg] = getattr(mod, "__version__", "unknown")
         except Exception:
             versions[pkg] = None
+    if versions["laya"] is None and versions["rex"] is not None:
+        versions["laya"] = versions["rex"]
 
     if loaded is None and router is not None:
         try:

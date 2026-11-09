@@ -437,6 +437,8 @@ print("Classification:", result["answers"]["threat_category"]["choice"])  # bec_
 print("Confidence    :", result["answers"]["threat_category"]["confidence"])
 ```
 
+Passing an empty question dictionary to `agent.predict(state, {})` or `agent.system_one(state, {})` returns the standard response with `"answers": {}` and `"usage": {"input_tokens": 0, "output_tokens": 0}`. The state is not tokenized and no model forward pass runs.
+
 #### Batch Processing & Lifecycle Hooks
 
 Execute high-throughput batch predictions with custom hooks:
@@ -454,11 +456,26 @@ For long documents exceeding standard context length, `agent.predict_long(state,
 - A state that already fits one window is passed straight to `system_one` (identical output, plus `usage["windows"] = 1`). Without an explicit `window`, that is any state the questions leave room for, since `system_one` reads it whole. The key is total: `1` single window, `N` scanned windows, `0` a hook answered the document before the model read any of it.
 - Hooks wrap the inference that answers the state, so on a scanned document `on_predict_start` fires once with `ctx.states` holding the decoded windows, not the state you passed in (it was tokenized to produce them). A start hook may replace that list: the answers are aggregated over whatever reached inference, and `usage["windows"]` counts those states. What a rewritten scan costs is the attribution -- `answer["window"]` names a span of *your* document, so it is only reported when the scan reached inference unchanged. A hook that means to answer the document calls `ctx.skip(...)` instead: its result comes back with no `answer["window"]` and `usage["windows"]` at 0, because no window scored it.
 
-A smaller `window` isolates a short deciding span better (it becomes a larger fraction of its window); the default favors context and throughput. Either way the window is capped at the room the questions leave for the state inside `max_len`, so a window is never re-truncated on the way to the model and `token_start`/`token_end` describe the span it read.
+A smaller `window` isolates a short deciding span better (it becomes a larger fraction of its window); the default (`max(64, max_len - head_max_len - 8)` -- 312 tokens on the English checkpoint at its 512/192 defaults, 760 on the other two at 1,024/256) favors context and throughput. Either way the window is capped at the room the questions leave for the state inside `max_len`, so a window is never re-truncated on the way to the model and `token_start`/`token_end` describe the span it read.
+
+* **High-cardinality choice questions and token budgets:** Sequences split into an option prompt budget (`head_max_len`) and the remaining document/state budget. `head_max_len` is a cap, not the head length. The renderer fills the option prompt budget only as far as the question and its option descriptions need, and `build_sequence` then sizes the state from the head it actually built (`room = max_len - head_len - 1`). The real room therefore depends on the question, not on the cap:
+  * `english` defaults to 512 context (`head_max_len = 192`). The shipped department question renders a **48-token** head, leaving **463 tokens for state**, not 320.
+  * `multilingual` and `typed-decisions` default to 1,024 context (`head_max_len = 256`). The shipped question renders a **45-token** head, leaving **978 tokens for state**, not 768.
+
+#### Calibration
+
+Both checkpoints are over-confident as shipped. Refitting one temperature per (question type,
+option count) on held-out data moves mean ECE **0.466 -> 0.081** (`rex`) and
+**0.314 -> 0.106** (`rex-multilingual`). `rex-multilingual` ships with no fitted
+temperatures at all, so fit them before relying on its probabilities.
 
 ### 3. Outbound MCP Tool Integration
 
 Deploy the Rex MCP server for seamless integration with Model Context Protocol agents:
+
+The tools return structured JSON. `laya_predict_batch` and `laya_route_batch` are the MCP form of `Router.predict_batch` / `route_batch`: one tool call takes an array of `{state, questions, model?, task?, lang?, lang_guess?, max_len?, head_max_len?}` requests, routes them first, groups them by checkpoint, and shares forward passes between requests with the same question schema, returning the answers in input order.
+
+`laya_shortlist` is the MCP form of `predict_shortlist`: it shortlists a many-option choice question to its `k` most likely labels by embedding similarity, answers in one forward pass, and returns per-question shortlist metadata (kept labels, cosine scores, `k`, option count, and whether the question passed through unshortlisted).
 
 ```bash
 # Launch the Rex MCP Server
@@ -584,6 +601,21 @@ rex/
 ├── pyproject.toml              # Build specifications & dependency extras
 └── README.md                   # System documentation & architectural reference
 ```
+
+---
+
+## Try it locally: web GUI + JSON API
+
+`examples/server.py` is a self-contained FastAPI app for testing without writing any code: a two-pane playground plus a plain JSON API (`/predict`, `/predict/batch`) for scripting against.
+
+```bash
+pip install "rex[serve]"
+python examples/server.py               # http://127.0.0.1:8000
+```
+
+A request body may carry `model` to pin a checkpoint instead of letting the router choose, and it takes exactly the spellings `rex --model` takes: names, aliases and casing all resolve through `rex.router`. `GET /models` lists the checkpoints and the aliases alongside them.
+
+`/predict/batch` accepts two optional body fields that control the shape of the forward passes without changing any answer: `batch_size` (states per pass; omit it and the whole batch is one pass) and `sort_by_length` (group similarly sized states so each pass pads to a shorter maximum).
 
 ---
 

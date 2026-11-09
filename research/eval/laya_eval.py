@@ -99,7 +99,7 @@ def build_suite(rows: Sequence[Dict[str, Any]], labels: Sequence[str],
 
 def load_language(lang: str, split: str = "test"):
     """Load one language config. Raises with a readable message if unavailable."""
-    from datasets import load_dataset
+    from datasets import load_dataset  # type: ignore
     try:
         ds = load_dataset(DATASET, lang, split=split)
     except Exception as exc:                       # pragma: no cover - network path
@@ -111,7 +111,7 @@ def load_language(lang: str, split: str = "test"):
 
 def available_languages() -> List[str]:
     """Language configs the dataset exposes, excluding the aggregate 'default'."""
-    from datasets import get_dataset_config_names
+    from datasets import get_dataset_config_names  # type: ignore
     names = get_dataset_config_names(DATASET)
     return sorted(n for n in names if n != "default")
 

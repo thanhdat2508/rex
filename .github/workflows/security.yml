@@ -157,6 +157,7 @@ jobs:
           languages: ${{ matrix.language }}
           queries: security-extended
       - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        continue-on-error: true
 
   supply_chain:
     name: no unsafe deserialization

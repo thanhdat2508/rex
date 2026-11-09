@@ -376,19 +376,19 @@ import rex  # noqa: E402
 
 check_true("export/answer_confidence is importable from rex", hasattr(rex, "answer_confidence"))
 check_true("export/answer_confidence is in __all__", "answer_confidence" in rex.__all__)
-check_true("export/answer_confidence is in dir()", "answer_confidence" in dir(laya))
+check_true("export/answer_confidence is in dir()", "answer_confidence" in dir(rex))
 check_true("export/check_min_confidence is importable from rex", hasattr(rex, "check_min_confidence"))
 check_true("export/check_min_confidence is in __all__", "check_min_confidence" in rex.__all__)
-check_true("export/check_min_confidence is in dir()", "check_min_confidence" in dir(laya))
+check_true("export/check_min_confidence is in dir()", "check_min_confidence" in dir(rex))
 check_true("export/flag_low_confidence is importable from rex", hasattr(rex, "flag_low_confidence"))
 check_true("export/flag_low_confidence is in __all__", "flag_low_confidence" in rex.__all__)
-check_true("export/flag_low_confidence is in dir()", "flag_low_confidence" in dir(laya))
+check_true("export/flag_low_confidence is in dir()", "flag_low_confidence" in dir(rex))
 check_true("export/apply_confidence_gate is importable from rex", hasattr(rex, "apply_confidence_gate"))
 check_true("export/apply_confidence_gate is in __all__", "apply_confidence_gate" in rex.__all__)
-check_true("export/apply_confidence_gate is in dir()", "apply_confidence_gate" in dir(laya))
+check_true("export/apply_confidence_gate is in dir()", "apply_confidence_gate" in dir(rex))
 check_true("export/GATE_STATES is importable from rex", hasattr(rex, "GATE_STATES"))
 check_true("export/GATE_STATES is in __all__", "GATE_STATES" in rex.__all__)
-check_true("export/GATE_STATES is in dir()", "GATE_STATES" in dir(laya))
+check_true("export/GATE_STATES is in dir()", "GATE_STATES" in dir(rex))
 # The three values are reached through GATE_STATES rather than exported one by one: iterating the
 # vocabulary is the whole use, and every `rex.__all__` name has to earn a documented entry
 # (`tests/test_packaging.py` enforces that).
