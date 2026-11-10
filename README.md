@@ -1,6 +1,6 @@
-# Rex Decision Engine
-
 <div align="center">
+
+# Rex Decision Engine
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
@@ -29,32 +29,37 @@ Traditional fraud defense systems suffer from a fundamental trade-off:
 
 Rex overcomes these limitations by combining a high-throughput **Transformer Encoder backbone** (e.g., ModernBERT) with **Karl Popper’s Process of Elimination (PoE)** and a **Mutually Exclusive, Collectively Exhaustive (MECE)** hypothesis taxonomy. Rather than attempting to "confirm" suspicion through superficial correlations, Rex systematically falsifies hypotheses against empirical telemetry across an interactive, multi-turn inquiry loop.
 
-```
-                           +-------------------------------------+
-                           |      Incoming Security Alert        |
-                           |   (Login, Transaction, API Call)    |
-                           +-------------------------------------+
-                                              |
-                                              v
-+-----------------------------------------------------------------------------------------------+
-| Rex Closed-Loop PoE Engine (Sub-Second SLA < 1s)                                              |
-|                                                                                               |
-|  [Round 1: Explore (K=3)]        [Round 2: Focus (K=2)]          [Round 3: Conclude (K=1)]    |
-|   +---------------------+         +---------------------+         +---------------------+     |
-|   | 4D PoE Attention    |         | 4D PoE Attention    |         | 4D PoE Attention    |     |
-|   | Bias (Mask Dead H)  | ---->   | Bias (Mask Dead H)  | ---->   | Bias (Mask Dead H)  |     |
-|   |                     |         |                     |         |                     |     |
-|   | ToolMLPHead:        |         | ToolMLPHead:        |         | SharedVerdictHead:  |     |
-|   | Network, Device,    |         | Graph Telemetry     |         | Calibrated Prob     |     |
-|   | Behavior Slots      |         +----------+----------+         +----------+----------+     |
-|   +----------+----------+                    |                               |                |
-+--------------|-------------------------------|-------------------------------|----------------+
-               | (Outbound MCP)                | (Outbound MCP)                |
-               v                               v                               v
-    +--------------------+          +--------------------+          +--------------------+
-    | Client VPC Tools   |          | Client VPC Tools   |          | Final Disposition  |
-    | (PII-Scrubbed)     |          | (PII-Scrubbed)     |          | & Runbook Dispatch |
-    +--------------------+          +--------------------+          +--------------------+
+```mermaid
+flowchart TD
+    Alert["<b>Incoming Security Alert</b><br><i>(Login, Transaction, API Call)</i>"] --> Engine
+
+    subgraph Engine ["<b>Rex Closed-Loop PoE Engine</b> <i>(Sub-Second SLA &lt; 1s)</i>"]
+        direction TB
+        subgraph Rounds ["Multi-Round Falsification &amp; Convergence"]
+            direction LR
+            subgraph R1 ["Round 1: Explore (K=3)"]
+                direction TB
+                A1["4D PoE Attention Bias<br><i>(Mask Dead H)</i>"] --> T1["ToolMLPHead<br><i>Network, Device, Behavior</i>"]
+            end
+
+            subgraph R2 ["Round 2: Focus (K=2)"]
+                direction TB
+                A2["4D PoE Attention Bias<br><i>(Mask Dead H)</i>"] --> T2["ToolMLPHead<br><i>Graph Telemetry</i>"]
+            end
+
+            subgraph R3 ["Round 3: Conclude (K=1)"]
+                direction TB
+                A3["4D PoE Attention Bias<br><i>(Mask Dead H)</i>"] --> V3["SharedVerdictHead<br><i>Calibrated Probabilities</i>"]
+            end
+
+            R1 -->|"New Evidence"| R2
+            R2 -->|"Converged State"| R3
+        end
+    end
+
+    T1 -->|"Outbound MCP"| V1["Client VPC Tools<br><i>(PII-Scrubbed)</i>"]
+    T2 -->|"Outbound MCP"| V2["Client VPC Tools<br><i>(PII-Scrubbed)</i>"]
+    V3 --> Final["<b>Final Disposition &amp; Runbook Dispatch</b><br><i>(Block / Challenge / Allow)</i>"]
 ```
 
 ---
@@ -72,6 +77,16 @@ Scientific epistemology dictates that an empirical theory cannot be proven concl
 ### 2. MECE Hypothesis Taxonomy
 
 Rex replaces thousands of ad-hoc classification labels with 4 canonical, mutually exclusive, and collectively exhaustive root-cause hypotheses:
+
+```mermaid
+flowchart LR
+    Incident["<b>Incident Telemetry</b>"] --> MECE["<b>MECE Hypothesis Space</b><br><i>(Mutually Exclusive, Collectively Exhaustive)</i>"]
+
+    MECE --> H1["<b>H_botnet</b><br>Automated Botnets<br><i>Refuted by: Biological entropy &ge; 0.85</i>"]
+    MECE --> H2["<b>H_sybil</b><br>Coordinated Syndicates<br><i>Refuted by: Unique canvas cluster size = 1</i>"]
+    MECE --> H3["<b>H_shared</b><br>Legitimate Shared Egress<br><i>Refuted by: Datacenter proxy ASN</i>"]
+    MECE --> H4["<b>H_novel</b><br>Zero-Day / Novel Abuse<br><i>Absorbent residual state if H1..H3 refuted</i>"]
+```
 
 | Hypothesis ID | Designation                     | Physical Failure Mode                                                                     | Representative Necessary Falsification Criterion                                                                        |
 | ------------- | ------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -97,35 +112,38 @@ Rex connects to customer enterprise infrastructure exclusively via **Outbound-on
 
 Rex builds upon an optimized Transformer Encoder foundation (such as ModernBERT with rotary embeddings and flash attention), augmented with specialized projection modules and attention interventions.
 
-```
-Input Sequence:
-[CLS] <TASK_RISK_INVESTIGATION> inst [SEP] [MASK]_0 H_botnet [MASK]_1 H_sybil [MASK]_2 H_shared [MASK]_3 H_novel [SEP] state_t [SEP]
-  │                                          │              │             │              │                      │
-  ▼                                          ▼              ▼             ▼              ▼                      │
-h_CLS                                    h_MASK_0       h_MASK_1      h_MASK_2       h_MASK_3                   │
-  │                                          └──────────────┬─────────────┴──────────────┘                      │
-  ▼                                                         ▼                                                   │
-┌───────────────────────────┐             ┌───────────────────────────────────┐                                 │
-│       ToolMLPHead         │             │         SharedVerdictHead         │                                 │
-│  Linear(D, D) -> LayerNorm│             │            Linear(D, 1)           │                                 │
-│   -> GELU -> Linear(D, 4) │             │     (Shared across all 4 masks)   │                                 │
-└─────────────┬─────────────┘             └─────────────────┬─────────────────┘                                 │
-              ▼                                             ▼                                                   │
-       Tool Slot Logits                              Verdict Logits                                             │
- (Network, Device, Behavior, Graph)             [z_botnet, z_sybil, z_shared, z_novel]                          │
-              │                                             │                                                   │
-              │                                             ▼                                                   │
-              │                                  ┌─────────────────────┐                                        │
-              │                                  │  Hard Logit Masking │ <--- PoE Mask Vector M_j               │
-              │                                  │   (z_j = -10000.0)  │                                        │
-              │                                  └──────────┬──────────┘                                        │
-              │                                             ▼                                                   │
-              │                                   Softmax Distribution                                         │
-              ▼                                             │                                                   │
-┌───────────────────────────┐                               ▼                                                   │
-│   Inverse Tool Masking    │ <─────────────────────────────────────────────────────────────────────────────────┘
-│   (Lock tools for dead H) │              4D Additive PoE Attention Bias Tensor [B, 1, S, S]
-└───────────────────────────┘              (Zeroes self-attention between refuted H_j and state_t)
+```mermaid
+flowchart TD
+    subgraph Seq ["<b>Input Sequence Layout</b>"]
+        direction LR
+        S_CLS["[CLS]"] --- S_INST["&lt;TASK_RISK_INVESTIGATION&gt; inst [SEP]"] --- S_M0["[MASK]_0 H_botnet"] --- S_M1["[MASK]_1 H_sybil"] --- S_M2["[MASK]_2 H_shared"] --- S_M3["[MASK]_3 H_novel [SEP]"] --- S_STATE["state_t [SEP]"]
+    end
+
+    S_CLS --> H_CLS["h_[CLS]"]
+    S_M0 --> H_M0["h_[MASK]_0"]
+    S_M1 --> H_M1["h_[MASK]_1"]
+    S_M2 --> H_M2["h_[MASK]_2"]
+    S_M3 --> H_M3["h_[MASK]_3"]
+
+    H_CLS --> ToolHead["<b>ToolMLPHead</b><br>Linear(D, D) &rarr; LayerNorm<br>&rarr; GELU &rarr; Linear(D, 4)"]
+
+    H_M0 --> VerdictHead["<b>SharedVerdictHead</b><br>Linear(D, 1)<br><i>(Shared across all 4 hypothesis masks)</i>"]
+    H_M1 --> VerdictHead
+    H_M2 --> VerdictHead
+    H_M3 --> VerdictHead
+
+    ToolHead --> ToolLogits["Tool Slot Logits<br><i>(Network, Device, Behavior, Graph)</i>"]
+    VerdictHead --> VerdictLogits["Verdict Logits<br>[z_botnet, z_sybil, z_shared, z_novel]"]
+
+    PoEMask["PoE Mask Vector M_j<br><i>(Refuted = 0)</i>"] --> LogitMask["<b>Hard Logit Masking</b><br>z_j = -10000.0 if M_j == 0"]
+    VerdictLogits --> LogitMask
+    LogitMask --> SoftmaxDist["<b>Softmax Distribution</b><br>P(H_j) with Novel Residual Mass"]
+
+    SoftmaxDist --> InverseTool["<b>Inverse Tool Masking</b><br>Inhibit tools for refuted hypotheses"]
+    ToolLogits --> InverseTool
+
+    PoEMask -.-> AttentionBias["<b>4D Additive PoE Attention Bias [B, 1, S, S]</b><br>Zeroes cross-attention between refuted H_j and state_t"]
+    AttentionBias -.-> S_STATE
 ```
 
 ### 1. Invariant Prefix & Sequence Formatting
@@ -220,22 +238,26 @@ Rex interfaces with enterprise environments through 4 canonical Semantic Tool Sl
 
 ### Outbound MCP Protocol Flow
 
-```
-Customer Private VPC                                                Rex Engine
-┌─────────────────────────────────┐                    ┌─────────────────────────────────┐
-│  Internal Databases / SIEM /    │                    │  Investigation Controller       │
-│  Device Fingerprint Store       │                    │                                 │
-│                                 │                    │                                 │
-│  ┌───────────────────────────┐  │  Outbound WS / MCP │  ┌───────────────────────────┐  │
-│  │   Rex Client SDK Agent    │==│====================│==│   MCP Dispatch Gateway    │  │
-│  │   (Zero Inbound Ports)    │  │   JSON-RPC 2.0     │  │                           │  │
-│  └─────────────┬─────────────┘  │                    │  └─────────────┬─────────────┘  │
-│                │                │                    │                │                │
-│                ▼                │                    │                ▼                │
-│  Executes private SQL/APIs;    │  Sanitized Metrics │  Requests:                      │
-│  Scrubs PII (regex + tokens)    │────────────────────│  {"method": "tools/call",       │
-│                                 │                    │   "params": {"slots": [...]}}   │
-└─────────────────────────────────┘                    └─────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph VPC ["<b>Customer Private VPC (Zero Inbound Ports)</b>"]
+        direction TB
+        DB[("Internal SIEM / DBs /<br>Device Fingerprint Store")]
+        SDK["<b>Rex Client SDK Agent</b><br><i>(Runs inside private perimeter)</i>"]
+        Sanitizer["<b>Automated PII Redaction</b><br><i>(Scrubs RFC 5322, JWT, PAN)</i>"]
+        DB <--> SDK
+        SDK --> Sanitizer
+    end
+
+    subgraph Rex ["<b>Rex Engine (Isolated Controller)</b>"]
+        direction TB
+        Gateway["<b>MCP Dispatch Gateway</b><br><i>(WebSocket / JSON-RPC 2.0 Receiver)</i>"]
+        Controller["<b>Investigation Controller</b><br><i>(Multi-Turn PoE Inference)</i>"]
+        Gateway <--> Controller
+    end
+
+    Gateway -->|"<b>1. Outbound Query</b><br>tools/call (slots: network, device)"| SDK
+    Sanitizer -->|"<b>2. Sanitized Telemetry</b><br>PII-Free Tokens (k=v)"| Gateway
 ```
 
 ---
@@ -243,6 +265,16 @@ Customer Private VPC                                                Rex Engine
 ## Action Dispatch & Incident Remediation
 
 Once an investigation concludes, Rex dispatches structured remediation payloads:
+
+```mermaid
+flowchart TD
+    Verdict{"<b>Concluded Verdict</b>"}
+
+    Verdict -->|"H_botnet"| BotnetAction["<b>Botnet Automated Runbook</b><br>• Dynamic PoW challenge<br>• Null-route ASN / residential proxies<br>• Edge headless browser termination"]
+    Verdict -->|"H_sybil"| SybilAction["<b>Sybil Syndicate Runbook</b><br>• Freeze pending transactions &amp; payouts<br>• Quarantine canvas fingerprint clusters<br>• Revoke promotional vouchers &amp; sessions"]
+    Verdict -->|"H_shared"| SharedAction["<b>Shared Egress Runbook</b><br>• Whitelist mobile carrier CGNAT pools<br>• Shift limits to Device/Account tier<br>• Zero friction for legitimate users"]
+    Verdict -->|"H_novel"| NovelAction["<b>Novel Attack Runbook</b><br>• Apply shadow friction &amp; covert PoW<br>• Compile SecOps cryptographic dossier<br>• Vectorized WAF backtest (&lt;1ms, FPR &le; 0.01%)"]
+```
 
 ### 1. Automated Runbooks (Known Root Causes)
 
