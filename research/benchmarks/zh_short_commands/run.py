@@ -65,7 +65,7 @@ def stub_logits(cases):
 def choice_records(config, cases, logits, agent, unclamped):
     """One record per case, in the shape laya_eval.py emits."""
     import numpy as np
-    from laya.common import QTYPES
+    from rex.common import QTYPES
 
     gold_index = [prompts.LABELS.index(c["gold"]) for c in cases]
     confidences, corrects, preds, records = [], [], [], []
@@ -109,7 +109,7 @@ def choice_records(config, cases, logits, agent, unclamped):
 def noul_records(config, cases, logits, agent, unclamped):
     """One record per (case, dimension); accuracy is per dimension, not top-1."""
     import numpy as np
-    from laya.common import QTYPES
+    from rex.common import QTYPES
 
     dims = prompts.NOUL_DIMENSIONS
     questions = prompts.noul_questions(config)
@@ -173,7 +173,7 @@ def checkpoint_provenance(args, agent):
     try:
         import torch
         import transformers
-        import laya
+        import rex as laya
         info["torch"] = torch.__version__
         info["transformers"] = transformers.__version__
         info["laya"] = laya.__version__
@@ -227,7 +227,7 @@ def main(argv=None) -> int:
 
     agent = None
     if not args.stub:
-        import laya
+        import rex as laya
         agent = laya.load(args.checkpoint, subfolder=args.subfolder, device=args.device)
 
     report, summary = {}, {}

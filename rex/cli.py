@@ -29,18 +29,15 @@ import argparse
 import json
 import sys
 
-try:
-    import rex as laya
-except Exception:
-    import laya
+import rex
 
 # Ready-made question presets a prediction can run instead of router_questions().
 PRESETS = {
-    "email": laya.email_questions,
-    "guard": laya.guard_questions,
-    "moderation": laya.moderation_questions,
-    "router": laya.router_questions,
-    "triage": laya.triage_questions,
+    "email": rex.email_questions,
+    "guard": rex.guard_questions,
+    "moderation": rex.moderation_questions,
+    "router": rex.router_questions,
+    "triage": rex.triage_questions,
 }
 
 # The state field each preset's instructions name, so the CLI puts the text where that question
@@ -147,7 +144,7 @@ def build_parser():
 
 
 def make_router(args):
-    return laya.Router(device=args.device, preload=False)
+    return rex.Router(device=args.device, preload=False)
 
 
 def load_questions(path):
@@ -249,7 +246,7 @@ def resolve_questions(args):
         return load_questions(args.questions)
     if args.preset:
         return PRESETS[args.preset](), PRESET_STATE_KEYS[args.preset]
-    return laya.router_questions(), PRESET_STATE_KEYS["router"]
+    return rex.router_questions(), PRESET_STATE_KEYS["router"]
 
 
 def run(text, args, router=None):
@@ -284,10 +281,10 @@ def run(text, args, router=None):
             else:
                 show_decision(decision)
     except ValueError as error:
-        print("laya: %s" % error, file=sys.stderr)
+        print("rex: %s" % error, file=sys.stderr)
         return 2
     except (ImportError, OSError, RuntimeError) as error:
-        print("laya: could not run Laya (%s)." % error, file=sys.stderr)
+        print("rex: could not run Rex (%s)." % error, file=sys.stderr)
         print("Check that the dependencies are installed and the checkpoints can be "
               "downloaded from the Hugging Face hub (network access is needed on first use).",
               file=sys.stderr)
@@ -355,10 +352,10 @@ def run_batch(lines, args, router=None):
                     print("%-14s %s  <- %s" % (decision["model"], decision["reason"],
                                                line if len(line) <= 48 else line[:45] + "..."))
     except ValueError as error:
-        print("laya: %s" % error, file=sys.stderr)
+        print("rex: %s" % error, file=sys.stderr)
         return 2
     except (ImportError, OSError, RuntimeError) as error:
-        print("laya: could not run Laya (%s)." % error, file=sys.stderr)
+        print("rex: could not run Rex (%s)." % error, file=sys.stderr)
         print("Check that the dependencies are installed and the checkpoints can be "
               "downloaded from the Hugging Face hub (network access is needed on first use).",
               file=sys.stderr)
@@ -367,11 +364,11 @@ def run_batch(lines, args, router=None):
 
 
 def interactive(args):
-    print("Laya interactive mode. Type a request and press Enter; Ctrl-D or 'quit' to exit.")
+    print("Rex interactive mode. Type a request and press Enter; Ctrl-D or 'quit' to exit.")
     router = make_router(args)
     while True:
         try:
-            text = input("laya> ").strip()
+            text = input("rex> ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
             break
@@ -400,20 +397,20 @@ def main(argv=None):
     # threshold at all. Accepting the flag there would let `laya --min-confidence 0.9 "..."` exit 0
     # having ignored it, which is the thing this flag exists to avoid.
     if args.min_confidence is not None and not (args.predict or args.preset or args.questions):
-        print("laya: --min-confidence gates answers, so it needs --predict, --preset or --questions.",
+        print("rex: --min-confidence gates answers, so it needs --predict, --preset or --questions.",
               file=sys.stderr)
         return 2
     if args.batch:
         if text:
-            print("laya: pass either a text or --batch FILE, not both.", file=sys.stderr)
+            print("rex: pass either a text or --batch FILE, not both.", file=sys.stderr)
             return 2
         try:
             lines = read_batch_lines(args.batch)
         except OSError as error:
-            print("laya: could not read %s (%s)." % (args.batch, error), file=sys.stderr)
+            print("rex: could not read %s (%s)." % (args.batch, error), file=sys.stderr)
             return 2
         if not lines:
-            print("laya: no requests found in %s." % args.batch, file=sys.stderr)
+            print("rex: no requests found in %s." % args.batch, file=sys.stderr)
             return 2
         return run_batch(lines, args)
     if not text:

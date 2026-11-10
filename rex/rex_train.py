@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections import OrderedDict
 import dataclasses
 from dataclasses import dataclass, field
+import gc
 import math
 import random
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -658,6 +659,8 @@ def train_rex(
             if config.log_every and update % config.log_every == 0:
                 log(f"rex train: epoch {epoch + 1} update {update}/{total_updates} loss {running / seen:.4f} "
                     + " ".join(f"{k}={v:.3f}" for k, v in parts.items()))
+        del encoded, order
+        gc.collect()
         epoch_losses.append(running / max(1, seen))
         log(f"rex train: epoch {epoch + 1} mean loss {epoch_losses[-1]:.4f}")
 
@@ -689,5 +692,9 @@ def train_rex(
         summary["val_metrics"] = metrics["metrics"]
         log(f"rex train: val loss {metrics['loss']:.4f} final-round verdict acc {metrics['verdict_acc']:.3f}")
         log("rex train: val " + " ".join(f"{k}={v:.3f}" for k, v in metrics["metrics"].items()))
+    del val_cases, calib_cases, train_cases, optimizer, scheduler, loss_fn
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     model.eval()
     return summary

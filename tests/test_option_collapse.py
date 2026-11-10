@@ -119,9 +119,9 @@ check("filter/an item without stats is skipped", "legacy" in out, False)
 check("filter/nothing collapsed is an empty dict", collapsed_options(["dept"], [items[1]]), {})
 
 # ---------------------------------------------------------------- what the agents publish
-_agent_src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "laya", "agent.py"),
+_agent_src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "rex", "agent.py"),
                   encoding="utf-8").read()
-_onnx_src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "laya", "onnx_agent.py"),
+_onnx_src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "rex", "onnx_agent.py"),
                  encoding="utf-8").read()
 for name, src in (("agent", _agent_src), ("onnx", _onnx_src)):
     check_true("usage/%s publishes it only when something collapsed" % name,

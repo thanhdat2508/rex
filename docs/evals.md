@@ -131,7 +131,7 @@ Each metric is computed per answer where it applies and aggregated over the data
 | `noul_accuracy` | `noul` | fraction whose boolean (probability >= 0.5) matches |
 | `score_mae` | `score` | mean absolute error |
 | `score_within_<tol>` | `score` | fraction within an absolute tolerance |
-| `ece` | any answer with a confidence and a known label | expected calibration error, 15 bins, computed on the column `laya.evals._answer_confidence` reads -- `answer["answer_confidence"]` where the answer carries it, and a fallback where it does not; see [which confidence a metric reads](#which-confidence-a-metric-reads) |
+| `ece` | any answer with a confidence and a known label | expected calibration error, 15 bins, computed on the column `rex.evals._answer_confidence` reads -- `answer["answer_confidence"]` where the answer carries it, and a fallback where it does not; see [which confidence a metric reads](#which-confidence-a-metric-reads) |
 | `brier` | any answer with a confidence and a known label | Brier score of confidence as P(correct), `mean((confidence - correct)**2)`; lower is better |
 | `aurc` | any answer with a confidence and a known label | area under the risk--coverage curve: one risk value per distinct confidence level, each weighted by the answers that level spans; lower is better, and rewards a confidence that *ranks* right from wrong rather than just being calibrated |
 | `selective_accuracy@50`, `selective_accuracy@80` | any answer with a confidence and a known label | accuracy over the answers a confidence threshold at the 50% / 80% coverage point accepts -- what abstaining on the least-confident tail buys. A threshold cannot split a group of equal confidences, so this can cover more than the named fraction; see [coverage cuts](#coverage-cuts-and-ties) |
@@ -149,7 +149,7 @@ therefore publishes no `ece` however confident its answers are, and `--max-ece` 
 ### Which confidence a metric reads
 
 Every row above that takes a confidence (`ece`, `brier`, `aurc`, both `selective_accuracy@*`,
-`mean_confidence`) gets its column from `laya.evals._answer_confidence`, which prefers
+`mean_confidence`) gets its column from `rex.evals._answer_confidence`, which prefers
 `answer["answer_confidence"]` -- the probability of the answer being reported, the quantity temperature
 scaling fits. It is not a claim that the number is right as shipped: both base checkpoints are
 over-confident and `laya-multilingual` ships no fitted temperatures at all -- see the README's

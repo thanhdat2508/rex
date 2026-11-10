@@ -35,7 +35,7 @@ from tokenizers.models import WordLevel  # noqa: E402
 from tokenizers.pre_tokenizers import Whitespace  # noqa: E402
 from transformers import BertConfig, BertModel, PreTrainedTokenizerFast  # noqa: E402
 
-from laya.common import DecisionModel  # noqa: E402
+from rex.common import DecisionModel  # noqa: E402
 from metrics import accuracy, brier_score, expected_calibration_error, soft_accuracy  # noqa: E402
 from prepare_data import case_to_record  # noqa: E402
 from run_benchmark import NOTEBOOK_HYPERPARAMS, build_command  # noqa: E402

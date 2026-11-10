@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT))
 os.environ.setdefault("USE_TF", "0")
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 import torch  # noqa: E402
-import laya  # noqa: E402
+import rex as laya  # noqa: E402
 from bench_long_context import FILLER, QUESTIONS  # noqa: E402
 import laya.common as common  # noqa: E402
 

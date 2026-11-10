@@ -1,8 +1,9 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Documentation
-    url: https://nandhakishorm.github.io/laya/
-    about: Installation, routing, serving, fine-tuning and prediction hooks.
-  - name: README and examples
-    url: https://github.com/NandhaKishorM/laya#readme
-    about: Quickstart, benchmarks and usage examples.
+  - name: Documentation and Quickstart
+    url: https://github.com/RequinLabs/rex#readme
+    about: Architecture, quickstart, and deployment guide.
+  - name: Security Disclosures
+    url: https://github.com/RequinLabs/rex/security/advisories/new
+    about: Privately report potential security vulnerabilities.
+

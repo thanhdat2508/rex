@@ -226,13 +226,10 @@ def _library_version() -> Optional[str]:
     already scored every row.
     """
     try:
-        import rex as _lib
+        from . import __version__
+        return __version__
     except Exception:  # pragma: no cover - identity only
-        try:
-            import laya as _lib
-        except Exception:
-            return None
-    return getattr(_lib, "__version__", None)
+        return None
 
 
 #: Which definition of the coverage metrics (`aurc`, `selective_accuracy@*`) produced a report.

@@ -40,7 +40,7 @@ from typing import Dict, List, Optional, Tuple
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from laya.lang import (  # noqa: E402
+from rex.lang import (  # noqa: E402
     _CODE_LINE, _JOINED, _LETTER_RUN, _STOP, _WORD, NON_EN_DIACRITIC_RATE, latin_profile)
 
 DATASET = "mteb/amazon_massive_intent"

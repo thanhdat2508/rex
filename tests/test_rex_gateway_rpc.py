@@ -1,9 +1,12 @@
 """Tests for Rex Gateway JSON-RPC 2.0 Protocol, WebSocket Session, and Dynamic Tools."""
 import asyncio
 import json
+import os
+import sys
 import unittest
 from typing import List
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import torch
 import torch.nn as nn
 

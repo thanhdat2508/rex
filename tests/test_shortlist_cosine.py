@@ -1,6 +1,10 @@
 import inspect
+import os
 import re
+import sys
 import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 from rex.shortlist import _cosine, predict_shortlist, shortlist_choice
 

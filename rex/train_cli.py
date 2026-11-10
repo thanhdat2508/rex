@@ -1,12 +1,12 @@
-"""`laya-train`: fine-tune a Laya checkpoint on labelled data (CSV or JSONL).
+"""`rex-train`: fine-tune a Rex checkpoint on labelled data (CSV or JSONL).
 
 Usage:
-    laya-train --data tickets.csv --text-column body --label-column department \\
-               --base convaiinnovations/laya --out ./my-checkpoint
+    rex-train --data tickets.csv --text-column body --label-column department \
+              --base convaiinnovations/rex --out ./my-checkpoint
 
-    laya-train --data train.jsonl --base multilingual --out ./my-checkpoint
+    rex-train --data train.jsonl --base multilingual --out ./my-checkpoint
 
-`laya train ...` dispatches here from the main CLI, so both spellings work.
+`rex train ...` dispatches here from the main CLI, so both spellings work.
 """
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ from typing import Optional, Sequence
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="laya-train",
-        description="Fine-tune a Laya checkpoint on labelled decisions (JSONL or CSV).",
+        prog="rex-train",
+        description="Fine-tune a Rex checkpoint on labelled decisions (JSONL or CSV).",
     )
     # Required data and output options
     parser.add_argument(
@@ -181,7 +181,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         from .train import TrainConfig, dry_run, finetune
     except ImportError as err:
         if "torch" in str(err).lower():
-            print("laya-train: error: PyTorch is required for training. Please install torch.",
+            print("rex-train: error: PyTorch is required for training. Please install torch.",
                   file=sys.stderr)
             return 1
         raise
@@ -228,10 +228,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print("Training complete! Model saved to %s" % summary["output_dir"])
         return 0
     except (ValueError, FileNotFoundError, TypeError) as err:
-        print("laya-train: error: %s" % (err,), file=sys.stderr)
+        print("rex-train: error: %s" % (err,), file=sys.stderr)
         return 1
     except Exception as err:
-        print("laya-train: unexpected error: %s" % (err,), file=sys.stderr)
+        print("rex-train: unexpected error: %s" % (err,), file=sys.stderr)
         return 1
 
 

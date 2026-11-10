@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Rex - Tài liệu Kiến trúc & Logic Hệ thống</title>
+<style>
+  @page {
+    size: A4;
+    margin: 16mm 14mm 16mm 14mm;
+    @bottom-right {
+      content: "Trang " counter(page);
+      font-size: 8pt;
+      color: #64748b;
+    }
+  }
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.55;
+    font-size: 9.5pt;
+    margin: 0;
+    padding: 0;
+  }
+  .page-break {
+    page-break-before: always;
+  }
+  .no-break {
+    page-break-inside: avoid;
+  }
+  
+  /* Header & Cover */
+  .cover {
+    text-align: center;
+    padding: 40px 20px 30px;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 25px;
+  }
+  .cover .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 9999px;
+    margin-bottom: 15px;
+  }
+  .cover h1 {
+    font-size: 22pt;
+    color: #0f172a;
+    margin: 0 0 10px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .cover .subtitle {
+    font-size: 11pt;
+    color: #475569;
+    max-width: 650px;
+    margin: 0 auto 15px;
+  }
+  .cover .meta {
+    font-size: 8.5pt;
+    color: #64748b;
+  }
+
+  /* Headings */
+  h2 {
+    font-size: 13.5pt;
+    color: #0f172a;
+    border-bottom: 1.5px solid #cbd5e1;
+    padding-bottom: 4px;
+    margin-top: 22px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    page-break-after: avoid;
+  }
+  h2 .num {
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 9pt;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-right: 8px;
+    font-weight: 700;
+  }
+  h3 {
+    font-size: 11pt;
+    color: #1e3a8a;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+  }
+  p {
+    margin: 0 0 8px;
+    text-align: justify;
+  }
+
+  /* Callout boxes */
+  .callout {
+    background: #f8fafc;
+    border-left: 4px solid #2563eb;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin: 10px 0;
+    font-size: 9pt;
+  }
+  .callout.alert {
+    background: #fef2f2;
+    border-left-color: #ef4444;
+  }
+  .callout.success {
+    background: #f0fdf4;
+    border-left-color: #10b981;
+  }
+  .callout.warning {
+    background: #fffbeb;
+    border-left-color: #f59e0b;
+  }
+  .callout strong {
+    color: #0f172a;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 8.5pt;
+  }
+  th, td {
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    text-align: left;
+  }
+  th {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-weight: 700;
+  }
+  tr:nth-child(even) td {
+    background: #f8fafc;
+  }
+
+  /* Code blocks */
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 8pt;
+    line-height: 1.45;
+    overflow-x: auto;
+    margin: 8px 0;
+    page-break-inside: avoid;
+  }
+  code {
+    font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    font-size: 8.5pt;
+    background: #f1f5f9;
+    color: #b91c1c;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+  }
+
+  /* Diagrams & Visual boxes */
+  .diagram-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px;
+    margin: 12px 0;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+  .diagram-title {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 10px;
+  }
+
+  /* Grid layout for cards */
+  .grid-2 {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0;
+  }
+  .card {
+    flex: 1;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 8.5pt;
+  }
+  .card h4 {
+    margin: 0 0 4px;
+    color: #1e3a8a;
+    font-size: 9.5pt;
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER SECTION -->
+<div class="cover">
+  <div class="badge">Kiến Trúc & Vận Hành Hệ Thống</div>
+  <h1>REX DECISION ENGINE</h1>
+  <div class="subtitle">Tài liệu Kỹ thuật Toàn diện: Logic Điều tra Sự cố Đa vòng (Multi-Turn Investigation) dựa trên Nguyên lý Loại trừ Popperian (PoE) & Khung Giả thuyết MECE</div>
+  <div class="meta">Phiên bản: 1.2.0 • Trạng thái: Production Architecture • Bản quyền: RequinLabs / Rex Team</div>
+</div>
+
+<!-- CHƯƠNG 1 -->
+<h2><span class="num">1</span> Tổng Quan Kiến Trúc & Bối Cảnh Chuyển Đổi</h2>
+<p>
+  <strong>Rex</strong> được phát triển nhằm giải quyết triệt để bài toán xác thực và điều tra rủi ro (Risk-Based Authentication - RBA, Fraud & Trust/Safety) với độ trễ cực thấp (<strong>SLA &lt; 1 giây</strong>). Trước khi được modify, nền tảng <strong>Laya</strong> gốc hoạt động như một System 1 Router định tuyến tĩnh đơn vòng. Quá trình modify đã chuyển đổi hoàn toàn Rex thành một <strong>Interactive Closed-Loop Investigation Engine</strong> (Động cơ điều tra khép kín đa vòng tương tác) với 4 trụ cột công nghệ:
+</p>
+
+<div class="grid-2">
+  <div class="card">
+    <h4>1. Khung Giả thuyết MECE</h4>
+    <p>Thay thế hàng trăm nhãn tĩnh vụn vặt bằng 4 nguyên nhân vật lý cốt lõi: <code>H_botnet</code> (Tự động), <code>H_sybil</code> (Gian lận người), <code>H_shared</code> (Hạ tầng chung/Benign), và <code>H_novel</code> (Zero-day).</p>
+  </div>
+  <div class="card">
+    <h4>2. Phản Bác Thực Nghiệm (PoE)</h4>
+    <p>Áp dụng nguyên lý Karl Popper: Không chứng minh giả thuyết đúng, mà dùng bằng chứng thực nghiệm để <strong>bác bỏ đơn điệu</strong> (Falsification) các nhánh vi phạm điều kiện cần.</p>
+  </div>
+</div>
+<div class="grid-2">
+  <div class="card">
+    <h4>3. Dual-Head Multi-Task</h4>
+    <p>Tích hợp đồng thời <code>ToolMLPHead</code> (chọn công cụ lấy bằng chứng theo ngân sách K_t) và <code>SharedVerdictHead</code> (đánh giá xác suất giả thuyết) trong 1 forward pass duy nhất.</p>
+  </div>
+  <div class="card">
+    <h4>4. Outbound-Only MCP Security</h4>
+    <p>Tuyệt đối không mở port Inbound vào mạng khách hàng. Kết nối điều tra qua Outbound WebSocket/MCP với cơ chế tự động làm sạch PII (Sanitization) và quyền Read-Only.</p>
+  </div>
+</div>
+
+<!-- CHƯƠNG 2 -->
+<h2><span class="num">2</span> Kiến Trúc Mạng Nơ-Ron (Neural Architecture)</h2>
+<p>
+  Mô hình Rex sử dụng Transformer Encoder nền tảng (ModernBERT hoặc BERT) với cơ chế biểu diễn nén thông minh và can thiệp trực tiếp vào Self-Attention:
+</p>
+
+<h3>2.1. Cấu trúc Token Layout Chuẩn Hóa</h3>
+<pre><code>[CLS] &lt;TASK_RISK_INVESTIGATION&gt; instructions [SEP] [MASK]_0 H_botnet [MASK]_1 H_sybil [MASK]_2 H_shared [MASK]_3 H_novel [SEP] state_t [SEP]</code></pre>
+<ul>
+  <li><strong>Invariant Prefix:</strong> Vùng Header (chứa chỉ dẫn và 4 mô tả giả thuyết MECE dài chuẩn hóa 10-25 token) luôn được giữ bất biến, đảm bảo vị trí các token <code>[MASK]</code> không bao giờ bị lệch.</li>
+  <li><strong>Compact State & Left-Truncation:</strong> Telemetry được định dạng dạng <code>k=v</code> (bỏ cú pháp JSON rác, tiết kiệm ~50% token). Nếu vượt quá <code>max_len=512</code>, cơ chế <em>Left-Truncation</em> sẽ cắt telemetry cũ, ưu tiên bằng chứng mới nhất.</li>
+</ul>
+
+<h3>2.2. Trích xuất Vector & Các Đầu Mạng (Dual-Head Projections)</h3>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 22%;">Thành phần</th>
+      <th style="width: 25%;">Đầu vào</th>
+      <th style="width: 28%;">Cấu trúc Layer</th>
+      <th style="width: 25%;">Đầu ra / Vai trò</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>ToolMLPHead</strong></td>
+      <td>Vector toàn cảnh <code>h_CLS</code> tại vị trí <code>[CLS]</code></td>
+      <td><code>Linear(D, D) &rarr; LayerNorm &rarr; GELU &rarr; Dropout &rarr; Linear(D, 4)</code></td>
+      <td>Logits của 4 Semantic Slots: Network, Device, Behavior, Graph.</td>
+    </tr>
+    <tr>
+      <td><strong>SharedVerdictHead</strong></td>
+      <td>4 vector <code>h_MASK_j</code> tại vị trí 4 token <code>[MASK]</code></td>
+      <td>1 ma trận dùng chung <code>Linear(D, 1)</code> cho cả 4 vị trí mask</td>
+      <td>Verdict Logits chấm điểm độ tin cậy của 4 giả thuyết MECE.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>2.3. Hai Cơ Chế Kiểm Soát Loại Trừ (PoE Control Mechanisms)</h3>
+<div class="callout success">
+  <strong>1. 4D Additive PoE Attention Bias Tensor [B, 1, S, S]:</strong> Can thiệp thẳng vào ma trận Self-Attention của Transformer. Khi một giả thuyết H_j bị bác bỏ (M_j = 0), toàn bộ liên kết attention giữa token của H_j với [CLS] và telemetry state_t bị gán -10000.0 (ép attention weight về 0). Biểu diễn ngữ nghĩa hoàn toàn không bị phân tâm bởi các nhánh đã chết.
+</div>
+<div class="callout warning">
+  <strong>2. Hard Logit Masking &amp; Dồn Tỷ Trọng H_novel:</strong> Logit của giả thuyết bị loại bị gán z_j = -10000.0, khiến xác suất Softmax triệt tiêu về 0. Nếu cả 3 giả thuyết đã biết bị bác bỏ (M=[0,0,0,1]), toàn bộ 100% xác suất tự động dồn về slot thặng dư H_novel.
+</div>
+
+<div class="page-break"></div>
+
+<!-- CHƯƠNG 3 -->
+<h2><span class="num">3</span> Chu Trình Điều Tra Đa Vòng (Multi-Turn Investigation Loop)</h2>
+<p>
+  Quá trình điều tra diễn ra theo nguyên lý phễu ngân sách (Funnel Budget): <strong>K_1 = 3 (Khám phá rộng) &rarr; K_2 = 2 (Khoanh vùng) &rarr; K_3 = 1 (Xác minh dứt điểm)</strong>.
+</p>
+
+<!-- SVG DIAGRAM -->
+<div class="diagram-box">
+  <div class="diagram-title">SƠ ĐỒ LUỒNG ĐIỀU TRA KHÉP KÍN ĐA VÒNG (MULTI-TURN CLOSED LOOP)</div>
+  <svg viewBox="0 0 720 280" style="width: 100%; max-height: 250px;" xmlns="http://www.w3.org/2000/svg">
+    <!-- Node 1: Alert Ingestion -->
+    <rect x="10" y="105" width="120" height="60" rx="6" fill="#fce4ec" stroke="#c2185b" stroke-width="1.5"/>
+    <text x="70" y="130" font-size="9" font-weight="bold" fill="#880e4f" text-anchor="middle">1. Alert Ingest</text>
+    <text x="70" y="145" font-size="7.5" fill="#880e4f" text-anchor="middle">ContextHub Sanitize</text>
+    <text x="70" y="157" font-size="7" fill="#880e4f" text-anchor="middle">Mask M=[1,1,1,1]</text>
+
+    <!-- Arrow 1 -> 2 -->
+    <path d="M 130 135 L 160 135" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- Node 2: Rule Sync & Forward -->
+    <rect x="160" y="95" width="140" height="80" rx="6" fill="#e0f2fe" stroke="#0288d1" stroke-width="1.5"/>
+    <text x="230" y="118" font-size="9" font-weight="bold" fill="#01579b" text-anchor="middle">2. Model Forward</text>
+    <text x="230" y="133" font-size="7.5" fill="#01579b" text-anchor="middle">Static PoE Rule Sync</text>
+    <text x="230" y="146" font-size="7.5" fill="#01579b" text-anchor="middle">4D PoE Attention Bias</text>
+    <text x="230" y="160" font-size="7" fill="#01579b" text-anchor="middle">Tool & Verdict Logits</text>
+
+    <!-- Arrow 2 -> 3 -->
+    <path d="M 300 135 L 330 135" stroke="#475569" stroke-width="1.5"/>
+
+    <!-- Node 3: Tool Selection & Early Exit -->
+    <polygon points="390,95 450,135 390,175 330,135" fill="#fff9c4" stroke="#fbc02d" stroke-width="1.5"/>
+    <text x="390" y="132" font-size="8" font-weight="bold" fill="#f57f17" text-anchor="middle">3. Chọn Tool?</text>
+    <text x="390" y="144" font-size="7" fill="#f57f17" text-anchor="middle">K_t & Early Exit</text>
+
+    <!-- Path Next Turn: 3 -> 4 -> 5 -> 2 -->
+    <path d="M 390 95 L 390 35 L 480 35" stroke="#2563eb" stroke-width="1.5" fill="none"/>
+    <text x="425" y="27" font-size="7" font-weight="bold" fill="#2563eb">Cần thêm chứng cứ (t &lt; 3)</text>
+
+    <!-- Node 4: Dispatch & Sanitize -->
+    <rect x="480" y="10" width="130" height="50" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+    <text x="545" y="30" font-size="8.5" font-weight="bold" fill="#1e293b" text-anchor="middle">4. MCP Tool Dispatch</text>
+    <text x="545" y="44" font-size="7" fill="#475569" text-anchor="middle">Read-Only + PII Masking</text>
+
+    <!-- Node 5: Falsification Update -->
+    <rect x="625" y="10" width="85" height="50" rx="6" fill="#e8f5e9" stroke="#388e3c" stroke-width="1.5"/>
+    <text x="667" y="30" font-size="8" font-weight="bold" fill="#1b5e20" text-anchor="middle">5. Update Mask</text>
+    <text x="667" y="44" font-size="7" fill="#1b5e20" text-anchor="middle">PoE M_j = 0</text>
+
+    <!-- Loopback to Node 2 -->
+    <path d="M 667 60 L 667 80 L 230 80 L 230 95" stroke="#2563eb" stroke-width="1.5" fill="none" stroke-dasharray="3,3"/>
+    <text x="450" y="75" font-size="7" fill="#2563eb" text-anchor="middle">Loop Turn t = t + 1</text>
+
+    <!-- Path Terminate: 3 -> 6 -->
+    <path d="M 450 135 L 490 135" stroke="#059669" stroke-width="1.5"/>
+    <text x="470" y="128" font-size="7" font-weight="bold" fill="#059669">Hội tụ / Hết round</text>
+
+    <!-- Node 6: Final Verdict Action -->
+    <rect x="490" y="100" width="220" height="130" rx="6" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+    <text x="600" y="120" font-size="9" font-weight="bold" fill="#065f46" text-anchor="middle">6. TERMINATION & ACTION DISPATCH</text>
+    <line x1="500" y1="128" x2="700" y2="128" stroke="#a7f3d0" stroke-width="1"/>
+    <text x="505" y="145" font-size="7.5" font-weight="bold" fill="#065f46">• H_botnet &rarr; Runbook: PoW, Null-route IP</text>
+    <text x="505" y="162" font-size="7.5" font-weight="bold" fill="#065f46">• H_sybil &rarr; Runbook: Freeze Payout, Quarantine</text>
+    <text x="505" y="179" font-size="7.5" font-weight="bold" fill="#065f46">• H_shared &rarr; Runbook: Allow, CGNAT Whitelist</text>
+    <text x="505" y="196" font-size="7.5" font-weight="bold" fill="#b91c1c">• H_novel &rarr; Shadow Friction + Dossier +</text>
+    <text x="550" y="210" font-size="7" font-weight="bold" fill="#b91c1c">Vectorized WAF Backtest (FPR &le; 0.01%)</text>
+
+    <!-- Marker definition -->
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+      </marker>
+    </defs>
+  </svg>
+</div>
+
+<h3>3.1. Các Bước Vận Hành Chi Tiết Trong Mỗi Turn</h3>
+<ol>
+  <li><strong>Đồng bộ Rule phản bác trước Forward (Static PoE Synchronization):</strong> Kiểm tra tập luật điều kiện cần với telemetry hiện tại. Giả thuyết nào vi phạm điều kiện cần lập tức bị đánh dấu <code>M_j = 0</code>, ngăn chặn mô hình chọn nhầm tool của nhánh đã chết.</li>
+  <li><strong>Mô hình suy luận &amp; Chọn Tool song song (Parallel Tool Selection):</strong> Đầu <code>ToolMLPHead</code> sinh logit. Rex áp dụng <em>Inverse Tool Masking</em> (khóa các tool thuộc nhánh đã chết), lọc ngưỡng sàn (&ge; 0.35), lọc biên độ tương đối (max_score - 0.15) và giới hạn ngân sách <code>budget_k</code>.</li>
+  <li><strong>Thực thi Tool an toàn (Client Execution):</strong> Gửi lệnh dispatch ra Client SDK qua MCP/WebSocket. Dữ liệu thô trả về đi qua hàm <code>sanitize_telemetry()</code> lọc sạch email, token, số thẻ trước khi nạp vào bộ nhớ phiên điều tra.</li>
+  <li><strong>Bác bỏ thực nghiệm sau khi có telemetry (Post-Tool Falsification):</strong> Bác bỏ đơn điệu thêm các giả thuyết vi phạm bằng chứng mới thu thập.</li>
+  <li><strong>Kiểm tra hội tụ (Convergence &amp; Early-Exit):</strong> Nếu đạt độ tự tin cao (Confidence &ge; 0.95), hoặc chỉ còn duy nhất 1 giả thuyết, hoặc không còn tool nào cần gọi &rarr; Lập tức dừng phiên điều tra mà không cần chạy hết 3 round.</li>
+</ol>
+
+<!-- CHƯƠNG 4 -->
+<h2><span class="num">4</span> Cơ Chế Gọi Tool Khách Hàng (MCP & Client Dispatcher)</h2>
+<p>
+  Rex không gọi trực tiếp tên hàm nội bộ của khách hàng (như <code>query_user_db()</code>). Thay vào đó, Rex xây dựng cầu nối qua <strong>4 Semantic Tool Slots</strong>:
+</p>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 20%;">Semantic Slot</th>
+      <th style="width: 45%;">Bằng chứng / Telemetry thu thập</th>
+      <th style="width: 35%;">Liên kết Falsification MECE</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>SLOT_NETWORK</code></td>
+      <td>IP reputation, ASN, Carrier CGNAT, Proxy/VPN, TLS JA3/JA4, TCP RTT</td>
+      <td>Phản bác H_botnet, Xác nhận H_shared</td>
+    </tr>
+    <tr>
+      <td><code>SLOT_DEVICE</code></td>
+      <td>Canvas/WebGL hash, Anti-detect browser, Webdriver flags, VM detection</td>
+      <td>Phản bác H_botnet, H_sybil</td>
+    </tr>
+    <tr>
+      <td><code>SLOT_BEHAVIOR</code></td>
+      <td>Mouse entropy/curvature, nhịp gõ phím jitter, touch dynamics, request velocity</td>
+      <td>Phản bác H_botnet, Xác minh người dùng thật</td>
+    </tr>
+    <tr>
+      <td><code>SLOT_GRAPH</code></td>
+      <td>Entity relationship graph, cookie clusters, multi-account syndicate trees</td>
+      <td>Xác minh/Phản bác H_sybil, H_shared</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>Giao thức Kết nối Outbound MCP:</strong> Client SDK phía khách hàng (Python hoặc TypeScript trong <code>rex-sdk</code>) chủ động mở kết nối ra ngoài (outbound) tới Rex Engine. Khi Rex cần dữ liệu, nó gửi message JSON-RPC chuẩn: <code>{"method": "tools/call", "params": {"slots": ["SLOT_NETWORK", "SLOT_DEVICE"]}}</code>. Client chạy hàm nội bộ của mình trong mạng riêng rồi trả JSON về. Không có bất kỳ cổng mạng nào bị mở ra ngoài Internet!
+</div>
+
+<div class="page-break"></div>
+
+<!-- CHƯƠNG 5 -->
+<h2><span class="num">5</span> Cấu Trúc Output & Phân Nhánh Xử Lý Sự Cố</h2>
+
+<h3>5.1. Dữ liệu Output Final (InvestigationSession Summary)</h3>
+<p>Khi phiên điều tra kết thúc, API trả về cấu trúc JSON kiểm toán hoàn chỉnh:</p>
+<pre><code>{
+  "session_id": "inv_94b3785e",
+  "domain_type": "&lt;TYPE_CREDENTIAL_STUFFING&gt;",
+  "total_rounds": 2,
+  "total_latency_ms": 215.8,
+  "final_verdict": "H_shared",
+  "final_confidence": 0.9625,
+  "is_terminated": true,
+  "termination_reason": "CONFIDENCE_CONVERGENCE",
+  "final_hypothesis_mask": {"H_botnet": 0, "H_sybil": 0, "H_shared": 1, "H_novel": 1},
+  "falsified_trail": [
+    {"round": 1, "slots_called": ["SLOT_NETWORK", "SLOT_DEVICE"], "falsified": ["H_botnet"]},
+    {"round": 2, "slots_called": ["SLOT_GRAPH"], "falsified": ["H_sybil"]}
+  ],
+  "action_payload": { ... }
+}</code></pre>
+
+<h3>5.2. Phân Nhánh Xử Lý Hành Động (Action Dispatch)</h3>
+<div class="grid-2">
+  <div class="card" style="border-left: 4px solid #10b981;">
+    <h4>Nhánh Nguyên Nhân Đã Biết (Known Causes)</h4>
+    <p>Tự động gán <strong>Runbook tự động</strong>:</p>
+    <ul>
+      <li><strong>H_botnet:</strong> Bật dynamic Proof-of-Work, null-route IP cụm proxy dân cư, chặn trình duyệt headless.</li>
+      <li><strong>H_sybil:</strong> Đóng băng payout/giao dịch, cô lập fingerprint cluster, thu hồi voucher gian lận.</li>
+      <li><strong>H_shared:</strong> Cho phép pass (Allow), whitelist dải CGNAT, hạ cảnh báo an ninh về telemetry thường.</li>
+    </ul>
+  </div>
+  <div class="card" style="border-left: 4px solid #dc2626;">
+    <h4>Nhánh Bất Thường / Zero-Day (H_novel)</h4>
+    <p>Kích hoạt bộ 3 giải pháp độc quyền:</p>
+    <ul>
+      <li><strong>Shadow Friction:</strong> Làm chậm âm thầm kẻ tấn công mà không làm bộc lộ bẫy.</li>
+      <li><strong>SecOps Audit Dossier:</strong> Đóng gói hồ sơ đầy đủ telemetry cho SOC điều tra thủ công.</li>
+      <li><strong>Vectorized WAF Backtest:</strong> Tự động sinh Candidate WAF Rule, backtest trên 100.000 bản ghi trong &lt; 1ms qua <code>ColumnarTrafficCache</code>. Nếu FPR &le; 0.01% &rarr; tự động đẩy lên WAF chặn thật.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- CHƯƠNG 6 -->
+<h2><span class="num">6</span> Cơ Chế Huấn Luyện &amp; Tối Ưu (Training &amp; Loss Dynamics)</h2>
+<p>
+  Rex được huấn luyện Multi-task khép kín thông qua tổ hợp <code>RexMultiTaskLoss</code>:
+</p>
+<ul>
+  <li><strong>Tool Asymmetric Focal Loss (L_tool):</strong> Áp dụng hệ số phạt bất đối xứng &gamma;_{neg} = 2.0 cho nhãn âm, triệt tiêu ảnh hưởng của hiện tượng thưa nhãn (Label Sparsity) trong việc kích hoạt tool. Bias của ToolHead được khởi tạo bằng <code>logit(prior)</code>.</li>
+  <li><strong>Cost-Sensitive PoE Masked Cross-Entropy Loss (L_verdict):</strong> Phạt nặng gấp nhiều lần đối với lỗi False Positive trên nhánh người dùng thật (H_shared bị đoán nhầm thành Botnet).</li>
+  <li><strong>Tool Orthogonal Loss (L_ortho):</strong> Ép các vector trọng số chiếu của 4 tool slot trực giao với nhau, đảm bảo mỗi slot đại diện cho một chiều không gian thông tin độc lập, không bị suy biến hay chồng chéo tính năng.</li>
+</ul>
+
+<!-- CHƯƠNG 7 -->
+<h2><span class="num">7</span> Cam Kết Hiệu Năng &amp; Chỉ Số Vận Hành (SLAs)</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Chỉ số Vận Hành</th>
+      <th>Mục Tiêu / Thực Tế</th>
+      <th>Ý Nghĩa Nghiệp Vụ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Độ trễ toàn chu trình (SLA)</strong></td>
+      <td><strong>&lt; 1.0 giây (Sub-second)</strong></td>
+      <td>Đảm bảo hoàn thành cả 3 round điều tra khép kín mà không ảnh hưởng trải nghiệm người dùng đăng nhập.</td>
+    </tr>
+    <tr>
+      <td><strong>Thời gian Backtest WAF Rule</strong></td>
+      <td><strong>&lt; 1.0 ms</strong></td>
+      <td>Kiểm tra an toàn trên 100.000 bản ghi lịch sử tức thì nhờ bộ đệm mảng cột vector hóa NumPy.</td>
+    </tr>
+    <tr>
+      <td><strong>Tỷ lệ Báo động Giả trên Người thật</strong></td>
+      <td><strong>FPR &le; 0.01% (&le; 1/10,000)</strong></td>
+      <td>Tuyệt đối không chặn nhầm khách hàng hợp lệ sử dụng mạng di động CGNAT hoặc Wi-Fi công cộng.</td>
+    </tr>
+    <tr>
+      <td><strong>Tiết kiệm Chi Phí Telemetry</strong></td>
+      <td><strong>~40% Cost Reduction</strong></td>
+      <td>Chính sách Asymmetric Early-Exit giảm số round trung bình từ 3.0 xuống còn ~1.6 - 1.8 turns.</td>
+    </tr>
+    <tr>
+      <td><strong>Bảo vệ Mạng Doanh Nghiệp</strong></td>
+      <td><strong>Zero Inbound Ports</strong></td>
+      <td>100% kết nối qua Outbound WebSocket/MCP; dữ liệu tự động khử PII trước khi đưa vào mô hình.</td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

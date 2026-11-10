@@ -37,7 +37,7 @@ def memory():
 
 
 def make_router(checkpoint):
-    from laya.router import Router
+    from rex.router import Router
     router = Router(models={"english": str(checkpoint)}, device="mps")
     router.preload(["english"])
     return router
@@ -45,7 +45,7 @@ def make_router(checkpoint):
 
 def idle_benchmark(args):
     from fastapi.testclient import TestClient
-    from laya.serve import create_app
+    from rex.serve import create_app
 
     enabled = args.mode == "idle-on"
     os.environ["LAYA_IDLE_UNLOAD_SECONDS"] = str(args.idle_seconds if enabled else 0)
@@ -90,7 +90,7 @@ def mcp_benchmark(args):
         os.environ["LAYA_BASE_URL"] = args.base_url
     else:
         os.environ.pop("LAYA_BASE_URL", None)
-    from laya.mcp import server
+    from rex.mcp import server
 
     imported_rss = rss_mb()
     if args.mode == "mcp-local":
@@ -136,7 +136,7 @@ def main():
     os.environ.pop("LAYA_API_KEY", None)
     if args.mode == "serve":
         import uvicorn
-        from laya.serve import create_app
+        from rex.serve import create_app
         os.environ["LAYA_IDLE_UNLOAD_SECONDS"] = "0"
         router = make_router(args.checkpoint)
         try:

@@ -48,9 +48,9 @@ def get_available_presets() -> dict[str, dict[str, Any]]:
     them, so a preset added in a newer version shows up here as soon as it is importable.
     """
     try:
-        import rex as laya
+        import rex as rex_mod
     except Exception:
-        import laya
+        rex_mod = None
 
     aliases: dict[str, list[str]] = {}
     for alias, target in PRESET_ALIASES.items():
@@ -61,7 +61,7 @@ def get_available_presets() -> dict[str, dict[str, Any]]:
         entry: dict[str, Any] = {"questions": attr}
         if name in aliases:
             entry["aliases"] = sorted(aliases[name])
-        builder = getattr(laya, attr, None)
+        builder = getattr(rex_mod, attr, None) if rex_mod else None
         if builder is not None:
             questions = builder()
             entry["n_questions"] = len(questions)
@@ -891,11 +891,14 @@ def laya_preset(
 
 def _remote_status(router: Any, preload: bool) -> dict:
     """``laya_status`` for a remote router: the server's own /health, no torch import here."""
-    versions: dict[str, str | None] = {"laya": None}
-    try:
-        versions["laya"] = getattr(__import__("laya"), "__version__", "unknown")
-    except Exception:
-        pass
+    versions: dict[str, str | None] = {"rex": None, "laya": None}
+    for pkg in ("rex", "laya"):
+        try:
+            versions[pkg] = getattr(__import__(pkg), "__version__", "unknown")
+        except Exception:
+            pass
+    if versions["laya"] is None and versions["rex"] is not None:
+        versions["laya"] = versions["rex"]
     out: dict[str, Any] = {
         "mode": "remote",
         "base_url": router.base_url,
@@ -924,16 +927,19 @@ def laya_status(*, router: Any = None, loaded: list[str] | None = None, preload:
         return _remote_status(router, preload)
     report = device_report()
     versions: dict[str, str | None] = {
+        "rex": None,
         "laya": None,
         "torch": report.get("torch_version"),
         "transformers": None,
     }
-    for pkg in ("laya", "transformers"):
+    for pkg in ("rex", "laya", "transformers"):
         try:
             mod = __import__(pkg)
             versions[pkg] = getattr(mod, "__version__", "unknown")
         except Exception:
             versions[pkg] = None
+    if versions["laya"] is None and versions["rex"] is not None:
+        versions["laya"] = versions["rex"]
 
     if loaded is None and router is not None:
         try:
@@ -1284,3 +1290,15 @@ def laya_decide(
     if device:
         out["device"] = device
     return out
+
+
+# Canonical rex_* aliases for MCP tool implementations
+rex_predict = laya_predict
+rex_route = laya_route
+rex_shortlist = laya_shortlist
+rex_preset = laya_preset
+rex_status = laya_status
+rex_predict_batch = laya_predict_batch
+rex_route_batch = laya_route_batch
+rex_decide = laya_decide
+

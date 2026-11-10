@@ -129,7 +129,7 @@ for name, repo in REPOS.items():
     print("   ", json.dumps({k: v for k, v in MODEL_META[name].items() if k != "temperature_by_options"}))
 
 def load_agent(name):
-    import laya
+    import rex as laya
     ag = laya.load(PATHS[name], device="cuda")
     try:
         ag.model.encoder.config.reference_compile = False   # torch.compile hurts on T4-class GPUs
@@ -145,7 +145,7 @@ def load_agent(name):
 import json, math, sys, time
 import numpy as np
 import torch
-from laya.common import QTYPES, build_sequence, collate_items, render_options, temp_bucket
+from rex.common import QTYPES, build_sequence, collate_items, render_options, temp_bucket
 
 def to_internal(qdef):
     t = qdef["type"]
@@ -688,7 +688,7 @@ than a property of the model."""),
     code("""
 import numpy as np
 import bench_engine as BE
-from laya.common import temp_bucket
+from rex.common import temp_bucket
 
 RESULTS["calibration_repair"] = {}
 for model_name in REPOS:

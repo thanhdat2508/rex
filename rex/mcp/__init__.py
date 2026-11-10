@@ -1,13 +1,13 @@
-"""MCP (Model Context Protocol) stdio server for Laya (optional extra).
+"""MCP (Model Context Protocol) stdio server for Rex (optional extra).
 
 Install the extra to use it:
 
-    pip install "laya[mcp]"
+    pip install "rex[mcp]"
 
 Then run the server:
 
-    laya-mcp-server            # console script
-    python -m laya.mcp.server  # equivalent module form
+    rex-mcp-server            # console script
+    python -m rex.mcp.server  # equivalent module form
 
 The submodules ``device`` and ``tools`` are importable without the ``mcp``
 dependency; ``server`` requires the extra.

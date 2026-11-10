@@ -1,519 +1,1633 @@
 # ======================================================================================
-# REX RBA DATASET REGISTRY (Popperian MECE Demarcation)
-# Dataset: https://www.kaggle.com/datasets/dasgroup/rba-dataset
-# Risk-Based Authentication, Credential Stuffing & Account Takeover Defense
-# Grounded strictly in RBA Schema: Mouse Dynamics, Keystroke Jitter, Device Fingerprints, IP Velocity
-# Calibrated Hypothesis Density: 18-25 words per hypothesis for optimal token attention
+# REX RBA HYPOTHESIS REGISTRY v2.0.0 (Popperian MECE Demarcation)
+# Dataset: https://www.kaggle.com/datasets/dasgroup/rba-dataset  (31,269,264 rows profiled)
+# Changes vs 1.0.0:
+#   - verdict_class (LEGIT / FRAUD / ESCALATE) on every hypothesis + hypothesis_verdict_map
+#   - availability per criterion: rba_dataset | client_sdk_only (missing data never falsifies)
+#   - falsifiers re-grounded on RBA columns (IP, ASN, UA, Device Type, timestamp, success)
+#   - removed self-contradicting falsifiers (is_datacenter / is_cgnat vs H_shared wording,
+#     users_on_ip_24h == 1 and canvas_cluster_size == 1 vs single-victim manual ATO)
+#   - 5 new dataset-grounded domain types; ground_truth_mapping for training/evaluation
+#   - fixed 4 hypotheses per domain (H_botnet, H_sybil, H_shared, H_novel) to match Rex token layout
 # ======================================================================================
 
-version: "1.0.0"
-
+version: 2.0.0
+dataset:
+  name: Login Data Set for Risk-Based Authentication (Wiefling et al., ACM TOPS 2022)
+  url: https://www.kaggle.com/datasets/dasgroup/rba-dataset
+  mirror: https://github.com/das-group/rba-dataset
+  rows_profiled: 31269264
+  columns:
+    - index
+    - Login Timestamp
+    - User ID
+    - Round-Trip Time [ms]
+    - IP Address
+    - Country
+    - Region
+    - City
+    - ASN
+    - User Agent String
+    - Browser Name and Version
+    - OS Name and Version
+    - Device Type
+    - Login Successful
+    - Is Attack IP
+    - Is Account Takeover
+  known_artifacts:
+    sentinel_user_id: -4324475583306591935
+    sentinel_note: "14,025,899 rows (45%), only 4 successes: pooled attempts on non-existent accounts. Must be derived into graph.account_exists=false, never treated as one real user."
+    rtt_missing_ratio: 0.953
+    synthetic_ip_asn: ASN >= 500000 or IP in 10.0.0.0/8 are synthetic placeholders; set network.is_synthetic_artifact=true and skip ASN/IP-reputation falsifiers.
+    geo_unreliable: Country/Region/City were reassigned per unique value; geo-velocity is meaningless on RBA (only per-user novelty is preserved).
+    absent_telemetry:
+      - mouse
+      - keystroke
+      - touch
+      - canvas/WebGL
+      - hardware attestation
+      - session/cookie
+      - datacenter/CGNAT ASN type
+verdict_classes:
+  LEGIT: Allow; benign explanation survived falsification.
+  FRAUD: Block / step-up / runbook; malicious explanation survived.
+  ESCALATE: Residual H_novel; send to Fraud Ops with dossier and falsification trail.
+hypothesis_verdict_map:
+  H_botnet: FRAUD
+  H_sybil: FRAUD
+  H_shared: LEGIT
+  H_novel: ESCALATE
+falsification_policy:
+  semantics: Each criterion is an independent violation of a necessary condition; any satisfied criterion sets M_j = 0.
+  missing_data: skip
+  missing_data_note: A metric that is absent, null, or below min_support never falsifies. client_sdk_only criteria are therefore inert on RBA.
+  residual_guard: H_novel is never falsified.
+  cost_asymmetry: Falsifying H_shared (LEGIT) requires the strictest thresholds, consistent with the cost-sensitive verdict loss.
+feature_catalog:
+  network.ip_is_reputation_listed:
+    slot: SLOT_NETWORK_REPUTATION
+    source: Is Attack IP
+    type: bool
+    availability: rba_dataset
+    note: Trigger/supporting only; never a falsifier (label leakage).
+  network.ip_prior_success_days_for_user:
+    slot: SLOT_NETWORK_REPUTATION
+    source: IP Address, User ID, Login Timestamp, Login Successful
+    type: int
+    availability: rba_dataset
+    note: Days since this IP first gave this user a successful login; null if never.
+  network.asn_seen_for_user:
+    slot: SLOT_NETWORK_REPUTATION
+    source: ASN history of successful logins
+    type: bool
+    availability: rba_dataset
+  network.country_seen_for_user:
+    slot: SLOT_NETWORK_REPUTATION
+    source: Country history of successful logins
+    type: bool
+    availability: rba_dataset
+  network.context_novelty_count:
+    slot: SLOT_NETWORK_REPUTATION
+    source: Country, ASN, User Agent String vs user history
+    type: int 0-3
+    availability: rba_dataset
+  network.ip_distinct_users_24h:
+    slot: SLOT_NETWORK_REPUTATION
+    source: IP Address, User ID
+    type: int
+    availability: rba_dataset
+  network.ip_attempts_1h:
+    slot: SLOT_NETWORK_REPUTATION
+    source: IP Address, Login Timestamp
+    type: int
+    availability: rba_dataset
+  network.ip_failure_rate_24h_known_accounts:
+    slot: SLOT_NETWORK_REPUTATION
+    source: Login Successful excl. sentinel
+    type: float
+    availability: rba_dataset
+  network.ip_unknown_account_rate_24h:
+    slot: SLOT_NETWORK_REPUTATION
+    source: share of sentinel User ID per IP
+    type: float
+    availability: rba_dataset
+  network.is_synthetic_artifact:
+    slot: SLOT_NETWORK_REPUTATION
+    source: ASN>=500000 or 10.0.0.0/8
+    type: bool
+    availability: rba_dataset
+  network.rtt_ms:
+    slot: SLOT_NETWORK_REPUTATION
+    source: Round-Trip Time [ms]
+    type: int
+    availability: rba_dataset
+    note: 95.3% missing; supporting only.
+  network.geo_velocity_kmh:
+    slot: SLOT_NETWORK_REPUTATION
+    type: float
+    availability: client_sdk_only
+  network.is_datacenter:
+    slot: SLOT_NETWORK_REPUTATION
+    type: bool
+    availability: client_sdk_only
+    note: "Removed from H_shared falsifiers: contradicts corporate-VPN wording."
+  network.is_cgnat:
+    slot: SLOT_NETWORK_REPUTATION
+    type: bool
+    availability: client_sdk_only
+    note: "Removed from H_shared falsifiers: H_shared also covers non-CGNAT benign paths."
+  device.type:
+    slot: SLOT_DEVICE_FINGERPRINT
+    source: Device Type
+    type: enum[mobile,desktop,tablet,bot,unknown,empty]
+    availability: rba_dataset
+  device.ua_seen_for_user:
+    slot: SLOT_DEVICE_FINGERPRINT
+    source: User Agent String history
+    type: bool
+    availability: rba_dataset
+  device.browser_family_seen_for_user:
+    slot: SLOT_DEVICE_FINGERPRINT
+    source: Browser Name and Version (family only)
+    type: bool
+    availability: rba_dataset
+    note: Same family, newer version = browser update (benign).
+  device.ua_parse_failed:
+    slot: SLOT_DEVICE_FINGERPRINT
+    source: Device Type empty
+    type: bool
+    availability: rba_dataset
+  device.ua_prior_success_days_for_user:
+    slot: SLOT_DEVICE_FINGERPRINT
+    source: User Agent String, Login Timestamp
+    type: int
+    availability: rba_dataset
+  device.cloned_hardware:
+    slot: SLOT_DEVICE_FINGERPRINT
+    type: bool
+    availability: client_sdk_only
+  device.session_fingerprint_changed:
+    slot: SLOT_DEVICE_FINGERPRINT
+    type: bool
+    availability: client_sdk_only
+  behavior.user_failures_1h:
+    slot: SLOT_BEHAVIORAL_CADENCE
+    source: Login Successful per user
+    type: int
+    availability: rba_dataset
+  behavior.min_inter_attempt_ms_user_10m:
+    slot: SLOT_BEHAVIORAL_CADENCE
+    source: Login Timestamp
+    type: int
+    availability: rba_dataset
+    note: Timestamps include synthetic jitter.
+  behavior.user_distinct_ip_failures_1h:
+    slot: SLOT_BEHAVIORAL_CADENCE
+    source: IP Address on failed logins
+    type: int
+    availability: rba_dataset
+  behavior.followed_by_known_context_success_10m:
+    slot: SLOT_BEHAVIORAL_CADENCE
+    source: IP+UA then success on account with known ASN+UA
+    type: bool
+    availability: rba_dataset
+  behavior.mouse_entropy:
+    slot: SLOT_BEHAVIORAL_CADENCE
+    type: float
+    availability: client_sdk_only
+  behavior.keystroke_jitter_ms:
+    slot: SLOT_BEHAVIORAL_CADENCE
+    type: float
+    availability: client_sdk_only
+  behavior.touch_variance:
+    slot: SLOT_BEHAVIORAL_CADENCE
+    type: float
+    availability: client_sdk_only
+  graph.account_exists:
+    slot: SLOT_ACCOUNT_GRAPH
+    source: User ID != sentinel
+    type: bool
+    availability: rba_dataset
+  graph.user_prior_success_count:
+    slot: SLOT_ACCOUNT_GRAPH
+    source: User ID history
+    type: int
+    availability: rba_dataset
+  graph.ua_asn_new_context_accounts_7d:
+    slot: SLOT_ACCOUNT_GRAPH
+    source: User Agent String + ASN across accounts
+    type: int
+    availability: rba_dataset
+  graph.ua_ip_distinct_accounts_24h:
+    slot: SLOT_ACCOUNT_GRAPH
+    source: User Agent String + IP across accounts
+    type: int
+    availability: rba_dataset
+  graph.user_distinct_asn_24h:
+    slot: SLOT_ACCOUNT_GRAPH
+    source: ASN of successful logins per user
+    type: int
+    availability: rba_dataset
+  graph.device_distinct_accounts_30d:
+    slot: SLOT_ACCOUNT_GRAPH
+    type: int
+    availability: client_sdk_only
 semantic_tool_slots:
   SLOT_NETWORK:
-    canonical_alias: "SLOT_NETWORK_REPUTATION"
-    description: "Inspect network telemetry, carrier CGNAT indicators, autonomous systems (ASNs), residential proxy egress routing, and geographical IP velocities."
+    canonical_alias: SLOT_NETWORK_REPUTATION
+    description: Inspect IP reputation listing, ASN and country novelty per account, IP fan-out across users, failure and unknown-account rates, and round-trip time.
     token_budget: 16
   SLOT_DEVICE:
-    canonical_alias: "SLOT_DEVICE_FINGERPRINT"
-    description: "Evaluate client hardware virtualization, HTML5 canvas rendering entropy, WebGL shader signatures, anti-detect browser footprints, and mobile device integrity."
+    canonical_alias: SLOT_DEVICE_FINGERPRINT
+    description: Evaluate user-agent novelty, browser family drift, declared device type, unparseable agents, and optional hardware virtualization or canvas signals.
     token_budget: 15
   SLOT_BEHAVIOR:
-    canonical_alias: "SLOT_BEHAVIORAL_CADENCE"
-    description: "Analyze human physical interaction dynamics, biological mouse trajectory curvature, keystroke flight and dwell jitter, and touch contact area dispersion."
+    canonical_alias: SLOT_BEHAVIORAL_CADENCE
+    description: Analyze login cadence, failure bursts, inter-attempt timing, recovery after typos, and optional mouse, keystroke and touch dynamics.
     token_budget: 14
   SLOT_GRAPH:
-    canonical_alias: "SLOT_ACCOUNT_GRAPH"
-    description: "Traverse entity relationship topologies, linked account credential clusters, shared password trees, and multi-tenant authentication graphs."
+    canonical_alias: SLOT_ACCOUNT_GRAPH
+    description: Traverse account existence, login history depth, user-agent and ASN reuse across victim accounts, and multi-account IP clusters.
     token_budget: 14
-
+ground_truth_mapping:
+  note: Weak labels for training/evaluating Rex on RBA. Evaluate primarily at verdict_class level; hypothesis level uses acceptable sets.
+  rules:
+    - id: GT_ATO_LISTED
+      when: Is Account Takeover == true AND Is Attack IP == true
+      rows: 77
+      verdict_class: FRAUD
+      acceptable:
+        - H_botnet
+        - H_sybil
+      preferred: H_botnet
+      domain: TYPE_RBA_NOVEL_CONTEXT_LOGIN
+    - id: GT_ATO_UNLISTED
+      when: Is Account Takeover == true AND Is Attack IP == false
+      rows: 64
+      verdict_class: FRAUD
+      acceptable:
+        - H_sybil
+        - H_botnet
+      preferred: H_sybil
+      domain: TYPE_RBA_NOVEL_CONTEXT_LOGIN
+    - id: GT_LISTED_UNKNOWN_ACC
+      when: Is Attack IP == true AND account_exists == false
+      rows: 1650627
+      verdict_class: FRAUD
+      acceptable:
+        - H_botnet
+      domain: TYPE_RBA_UNKNOWN_ACCOUNT_PROBE
+    - id: GT_LISTED_FAIL
+      when: Is Attack IP == true AND account_exists == true AND Login Successful == false AND ATO == false
+      rows: 641858
+      verdict_class: FRAUD
+      confidence: medium
+      acceptable:
+        - H_botnet
+        - H_sybil
+      domain: TYPE_RBA_FLAGGED_IP_LOGIN
+    - id: GT_LISTED_SUCCESS
+      when: Is Attack IP == true AND Login Successful == true AND ATO == false
+      rows: 804415
+      verdict_class: LEGIT
+      confidence: low
+      acceptable:
+        - H_shared
+      domain: TYPE_RBA_FLAGGED_IP_LOGIN
+      note: Not flagged by incident response; may hide undetected ATO.
+    - id: GT_BENIGN_SUCCESS
+      when: Is Attack IP == false AND ATO == false AND Login Successful == true AND account_exists == true
+      rows: 11736883
+      verdict_class: LEGIT
+      acceptable:
+        - H_shared
+      domain: TYPE_RBA_NOVEL_CONTEXT_LOGIN or TASK_RISK_INVESTIGATION
+    - id: GT_BENIGN_FAIL
+      when: Is Attack IP == false AND ATO == false AND Login Successful == false AND account_exists == true
+      rows: 4060068
+      verdict_class: LEGIT
+      confidence: medium
+      acceptable:
+        - H_shared
+      domain: TYPE_RBA_FAILED_LOGIN_BURST
+    - id: GT_UNLISTED_UNKNOWN_ACC
+      when: Is Attack IP == false AND account_exists == false
+      rows: 12375272
+      verdict_class: UNLABELED
+      acceptable:
+        - H_botnet
+        - H_sybil
+        - H_shared
+        - H_novel
+      domain: TYPE_RBA_UNKNOWN_ACCOUNT_PROBE
+      note: Mix of typos and unlisted attacks; exclude from supervised verdict loss, use for semi-supervised/H_novel analysis.
 domain_types:
   TYPE_RBA_LOGIN_DEFENSE:
-    description: "Evaluates multi-factor login events, biological behavioral dynamics, and device fingerprint entropy to defend user accounts against automated and syndicated authentication attacks."
+    description: Evaluates login events using IP, ASN, user-agent novelty, failure history and optional client biometrics to defend accounts against automated and syndicated authentication attacks.
+    rba_dataset_coverage: partial
     hypotheses:
-      - id: "H_botnet"
-        title: "Automated Credential Stuffing Botnet"
-        text: "Automated distributed headless browser botnet executing high-velocity programmatic credential stuffing across authentication endpoints while attempting to simulate organic human keystroke intervals."
+      - id: H_botnet
+        title: Automated Credential Stuffing Botnet
+        text: Automated distributed botnet replaying breached credential pairs at high velocity across many accounts through rotating proxy egress and scripted or headless clients.
+        verdict_class: FRAUD
         is_residual: false
         associated_slots:
-          [
-            "SLOT_BEHAVIORAL_CADENCE",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_NETWORK_REPUTATION",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
         falsification_criteria:
-          - metric: "behavior.mouse_entropy"
-            operator: "GTE"
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 14
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP produced a successful login for this same account at least 14 days earlier; rotating stuffing infrastructure does not reuse the victim's own historical IP.
+            calibration_note: "RBA: only 2.1% of ATO successes reused any previously seen victim IP (any age). Keep >= 14 days to stay decisive."
+          - metric: behavior.mouse_entropy
+            operator: GTE
             threshold: 0.85
-            description: "Biological mouse trajectory curvature entropy of 0.85 or higher indicates natural human motor micro-variations, decisively refuting linear, synthetic, or scripted headless browser cursor movements."
-          - metric: "behavior.keystroke_jitter_ms"
-            operator: "GTE"
-            threshold: 120.0
-            description: "Typing cadence timing variance exceeding 120.0 ms reflects organic cognitive pauses and neuromuscular flight times, decisively refuting deterministic programmatic credential injection loops."
-          - metric: "device.cloned_hardware"
-            operator: "EQ"
+            availability: client_sdk_only
+            description: Mouse trajectory curvature entropy of 0.85 or higher reflects human motor variation, refuting scripted cursor movement.
+            calibration_note: Spoofable by advanced bots; treat as strong but not absolute.
+          - metric: device.cloned_hardware
+            operator: EQ
             threshold: false
-            description: "Verified authentic physical hardware sensor telemetry and untampered WebGL primitives refute virtualized anti-detect browser emulation profiles."
-      - id: "H_sybil"
-        title: "Syndicated Account Takeover Ring"
-        text: "Coordinated cybercrime syndicate operating cloned virtual device profiles and breached credential dumps to manually execute unauthorized account takeovers."
+            availability: client_sdk_only
+            description: Attested physical hardware and untampered WebGL/canvas primitives refute virtualized or anti-detect device profiles.
+        supporting_signals:
+          - network.ip_is_reputation_listed == true
+          - device.type == bot
+          - network.ip_distinct_users_24h high
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Manual Account Takeover Operator
+        text: Human fraud operator logging in manually with phished or purchased valid credentials from an unfamiliar country, ASN and reused attacker browser profile.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        associated_slots:
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_NETWORK_REPUTATION
         falsification_criteria:
-          - metric: "graph.cluster_size"
-            operator: "EQ"
-            threshold: 1
-            description: "The authentication identity is an isolated graph node with a cluster size of 1, showing zero credential sharing, zero shared recovery phones, and zero shared cookies, decisively refuting coordinated multi-account account takeover rings."
-          - metric: "graph.users_on_ip_24h"
-            operator: "EQ"
-            threshold: 1
-            description: "Observation of exactly 1 unique user account logging in from the IP address over a 24-hour window decisively refutes multi-account credential stuffing farm operations."
-          - metric: "device.canvas_cluster_size"
-            operator: "EQ"
-            threshold: 1
-            description: "A unique, solitary browser HTML5 canvas rendering fingerprint decisively refutes distributed virtual device farm clusters sharing identical spoofed configurations."
-      - id: "H_shared"
-        title: "Shared Gateway Login False Alarm"
-        text: "Legitimate authenticated consumer login traversing carrier-grade mobile CGNAT gateway, corporate enterprise VPN proxy, or public commercial wireless infrastructure."
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 30
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP was used successfully by this account at least 30 days earlier; a manual takeover operator does not share the victim's long-standing personal IP.
+          - metric: device.cloned_hardware
+            operator: EQ
+            threshold: false
+            availability: client_sdk_only
+            description: Attested physical hardware and untampered WebGL/canvas primitives refute virtualized or anti-detect device profiles.
+        supporting_signals:
+          - context novelty (country/ASN/UA all new)
+          - graph.ua_asn_new_context_accounts_7d >= 2
+          - few failures before success
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Legitimate Owner Login
+        text: Genuine account owner logging in, possibly after a typo, from shared mobile CGNAT, corporate proxy, public Wi-Fi, travel, new device or browser update.
+        verdict_class: LEGIT
         is_residual: false
-        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria:
-          - metric: "network.geo_velocity_kmh"
-            operator: "GTE"
-            threshold: 900.0
-            description: "Geographical transit speed exceeding 900 km/h between successive logins violates physical commercial flight speeds, decisively refuting authentic traveling consumer logins."
-          - metric: "network.auth_failure_rate"
-            operator: "GTE"
-            threshold: 0.85
-            description: "A catastrophic authentication failure rate exceeding 85% on the egress IP indicates hostile brute-force attacks, decisively refuting legitimate corporate or mobile CGNAT false alarms."
-          - metric: "network.is_datacenter"
-            operator: "EQ"
+          - metric: network.ip_is_reputation_listed
+            operator: EQ
             threshold: true
-            description: "Origination from commercial cloud hosting or proxy server ASNs confirms automated proxy tunneling, decisively refuting legitimate residential mobile carrier CGNAT traffic."
-      - id: "H_novel"
-        title: "Uncataloged Authentication Exploit"
-        text: "Uncataloged zero-day authentication bypass vulnerability, novel biometric deepfake injection attack, or unprecedented session state desynchronization exploit technique."
+            availability: rba_dataset
+            min_support: 1
+            description: Listed attack IP in reputation feed refutes single legitimate owner session.
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+          - metric: network.ip_failure_rate_24h_known_accounts
+            operator: GTE
+            threshold: 0.95
+            availability: rba_dataset
+            min_support: 50
+            description: At least 95% failed logins on existing accounts from this IP in 24h, excluding non-existent-account attempts, is incompatible with legitimate shared egress.
+            calibration_note: "RBA benign IPs with >=50 attempts: P90 failure rate ~0.80 (incl. unknown accounts). 0.85 on raw rate would wrongly kill H_shared for ~11k benign IPs."
+          - metric: graph.ua_asn_new_context_accounts_7d
+            operator: GTE
+            threshold: 5
+            availability: rba_dataset
+            min_support: 5
+            description: The same full user-agent plus ASN pair produced new-context successful logins on 5 or more distinct accounts within 7 days, a reused attacker profile, not one owner.
+            calibration_note: "RBA: 109/141 ATO events share one desktop macOS 10_14_6 UA string across different victims."
+          - metric: network.geo_velocity_kmh
+            operator: GTE
+            threshold: 1000.0
+            availability: client_sdk_only
+            description: Travel speed above 1000 km/h between consecutive successful logins is physically impossible for one owner.
+            calibration_note: "NOT usable on RBA: Country/Region/City are synthesized per feature value and do not preserve real geo-time relations."
+        supporting_signals:
+          - network.asn_seen_for_user == true
+          - device.ua_seen_for_user == true
+          - browser family seen with newer version
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Uncataloged Authentication Exploit
+        text: Uncataloged authentication bypass, deepfake or biometric injection, session desynchronization, or login pattern matching no known automated, manual or legitimate cause.
+        verdict_class: ESCALATE
         is_residual: true
         associated_slots:
-          [
-            "SLOT_NETWORK_REPUTATION",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_BEHAVIORAL_CADENCE",
-            "SLOT_ACCOUNT_GRAPH",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria: []
-
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
   TYPE_CREDENTIAL_STUFFING:
-    description: "Defends against large-scale automated credential stuffing campaigns deploying breached username and password dumps across distributed residential and proxy networks."
+    description: Defends against large-scale credential stuffing replaying breached username and password dumps across distributed residential, mobile and proxy networks.
+    rba_dataset_coverage: full
     hypotheses:
-      - id: "H_botnet"
-        title: "Automated Distributed Stuffing Engine"
-        text: "Programmatic bot army mass-replaying breached username and password pairs across login interfaces using distributed rotating residential proxy nodes."
+      - id: H_botnet
+        title: Automated Distributed Stuffing Engine
+        text: Programmatic bot army mass-replaying breached username and password pairs, including stale or non-existent usernames, through rotating residential and mobile proxy nodes.
+        verdict_class: FRAUD
         is_residual: false
         associated_slots:
-          [
-            "SLOT_NETWORK_REPUTATION",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_BEHAVIORAL_CADENCE",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
         falsification_criteria:
-          - metric: "behavior.mouse_entropy"
-            operator: "GTE"
-            threshold: 0.80
-            description: "Natural continuous mouse curvature dynamics (>= 0.80) reflect biological human neuromuscular control, decisively refuting automated credential stuffing bot scripts."
-          - metric: "behavior.keystroke_jitter_ms"
-            operator: "GTE"
-            threshold: 120.0
-            description: "High human keystroke interval variance exceeding 120.0 ms reflects cognitive hesitation, decisively refuting programmatic form submission cadence."
-      - id: "H_sybil"
-        title: "Distributed Manual ATO Operation"
-        text: "Organized human fraud operators systematically validating stolen high-value credential lists across virtualized anti-detect browser profiles and emulator racks."
-        is_residual: false
-        associated_slots: ["SLOT_DEVICE_FINGERPRINT", "SLOT_ACCOUNT_GRAPH"]
-        falsification_criteria:
-          - metric: "device.cloned_hardware"
-            operator: "EQ"
-            threshold: false
-            description: "Authentic unvirtualized consumer hardware profile refutes multi-profile anti-detect browser farms cycling stolen credential pairs."
-          - metric: "graph.credential_overlap"
-            operator: "EQ"
-            threshold: 0
-            description: "Zero shared password or recovery channel overlap across unrelated tenant account clusters decisively refutes syndicated account takeover campaigns."
-      - id: "H_shared"
-        title: "Shared Gateway Collision Burst"
-        text: "Authentic concurrent subscribers legitimately logging in through shared regional carrier mobile gateway or high-density public transport wireless hub."
-        is_residual: false
-        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_BEHAVIORAL_CADENCE"]
-        falsification_criteria:
-          - metric: "network.auth_failure_rate"
-            operator: "GTE"
-            threshold: 0.85
-            description: "Extreme credential authentication failure rate exceeding 85% indicates hostile brute-force attack traffic, decisively refuting authentic shared consumer gateway logins."
-          - metric: "network.is_datacenter"
-            operator: "EQ"
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 14
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP produced a successful login for this same account at least 14 days earlier; rotating stuffing infrastructure does not reuse the victim's own historical IP.
+            calibration_note: "RBA: only 2.1% of ATO successes reused any previously seen victim IP (any age). Keep >= 14 days to stay decisive."
+          - metric: behavior.followed_by_known_context_success_10m
+            operator: EQ
             threshold: true
-            description: "Hosting provider ASN allocation confirms commercial proxy tunneling, refuting authentic residential mobile CGNAT traffic."
-      - id: "H_novel"
-        title: "Novel Identity Protocol Exploit"
-        text: "Uncataloged zero-day authentication protocol flaw, identity federation assertion bypass, or unprecedented credential validation logic loophole."
+            availability: rba_dataset
+            description: "The same IP and user agent logs in successfully within 10 minutes to an existing account whose history already contains this ASN and UA: a corrected typo by the real owner."
+          - metric: behavior.mouse_entropy
+            operator: GTE
+            threshold: 0.8
+            availability: client_sdk_only
+            description: Mouse trajectory curvature entropy of 0.8 or higher reflects human motor variation, refuting scripted cursor movement.
+            calibration_note: Spoofable by advanced bots; treat as strong but not absolute.
+        supporting_signals:
+          - network.ip_unknown_account_rate_24h high
+          - device.type == bot
+          - network.ip_is_reputation_listed == true
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Manual Credential Validation Crew
+        text: Human fraud operators manually validating small high-value stolen credential lists through anti-detect browser profiles at human typing pace.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_NETWORK_REPUTATION
+        falsification_criteria:
+          - metric: network.ip_attempts_1h
+            operator: GTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 300
+            description: Three hundred or more attempts per hour from one IP exceed sustained manual typing capacity, refuting human operators.
+          - metric: behavior.min_inter_attempt_ms_user_10m
+            operator: LTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 3
+            description: Consecutive password submissions for one account under 300 ms apart cannot be typed by a human.
+            calibration_note: RBA timestamps contain synthetic randomness; validate on production telemetry.
+          - metric: device.cloned_hardware
+            operator: EQ
+            threshold: false
+            availability: client_sdk_only
+            description: Attested physical hardware and untampered WebGL/canvas primitives refute virtualized or anti-detect device profiles.
+        supporting_signals:
+          - low attempt rate per IP
+          - same UA reused across victims
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Shared Gateway Collision Burst
+        text: Authentic subscribers logging in concurrently through a shared mobile CGNAT or public gateway, with ordinary typo failures on their own existing accounts.
+        verdict_class: LEGIT
+        is_residual: false
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria:
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+          - metric: network.ip_failure_rate_24h_known_accounts
+            operator: GTE
+            threshold: 0.95
+            availability: rba_dataset
+            min_support: 50
+            description: At least 95% failed logins on existing accounts from this IP in 24h, excluding non-existent-account attempts, is incompatible with legitimate shared egress.
+            calibration_note: "RBA benign IPs with >=50 attempts: P90 failure rate ~0.80 (incl. unknown accounts). 0.85 on raw rate would wrongly kill H_shared for ~11k benign IPs."
+          - metric: graph.ua_asn_new_context_accounts_7d
+            operator: GTE
+            threshold: 5
+            availability: rba_dataset
+            min_support: 5
+            description: The same full user-agent plus ASN pair produced new-context successful logins on 5 or more distinct accounts within 7 days, a reused attacker profile, not one owner.
+            calibration_note: "RBA: 109/141 ATO events share one desktop macOS 10_14_6 UA string across different victims."
+        supporting_signals:
+          - many users per IP with normal success ratio
+          - per-user context already known
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Novel Identity Protocol Exploit
+        text: Uncataloged authentication protocol flaw, identity federation assertion bypass, or unprecedented credential validation logic loophole beyond replayed password lists.
+        verdict_class: ESCALATE
         is_residual: true
         associated_slots:
-          [
-            "SLOT_NETWORK_REPUTATION",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_BEHAVIORAL_CADENCE",
-            "SLOT_ACCOUNT_GRAPH",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria: []
-
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
   TYPE_ACCOUNT_TAKEOVER:
-    description: "Investigates unauthorized account takeovers executed via stolen session tokens, credential replay, or device identity manipulation targeting customer profiles and stored balances."
+    description: Investigates successful logins suspected as account takeover via validated stolen credentials, phishing, session tokens or device identity manipulation.
+    rba_dataset_coverage: full
     hypotheses:
-      - id: "H_botnet"
-        title: "Automated Token Scraping Engine"
-        text: "Automated headless script utilizing harvested session tokens to programmatically extract sensitive account profiles and initiate unauthorized balance transfers."
+      - id: H_botnet
+        title: Automated Stuffing Hit Exploitation
+        text: Automated pipeline logging in with a credential just validated by stuffing, from a reputation-listed or rotating proxy IP, then scripting account actions.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_NETWORK_REPUTATION"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_DEVICE_FINGERPRINT
         falsification_criteria:
-          - metric: "behavior.touch_variance"
-            operator: "GTE"
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 14
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP produced a successful login for this same account at least 14 days earlier; rotating stuffing infrastructure does not reuse the victim's own historical IP.
+            calibration_note: "RBA: only 2.1% of ATO successes reused any previously seen victim IP (any age). Keep >= 14 days to stay decisive."
+          - metric: behavior.touch_variance
+            operator: GTE
             threshold: 0.75
-            description: "High biological touch interaction variance indicates authentic manual fingertip contact, decisively refuting script-driven session token replay bots."
-          - metric: "network.is_datacenter"
-            operator: "EQ"
-            threshold: true
-            description: "Commercial hosting datacenter egress confirms programmatic automated token scraping pipelines, refuting legitimate mobile consumer interaction."
-      - id: "H_sybil"
-        title: "Syndicated Account Takeover Farm"
-        text: "Coordinated fraud syndicate deploying human operators across anti-detect browsers to manually compromise and liquidate hijacked user accounts."
+            availability: client_sdk_only
+            description: Touch contact variance of 0.75 or higher indicates genuine fingertip interaction, refuting script-driven tap injection.
+        supporting_signals:
+          - network.ip_is_reputation_listed == true (55% of RBA ATO)
+          - prior failures from same IP on other accounts
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Manual Takeover Ring
+        text: Coordinated fraud ring where human operators reuse one attacker browser profile to log into multiple victim accounts from a new country and ASN.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        associated_slots:
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_NETWORK_REPUTATION
         falsification_criteria:
-          - metric: "graph.credential_overlap"
-            operator: "EQ"
-            threshold: 0
-            description: "Zero shared password or recovery channel overlap across compromised target accounts decisively refutes coordinated account takeover rings."
-          - metric: "device.cloned_hardware"
-            operator: "EQ"
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 30
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP was used successfully by this account at least 30 days earlier; a manual takeover operator does not share the victim's long-standing personal IP.
+          - metric: device.cloned_hardware
+            operator: EQ
             threshold: false
-            description: "Clean physical hardware sensor profile refutes virtualized syndicate device farms operating across anti-detect browsers."
-      - id: "H_shared"
-        title: "Shared Gateway False Positive"
-        text: "Genuine account owner accessing personal profile while connected through corporate enterprise proxy, mobile carrier NAT, or university network."
+            availability: client_sdk_only
+            description: Attested physical hardware and untampered WebGL/canvas primitives refute virtualized or anti-detect device profiles.
+        supporting_signals:
+          - graph.ua_asn_new_context_accounts_7d >= 2
+          - "country/ASN/UA all new (RBA: 88%/91%/87% of ATO)"
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Legitimate Owner In New Context
+        text: Genuine owner accessing the account through a new device, upgraded browser, travel abroad, ISP change, corporate proxy or mobile carrier NAT.
+        verdict_class: LEGIT
         is_residual: false
-        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_BEHAVIORAL_CADENCE"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
         falsification_criteria:
-          - metric: "network.geo_velocity_kmh"
-            operator: "GTE"
-            threshold: 900.0
-            description: "Impossible physical travel velocity exceeding 900 km/h between account events decisively refutes authentic user shared network infrastructure access."
-          - metric: "network.auth_failure_rate"
-            operator: "GTE"
-            threshold: 0.80
-            description: "Abnormal failure rate exceeding 80% confirms malicious attack traffic rather than legitimate corporate workforce gateway access."
-      - id: "H_novel"
-        title: "Zero-Day Session Hijack Exploit"
-        text: "Uncataloged session resumption vulnerability, novel cross-site cookie extraction flaw, or zero-day WebSocket authorization hijack technique."
+          - metric: graph.ua_asn_new_context_accounts_7d
+            operator: GTE
+            threshold: 5
+            availability: rba_dataset
+            min_support: 5
+            description: The same full user-agent plus ASN pair produced new-context successful logins on 5 or more distinct accounts within 7 days, a reused attacker profile, not one owner.
+            calibration_note: "RBA: 109/141 ATO events share one desktop macOS 10_14_6 UA string across different victims."
+          - metric: graph.user_distinct_asn_24h
+            operator: GTE
+            threshold: 6
+            availability: rba_dataset
+            description: Successful logins for one account from 6 or more distinct ASNs within 24h exceed what one travelling owner can generate.
+            calibration_note: "Heuristic; recalibrate on train split (target: <0.01% of benign accounts)."
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+          - metric: network.geo_velocity_kmh
+            operator: GTE
+            threshold: 1000.0
+            availability: client_sdk_only
+            description: Travel speed above 1000 km/h between consecutive successful logins is physically impossible for one owner.
+            calibration_note: "NOT usable on RBA: Country/Region/City are synthesized per feature value and do not preserve real geo-time relations."
+        supporting_signals:
+          - at least one of country/ASN/UA previously seen
+          - same browser family with newer version
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Zero-Day Session Hijack Exploit
+        text: Uncataloged session resumption vulnerability, novel cookie extraction flaw, or zero-day authorization hijack that bypasses the password step entirely.
+        verdict_class: ESCALATE
         is_residual: true
         associated_slots:
-          [
-            "SLOT_NETWORK_REPUTATION",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_BEHAVIORAL_CADENCE",
-            "SLOT_ACCOUNT_GRAPH",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria: []
-
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
   TYPE_PASSWORD_SPRAYING:
-    description: "Identifies horizontal password spraying attacks targeting widespread corporate or consumer directories at cadences engineered to stay below lockout thresholds."
+    description: Identifies horizontal password spraying that tries few common passwords across many accounts at cadences engineered to stay below lockout thresholds.
+    rba_dataset_coverage: partial
     hypotheses:
-      - id: "H_botnet"
-        title: "Programmatic Low-and-Slow Engine"
-        text: "Automated distributed script testing common passwords horizontally across enterprise directory accounts at cadences engineered to evade lockout thresholds."
+      - id: H_botnet
+        title: Programmatic Low-and-Slow Engine
+        text: Automated distributed script testing a few common passwords horizontally across many existing accounts, one or two attempts each, to evade lockout thresholds.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_NETWORK_REPUTATION"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_BEHAVIORAL_CADENCE
         falsification_criteria:
-          - metric: "behavior.keystroke_jitter_ms"
-            operator: "GTE"
-            threshold: 120.0
-            description: "Natural typing delay dispersion exceeding 120.0 ms reflects organic human motor control, decisively refuting programmatic low-and-slow credential submission scripts."
-          - metric: "network.is_datacenter"
-            operator: "EQ"
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 14
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP produced a successful login for this same account at least 14 days earlier; rotating stuffing infrastructure does not reuse the victim's own historical IP.
+            calibration_note: "RBA: only 2.1% of ATO successes reused any previously seen victim IP (any age). Keep >= 14 days to stay decisive."
+          - metric: behavior.followed_by_known_context_success_10m
+            operator: EQ
             threshold: true
-            description: "Hosting provider ASN indicates automated credential spraying proxy egress infrastructure, refuting legitimate domestic consumer logins."
-      - id: "H_sybil"
-        title: "Distributed Manual Spraying Clique"
-        text: "Coordinated fraud group manually spraying leaked enterprise passwords across target organizational directories using rotating virtualized residential browser sessions."
+            availability: rba_dataset
+            description: "The same IP and user agent logs in successfully within 10 minutes to an existing account whose history already contains this ASN and UA: a corrected typo by the real owner."
+          - metric: behavior.keystroke_jitter_ms
+            operator: GTE
+            threshold: 120.0
+            availability: client_sdk_only
+            description: Keystroke timing variance above 120 ms reflects organic cognitive pauses, refuting deterministic credential injection loops.
+            calibration_note: Contradicts H_botnet texts that assume jitter simulation; prefer mouse/touch entropy.
+        supporting_signals:
+          - network.ip_distinct_users_24h high with <=2 attempts per user
+          - low success ratio
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Manual Spraying Clique
+        text: Small human group manually spraying leaked organisational passwords against targeted directory accounts through rotating virtualized browser sessions at human pace.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
         falsification_criteria:
-          - metric: "graph.cluster_size"
-            operator: "EQ"
-            threshold: 1
-            description: "An isolated target account with zero cross-user credential spraying correlation links decisively refutes distributed manual spraying cliques."
-          - metric: "device.cloned_hardware"
-            operator: "EQ"
+          - metric: network.ip_attempts_1h
+            operator: GTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 300
+            description: Three hundred or more attempts per hour from one IP exceed sustained manual typing capacity, refuting human operators.
+          - metric: behavior.min_inter_attempt_ms_user_10m
+            operator: LTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 3
+            description: Consecutive password submissions for one account under 300 ms apart cannot be typed by a human.
+            calibration_note: RBA timestamps contain synthetic randomness; validate on production telemetry.
+          - metric: device.cloned_hardware
+            operator: EQ
             threshold: false
-            description: "Authentic hardware fingerprint and untampered client runtime refute rotating virtual browser profile cliques."
-      - id: "H_shared"
-        title: "Enterprise SSO Gateway Traffic"
-        text: "Legitimate enterprise workforce concurrently authenticating through corporate single sign-on gateway or unified enterprise proxy infrastructure."
+            availability: client_sdk_only
+            description: Attested physical hardware and untampered WebGL/canvas primitives refute virtualized or anti-detect device profiles.
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Enterprise SSO Gateway Traffic
+        text: Legitimate workforce authenticating concurrently through a corporate single sign-on gateway or enterprise proxy, with routine individual password mistakes.
+        verdict_class: LEGIT
         is_residual: false
-        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria:
-          - metric: "network.auth_failure_rate"
-            operator: "GTE"
-            threshold: 0.80
-            description: "An abnormal authentication failure rate exceeding 80% indicates hostile directory attacks, decisively refuting legitimate enterprise SSO gateway traffic."
-          - metric: "network.geo_velocity_kmh"
-            operator: "GTE"
-            threshold: 900.0
-            description: "Supersonic geographic distance between successive logins violates physical transit feasible limits, decisively refuting shared office egress."
-      - id: "H_novel"
-        title: "Novel Identity Federation Bypass"
-        text: "Uncataloged SAML assertion forgery vulnerability or zero-day OAuth token redirection flaw bypassing enterprise authentication policies."
+          - metric: network.ip_failure_rate_24h_known_accounts
+            operator: GTE
+            threshold: 0.95
+            availability: rba_dataset
+            min_support: 50
+            description: At least 95% failed logins on existing accounts from this IP in 24h, excluding non-existent-account attempts, is incompatible with legitimate shared egress.
+            calibration_note: "RBA benign IPs with >=50 attempts: P90 failure rate ~0.80 (incl. unknown accounts). 0.85 on raw rate would wrongly kill H_shared for ~11k benign IPs."
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+          - metric: network.geo_velocity_kmh
+            operator: GTE
+            threshold: 1000.0
+            availability: client_sdk_only
+            description: Travel speed above 1000 km/h between consecutive successful logins is physically impossible for one owner.
+            calibration_note: "NOT usable on RBA: Country/Region/City are synthesized per feature value and do not preserve real geo-time relations."
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Novel Identity Federation Bypass
+        text: Uncataloged SAML assertion forgery, zero-day OAuth redirection flaw, or federation trust abuse bypassing enterprise authentication policies without password guessing.
+        verdict_class: ESCALATE
         is_residual: true
         associated_slots:
-          [
-            "SLOT_NETWORK_REPUTATION",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_BEHAVIORAL_CADENCE",
-            "SLOT_ACCOUNT_GRAPH",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria: []
-
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
   TYPE_SESSION_HIJACKING:
-    description: "Detects adversary-in-the-middle (AitM) session token theft, unauthorized session cookie replay, and WebSocket session hijacking on established user accounts."
+    description: Detects adversary-in-the-middle session token theft, cookie replay and WebSocket session hijacking on established accounts.
+    rba_dataset_coverage: none
+    coverage_note: RBA contains only login attempts (no session/cookie events). Keep for production; exclude from RBA training and evaluation.
     hypotheses:
-      - id: "H_botnet"
-        title: "Automated Cookie Replay Bot"
-        text: "Automated headless crawler replaying stolen browser authentication cookies without generating corresponding organic human interaction biometrics."
+      - id: H_botnet
+        title: Automated Cookie Replay Bot
+        text: Automated headless client replaying stolen authentication cookies from foreign infrastructure without any corresponding human interaction biometrics.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_DEVICE_FINGERPRINT"]
+        associated_slots:
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_DEVICE_FINGERPRINT
         falsification_criteria:
-          - metric: "behavior.mouse_entropy"
-            operator: "GTE"
+          - metric: behavior.mouse_entropy
+            operator: GTE
             threshold: 0.85
-            description: "Continuous organic mouse curvature entropy exceeding 0.85 reflects ongoing human pointer control, decisively refuting automated headless cookie injection sessions."
-          - metric: "device.cloned_hardware"
-            operator: "EQ"
+            availability: client_sdk_only
+            description: Mouse trajectory curvature entropy of 0.85 or higher reflects human motor variation, refuting scripted cursor movement.
+            calibration_note: Spoofable by advanced bots; treat as strong but not absolute.
+          - metric: device.cloned_hardware
+            operator: EQ
             threshold: false
-            description: "Consistent client hardware fingerprint and untampered cryptographic primitives match legitimate authenticated session holders, refuting replay on foreign devices."
-      - id: "H_sybil"
-        title: "Syndicated Token Resale Operation"
-        text: "Organized cybercrime syndicate utilizing stolen authentication session tokens to coordinate unauthorized multi-account takeover across geographically distributed browser farm infrastructure."
+            availability: client_sdk_only
+            description: Attested physical hardware and untampered WebGL/canvas primitives refute virtualized or anti-detect device profiles.
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Syndicated Token Resale Operation
+        text: Organized syndicate reselling stolen session tokens and coordinating manual multi-account takeover across geographically distributed browser farm infrastructure.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        associated_slots:
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
         falsification_criteria:
-          - metric: "graph.cluster_size"
-            operator: "EQ"
-            threshold: 1
-            description: "Zero multi-tenant token reuse or linked unauthorized session correlation nodes decisively refutes organized token resale operations."
-          - metric: "device.canvas_cluster_size"
-            operator: "EQ"
-            threshold: 1
-            description: "A unique single-client canvas profile with zero cluster correlation decisively refutes distributed token harvesting syndicates."
-      - id: "H_shared"
-        title: "Legitimate Dynamic IP Handoff"
-        text: "Legitimate authenticated consumer mobile subscriber switching between cellular data and residential Wi-Fi connection while maintaining active session."
+          - metric: device.cloned_hardware
+            operator: EQ
+            threshold: false
+            availability: client_sdk_only
+            description: Attested physical hardware and untampered WebGL/canvas primitives refute virtualized or anti-detect device profiles.
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Legitimate Dynamic IP Handoff
+        text: Legitimate mobile subscriber switching between cellular data and Wi-Fi, or carrier IP reallocation, while keeping the same device and active session.
+        verdict_class: LEGIT
         is_residual: false
-        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_BEHAVIORAL_CADENCE"]
+        associated_slots:
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_BEHAVIORAL_CADENCE
         falsification_criteria:
-          - metric: "network.geo_velocity_kmh"
-            operator: "GTE"
-            threshold: 900.0
-            description: "Supersonic geographic jump velocity exceeding 900 km/h between active session requests refutes authentic cellular to Wi-Fi handoffs."
-          - metric: "network.is_datacenter"
-            operator: "EQ"
+          - metric: network.geo_velocity_kmh
+            operator: GTE
+            threshold: 1000.0
+            availability: client_sdk_only
+            description: Travel speed above 1000 km/h between consecutive successful logins is physically impossible for one owner.
+            calibration_note: "NOT usable on RBA: Country/Region/City are synthesized per feature value and do not preserve real geo-time relations."
+          - metric: device.session_fingerprint_changed
+            operator: EQ
             threshold: true
-            description: "Hosting datacenter egress confirms commercial proxy routing, refuting legitimate cellular IP dynamic reallocation."
-      - id: "H_novel"
-        title: "Novel Session Desynchronization"
-        text: "Uncataloged HTTP request smuggling vulnerability or novel WebSocket session desynchronization exploit corrupting authentication state."
+            availability: client_sdk_only
+            description: Device fingerprint changed mid-session; a network handoff changes IP but never the client device.
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Novel Session Desynchronization
+        text: Uncataloged HTTP request smuggling, novel WebSocket desynchronization, or session state corruption exploit affecting authentication state.
+        verdict_class: ESCALATE
         is_residual: true
         associated_slots:
-          [
-            "SLOT_NETWORK_REPUTATION",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_BEHAVIORAL_CADENCE",
-            "SLOT_ACCOUNT_GRAPH",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria: []
-
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
   TYPE_RESIDENTIAL_PROXY_BOTNET:
-    description: "Identifies distributed residential proxy botnets rotating exit nodes and IP addresses to bypass reputation blacklists during credential injection attacks."
+    description: Identifies residential and mobile proxy botnets rotating exit IPs to bypass reputation blacklists during credential injection.
+    rba_dataset_coverage: partial
     hypotheses:
-      - id: "H_botnet"
-        title: "Automated Proxy Infiltration Engine"
-        text: "Automated credential stuffing bot tunneling authentication attempts through rotating residential exit nodes to evade traditional IP reputation filters."
+      - id: H_botnet
+        title: Automated Proxy Infiltration Engine
+        text: Automated credential stuffing bot tunnelling attempts through rotating residential or mobile exit nodes, mostly one or two attempts per IP, to evade reputation filters.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_DEVICE_FINGERPRINT"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_DEVICE_FINGERPRINT
         falsification_criteria:
-          - metric: "behavior.mouse_entropy"
-            operator: "GTE"
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 14
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP produced a successful login for this same account at least 14 days earlier; rotating stuffing infrastructure does not reuse the victim's own historical IP.
+            calibration_note: "RBA: only 2.1% of ATO successes reused any previously seen victim IP (any age). Keep >= 14 days to stay decisive."
+          - metric: behavior.mouse_entropy
+            operator: GTE
             threshold: 0.85
-            description: "Organic cursor trajectory curvature entropy exceeding 0.85 refutes automated headless browser execution over residential proxies."
-          - metric: "behavior.touch_variance"
-            operator: "GTE"
+            availability: client_sdk_only
+            description: Mouse trajectory curvature entropy of 0.85 or higher reflects human motor variation, refuting scripted cursor movement.
+            calibration_note: Spoofable by advanced bots; treat as strong but not absolute.
+          - metric: behavior.touch_variance
+            operator: GTE
             threshold: 0.75
-            description: "High touch biometrics entropy confirms authentic fingertip physical interaction, decisively refuting script-driven headless browser replay."
-      - id: "H_sybil"
-        title: "Coordinated Proxy Rental Ring"
-        text: "Organized fraud syndicate operating leased proxy networks to coordinate distributed multi-account takeover operations across multiple virtual nodes."
+            availability: client_sdk_only
+            description: Touch contact variance of 0.75 or higher indicates genuine fingertip interaction, refuting script-driven tap injection.
+        supporting_signals:
+          - "RBA attack IPs: median 2 attempts, 85% of rows from IPs touching >=10 users"
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Coordinated Proxy Rental Ring
+        text: Organized fraud ring renting proxy networks so human operators can take over multiple accounts while appearing local to each victim.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        associated_slots:
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_NETWORK_REPUTATION
         falsification_criteria:
-          - metric: "graph.cluster_size"
-            operator: "EQ"
-            threshold: 1
-            description: "An isolated entity with zero shared proxy egress or syndicated credential links decisively refutes coordinated proxy rental rings."
-          - metric: "device.cloned_hardware"
-            operator: "EQ"
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 30
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP was used successfully by this account at least 30 days earlier; a manual takeover operator does not share the victim's long-standing personal IP.
+          - metric: network.ip_attempts_1h
+            operator: GTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 300
+            description: Three hundred or more attempts per hour from one IP exceed sustained manual typing capacity, refuting human operators.
+          - metric: device.cloned_hardware
+            operator: EQ
             threshold: false
-            description: "Authentic consumer hardware signature refutes virtualized anti-detect browser profiles used by proxy syndicates."
-      - id: "H_shared"
-        title: "Legitimate Carrier NAT Egress"
-        text: "Authentic mobile consumer subscribers legitimately sharing regional carrier-grade mobile gateway infrastructure while authenticating into user accounts."
+            availability: client_sdk_only
+            description: Attested physical hardware and untampered WebGL/canvas primitives refute virtualized or anti-detect device profiles.
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Legitimate Shared Or Reassigned IP
+        text: Authentic users on carrier CGNAT or a reassigned residential IP that was previously abused, making the address look malicious through no fault of theirs.
+        verdict_class: LEGIT
         is_residual: false
-        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria:
-          - metric: "network.auth_failure_rate"
-            operator: "GTE"
-            threshold: 0.85
-            description: "An extreme authentication failure rate exceeding 85% indicates hostile attack traffic, decisively refuting legitimate shared carrier CGNAT users."
-          - metric: "network.is_cgnat"
-            operator: "EQ"
-            threshold: false
-            description: "A dedicated residential static IP allocation refutes legitimate shared carrier-grade NAT false positive claims."
-      - id: "H_novel"
-        title: "Novel Egress Spoofing Exploit"
-        text: "Uncataloged IPv6 sub-allocation cycling or novel BGP egress route hijacking technique evading autonomous system reputation scoring."
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+          - metric: network.ip_failure_rate_24h_known_accounts
+            operator: GTE
+            threshold: 0.95
+            availability: rba_dataset
+            min_support: 50
+            description: At least 95% failed logins on existing accounts from this IP in 24h, excluding non-existent-account attempts, is incompatible with legitimate shared egress.
+            calibration_note: "RBA benign IPs with >=50 attempts: P90 failure rate ~0.80 (incl. unknown accounts). 0.85 on raw rate would wrongly kill H_shared for ~11k benign IPs."
+          - metric: graph.ua_asn_new_context_accounts_7d
+            operator: GTE
+            threshold: 5
+            availability: rba_dataset
+            min_support: 5
+            description: The same full user-agent plus ASN pair produced new-context successful logins on 5 or more distinct accounts within 7 days, a reused attacker profile, not one owner.
+            calibration_note: "RBA: 109/141 ATO events share one desktop macOS 10_14_6 UA string across different victims."
+        supporting_signals:
+          - "RBA: 55.6% success on reputation-listed IPs for existing accounts, 92% mobile UA"
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Novel Egress Spoofing Exploit
+        text: Uncataloged IPv6 sub-allocation cycling, BGP egress hijacking, or new routing technique evading autonomous system reputation scoring.
+        verdict_class: ESCALATE
         is_residual: true
         associated_slots:
-          [
-            "SLOT_NETWORK_REPUTATION",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_BEHAVIORAL_CADENCE",
-            "SLOT_ACCOUNT_GRAPH",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria: []
-
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
   TYPE_MOBILE_EMULATOR_FARM:
-    description: "Detects click and account farms running virtualized mobile emulators with spoofed OEM hardware fingerprints to mass-register and compromise accounts."
+    description: Detects account farms running mobile emulators or device racks with spoofed fingerprints to mass-register and compromise accounts.
+    rba_dataset_coverage: minimal
+    coverage_note: RBA only exposes UA-derived device type; emulator and touch telemetry require the client SDK.
     hypotheses:
-      - id: "H_botnet"
-        title: "Automated Emulator Tap Pipeline"
-        text: "Automated scripts driving cloud Android emulator farms with synthetic touch event coordinates to mass-register and validate accounts."
+      - id: H_botnet
+        title: Automated Emulator Tap Pipeline
+        text: Automated scripts driving cloud Android emulator farms with synthetic touch coordinates to mass-register, validate or log into accounts.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_BEHAVIORAL_CADENCE", "SLOT_DEVICE_FINGERPRINT"]
+        associated_slots:
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_DEVICE_FINGERPRINT
         falsification_criteria:
-          - metric: "behavior.touch_variance"
-            operator: "GTE"
-            threshold: 0.80
-            description: "Organic biological touch dispersion exceeding 0.80 refutes programmatic emulator tap injection algorithms."
-          - metric: "device.cloned_hardware"
-            operator: "EQ"
+          - metric: behavior.touch_variance
+            operator: GTE
+            threshold: 0.8
+            availability: client_sdk_only
+            description: Touch contact variance of 0.8 or higher indicates genuine fingertip interaction, refuting script-driven tap injection.
+          - metric: device.cloned_hardware
+            operator: EQ
             threshold: false
-            description: "Authentic physical sensor profile and untampered hardware attestation refute virtualized OEM emulator signatures."
-      - id: "H_sybil"
-        title: "Syndicated Mobile Click Farm"
-        text: "Human click farm operators manually manipulating large physical racks of tethered mobile devices to simulate authentic consumer engagement."
+            availability: client_sdk_only
+            description: Attested physical hardware and untampered WebGL/canvas primitives refute virtualized or anti-detect device profiles.
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Syndicated Mobile Click Farm
+        text: Human click-farm operators manually driving racks of physical phones to log into or warm up many accounts simultaneously.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_ACCOUNT_GRAPH", "SLOT_DEVICE_FINGERPRINT"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
         falsification_criteria:
-          - metric: "graph.cluster_size"
-            operator: "EQ"
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 30
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP was used successfully by this account at least 30 days earlier; a manual takeover operator does not share the victim's long-standing personal IP.
+          - metric: graph.device_distinct_accounts_30d
+            operator: EQ
             threshold: 1
-            description: "An isolated device node with zero shared hardware or payout account connections decisively refutes syndicated mobile click farm rings."
-          - metric: "device.canvas_cluster_size"
-            operator: "EQ"
-            threshold: 1
-            description: "A unique single canvas profile with zero farm correlation refutes synchronized device farm firmware clones."
-      - id: "H_shared"
-        title: "Legitimate Domestic Family Devices"
-        text: "Legitimate household family members using identical smartphone models on domestic Wi-Fi connection during everyday personal account logins."
+            availability: client_sdk_only
+            description: This device identifier has ever accessed exactly one account in 30 days, refuting a rack device cycling many accounts.
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Legitimate Household Devices
+        text: Family members using identical smartphone models on one home Wi-Fi or mobile connection for their own separate personal accounts.
+        verdict_class: LEGIT
         is_residual: false
-        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria:
-          - metric: "network.geo_velocity_kmh"
-            operator: "GTE"
-            threshold: 900.0
-            description: "Impossible physical transit velocity exceeding 900 km/h between device logins refutes authentic domestic household device clusters."
-          - metric: "network.auth_failure_rate"
-            operator: "GTE"
-            threshold: 0.85
-            description: "Extreme credential failure rate exceeding 85% indicates hostile attack traffic, decisively refuting legitimate domestic family household usage."
-      - id: "H_novel"
-        title: "Novel Hypervisor Masking Exploit"
-        text: "Uncataloged kernel rootkit device spoofing or novel hardware security module emulation exploit concealing virtualization indicators."
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+          - metric: network.ip_failure_rate_24h_known_accounts
+            operator: GTE
+            threshold: 0.95
+            availability: rba_dataset
+            min_support: 50
+            description: At least 95% failed logins on existing accounts from this IP in 24h, excluding non-existent-account attempts, is incompatible with legitimate shared egress.
+            calibration_note: "RBA benign IPs with >=50 attempts: P90 failure rate ~0.80 (incl. unknown accounts). 0.85 on raw rate would wrongly kill H_shared for ~11k benign IPs."
+          - metric: graph.ua_asn_new_context_accounts_7d
+            operator: GTE
+            threshold: 5
+            availability: rba_dataset
+            min_support: 5
+            description: The same full user-agent plus ASN pair produced new-context successful logins on 5 or more distinct accounts within 7 days, a reused attacker profile, not one owner.
+            calibration_note: "RBA: 109/141 ATO events share one desktop macOS 10_14_6 UA string across different victims."
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Novel Hypervisor Masking Exploit
+        text: Uncataloged kernel-level device spoofing or hardware attestation emulation concealing virtualization indicators from fingerprinting.
+        verdict_class: ESCALATE
         is_residual: true
         associated_slots:
-          [
-            "SLOT_NETWORK_REPUTATION",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_BEHAVIORAL_CADENCE",
-            "SLOT_ACCOUNT_GRAPH",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria: []
-
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
   TASK_RISK_INVESTIGATION:
-    description: "Universal risk investigation root channel for risk-based authentication triage, identity protection, and credential stuffing incident analysis."
+    description: Universal root channel for risk-based authentication triage when no specific domain type is assigned.
+    rba_dataset_coverage: partial
     hypotheses:
-      - id: "H_botnet"
-        title: "Automated Execution Infiltration"
-        text: "Automated headless browser execution or residential botnet executing programmatic login credential injection across public endpoints."
+      - id: H_botnet
+        title: Automated Execution Infiltration
+        text: Automated headless client or proxy botnet executing programmatic login credential injection across many accounts from rotating infrastructure.
+        verdict_class: FRAUD
         is_residual: false
         associated_slots:
-          [
-            "SLOT_NETWORK_REPUTATION",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_BEHAVIORAL_CADENCE",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
         falsification_criteria:
-          - metric: "behavior.mouse_entropy"
-            operator: "GTE"
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 14
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP produced a successful login for this same account at least 14 days earlier; rotating stuffing infrastructure does not reuse the victim's own historical IP.
+            calibration_note: "RBA: only 2.1% of ATO successes reused any previously seen victim IP (any age). Keep >= 14 days to stay decisive."
+          - metric: behavior.mouse_entropy
+            operator: GTE
             threshold: 0.85
-            description: "Organic biological mouse trajectory curvature entropy exceeding 0.85 decisively refutes linear script automation and headless crawler bots."
-          - metric: "behavior.keystroke_jitter_ms"
-            operator: "GTE"
-            threshold: 120.0
-            description: "Biological typing delay variance exceeding 120.0 ms confirms natural cognitive rhythm, decisively refuting automated credential injection cadence."
-      - id: "H_sybil"
-        title: "Coordinated Fraud Syndicate"
-        text: "Coordinated human fraud syndicate operating cloned virtual device profiles and breached credential dumps across multiple accounts."
+            availability: client_sdk_only
+            description: Mouse trajectory curvature entropy of 0.85 or higher reflects human motor variation, refuting scripted cursor movement.
+            calibration_note: Spoofable by advanced bots; treat as strong but not absolute.
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Coordinated Human Fraud
+        text: Human fraud operators manually using stolen valid credentials and reused browser profiles to take over one or several accounts.
+        verdict_class: FRAUD
         is_residual: false
-        associated_slots: ["SLOT_DEVICE_FINGERPRINT", "SLOT_ACCOUNT_GRAPH"]
+        associated_slots:
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_NETWORK_REPUTATION
         falsification_criteria:
-          - metric: "graph.cluster_size"
-            operator: "EQ"
-            threshold: 1
-            description: "An isolated entity node exhibiting zero syndicated credential links or multi-account clique ties decisively refutes coordinated fraud syndicates."
-          - metric: "device.cloned_hardware"
-            operator: "EQ"
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 30
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP was used successfully by this account at least 30 days earlier; a manual takeover operator does not share the victim's long-standing personal IP.
+          - metric: device.cloned_hardware
+            operator: EQ
             threshold: false
-            description: "Clean physical hardware sensor profile and valid device attestation refute syndicated virtualized device farms."
-      - id: "H_shared"
-        title: "Shared Gateway Egress False Alarm"
-        text: "Legitimate user login traversing carrier CGNAT, corporate enterprise proxy, or public commercial wireless gateway infrastructure."
+            availability: client_sdk_only
+            description: Attested physical hardware and untampered WebGL/canvas primitives refute virtualized or anti-detect device profiles.
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Legitimate Owner Or Shared Egress
+        text: Legitimate owner login, including typos, travel, new device, browser update, carrier CGNAT, corporate proxy or public Wi-Fi gateway.
+        verdict_class: LEGIT
         is_residual: false
-        associated_slots: ["SLOT_NETWORK_REPUTATION", "SLOT_ACCOUNT_GRAPH"]
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria:
-          - metric: "network.is_cgnat"
-            operator: "EQ"
-            threshold: false
-            description: "Dedicated non-CGNAT egress allocation refutes carrier NAT sharing, confirming an individual non-shared access path."
-          - metric: "network.geo_velocity_kmh"
-            operator: "GTE"
-            threshold: 900.0
-            description: "Impossible physical travel velocity exceeding 900 km/h between logins decisively refutes legitimate shared network infrastructure access."
-      - id: "H_novel"
-        title: "Uncataloged Zero-Day Exploit"
-        text: "Uncataloged zero-day abuse pattern, biometric deepfake bypass, or novel business logic authentication exploit technique."
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+          - metric: network.ip_failure_rate_24h_known_accounts
+            operator: GTE
+            threshold: 0.95
+            availability: rba_dataset
+            min_support: 50
+            description: At least 95% failed logins on existing accounts from this IP in 24h, excluding non-existent-account attempts, is incompatible with legitimate shared egress.
+            calibration_note: "RBA benign IPs with >=50 attempts: P90 failure rate ~0.80 (incl. unknown accounts). 0.85 on raw rate would wrongly kill H_shared for ~11k benign IPs."
+          - metric: graph.ua_asn_new_context_accounts_7d
+            operator: GTE
+            threshold: 5
+            availability: rba_dataset
+            min_support: 5
+            description: The same full user-agent plus ASN pair produced new-context successful logins on 5 or more distinct accounts within 7 days, a reused attacker profile, not one owner.
+            calibration_note: "RBA: 109/141 ATO events share one desktop macOS 10_14_6 UA string across different victims."
+          - metric: network.geo_velocity_kmh
+            operator: GTE
+            threshold: 1000.0
+            availability: client_sdk_only
+            description: Travel speed above 1000 km/h between consecutive successful logins is physically impossible for one owner.
+            calibration_note: "NOT usable on RBA: Country/Region/City are synthesized per feature value and do not preserve real geo-time relations."
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Uncataloged Zero-Day Exploit
+        text: Uncataloged abuse pattern, biometric deepfake bypass, or novel business logic authentication exploit matching no known cause.
+        verdict_class: ESCALATE
         is_residual: true
         associated_slots:
-          [
-            "SLOT_NETWORK_REPUTATION",
-            "SLOT_DEVICE_FINGERPRINT",
-            "SLOT_BEHAVIORAL_CADENCE",
-            "SLOT_ACCOUNT_GRAPH",
-          ]
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
         falsification_criteria: []
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
+  TYPE_RBA_NOVEL_CONTEXT_LOGIN:
+    description: "Successful login where the account has history but the country, ASN or user agent is new: the main RBA re-authentication trigger and the dominant ATO pattern."
+    rba_dataset_coverage: full
+    trigger: login_successful == true AND graph.user_prior_success_count >= 1 AND network.context_novelty_count >= 1
+    hypotheses:
+      - id: H_botnet
+        title: Stuffing Hit From Rotating Proxy
+        text: Automated stuffing engine reusing a just-validated breached credential from a reputation-listed or rotating proxy IP never associated with this account.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
+        falsification_criteria:
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 14
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP produced a successful login for this same account at least 14 days earlier; rotating stuffing infrastructure does not reuse the victim's own historical IP.
+            calibration_note: "RBA: only 2.1% of ATO successes reused any previously seen victim IP (any age). Keep >= 14 days to stay decisive."
+          - metric: behavior.followed_by_known_context_success_10m
+            operator: EQ
+            threshold: true
+            availability: rba_dataset
+            description: "The same IP and user agent logs in successfully within 10 minutes to an existing account whose history already contains this ASN and UA: a corrected typo by the real owner."
+        supporting_signals:
+          - network.ip_is_reputation_listed == true
+          - network.ip_distinct_users_24h >= 10
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Manual Takeover With Reused Profile
+        text: Human operator logging in with phished or bought credentials from a new country and ASN, reusing one attacker browser profile across several victims.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_NETWORK_REPUTATION
+        falsification_criteria:
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 30
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP was used successfully by this account at least 30 days earlier; a manual takeover operator does not share the victim's long-standing personal IP.
+        supporting_signals:
+          - network.context_novelty_count == 3
+          - graph.ua_asn_new_context_accounts_7d >= 2
+          - "device.type == desktop (RBA ATO: 85%)"
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Owner Travel Or Device Change
+        text: Legitimate owner logging in after travel, an ISP or carrier change, a new phone or laptop, or a routine browser and operating system update.
+        verdict_class: LEGIT
+        is_residual: false
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria:
+          - metric: graph.ua_asn_new_context_accounts_7d
+            operator: GTE
+            threshold: 5
+            availability: rba_dataset
+            min_support: 5
+            description: The same full user-agent plus ASN pair produced new-context successful logins on 5 or more distinct accounts within 7 days, a reused attacker profile, not one owner.
+            calibration_note: "RBA: 109/141 ATO events share one desktop macOS 10_14_6 UA string across different victims."
+          - metric: graph.user_distinct_asn_24h
+            operator: GTE
+            threshold: 6
+            availability: rba_dataset
+            description: Successful logins for one account from 6 or more distinct ASNs within 24h exceed what one travelling owner can generate.
+            calibration_note: "Heuristic; recalibrate on train split (target: <0.01% of benign accounts)."
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+        supporting_signals:
+          - network.context_novelty_count == 1
+          - device.browser_family_seen_for_user == true
+          - network.country_seen_for_user == true
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Unexplained Novel Context Login
+        text: Successful new-context login inconsistent with stuffing, manual takeover and owner change, such as synthetic artefacts or an unseen bypass technique.
+        verdict_class: ESCALATE
+        is_residual: true
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria: []
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
+  TYPE_RBA_UNKNOWN_ACCOUNT_PROBE:
+    description: Login attempts against non-existent accounts (RBA sentinel User ID). 45% of all RBA rows; virtually all fail and almost all bot user agents fall here.
+    rba_dataset_coverage: full
+    trigger: graph.account_exists == false
+    hypotheses:
+      - id: H_botnet
+        title: Automated Username Enumeration
+        text: Automated script replaying stale breached usernames or enumerating identifiers at volume, mostly hitting accounts that do not exist on this service.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+        falsification_criteria:
+          - metric: behavior.followed_by_known_context_success_10m
+            operator: EQ
+            threshold: true
+            availability: rba_dataset
+            description: "The same IP and user agent logs in successfully within 10 minutes to an existing account whose history already contains this ASN and UA: a corrected typo by the real owner."
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 14
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP produced a successful login for this same account at least 14 days earlier; rotating stuffing infrastructure does not reuse the victim's own historical IP.
+            calibration_note: "RBA: only 2.1% of ATO successes reused any previously seen victim IP (any age). Keep >= 14 days to stay decisive."
+        supporting_signals:
+          - "device.type == bot (RBA: ~2M bot rows, nearly all here)"
+          - network.ip_attempts_1h high
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Targeted Manual Identifier Guessing
+        text: Human attacker manually guessing identifier variants such as email aliases or phone formats for specific chosen victims at human pace.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_BEHAVIORAL_CADENCE
+        falsification_criteria:
+          - metric: network.ip_attempts_1h
+            operator: GTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 300
+            description: Three hundred or more attempts per hour from one IP exceed sustained manual typing capacity, refuting human operators.
+          - metric: behavior.followed_by_known_context_success_10m
+            operator: EQ
+            threshold: true
+            availability: rba_dataset
+            description: "The same IP and user agent logs in successfully within 10 minutes to an existing account whose history already contains this ASN and UA: a corrected typo by the real owner."
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Owner Typo Or Stale Client
+        text: Legitimate person mistyping username or email, using an old identifier, or a legitimate mail or sync client still storing a deleted account name.
+        verdict_class: LEGIT
+        is_residual: false
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_BEHAVIORAL_CADENCE
+        falsification_criteria:
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+          - metric: network.ip_attempts_1h
+            operator: GTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 300
+            description: Three hundred or more attempts per hour from one IP exceed sustained manual typing capacity, refuting human operators.
+        supporting_signals:
+          - behavior.followed_by_known_context_success_10m == true
+          - low attempt count from IP
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Unexplained Unknown Account Traffic
+        text: Non-existent-account traffic pattern not explained by enumeration, manual guessing or typos, such as a new account-discovery or reset-flow abuse.
+        verdict_class: ESCALATE
+        is_residual: true
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria: []
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
+  TYPE_RBA_FLAGGED_IP_LOGIN:
+    description: Login from an IP present in the threat-intelligence attacker list (RBA 'Is Attack IP'). The list contains many shared mobile IPs used by legitimate users too.
+    rba_dataset_coverage: full
+    trigger: network.ip_is_reputation_listed == true AND graph.account_exists == true
+    label_leakage_warning: When 'Is Attack IP' is the evaluation label, do not feed it as a feature; use it only as a trigger in a separate run.
+    hypotheses:
+      - id: H_botnet
+        title: Listed Stuffing Node
+        text: Reputation-listed IP acting as a stuffing node, replaying breached credential pairs across many accounts with mostly failed attempts.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
+        falsification_criteria:
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 14
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP produced a successful login for this same account at least 14 days earlier; rotating stuffing infrastructure does not reuse the victim's own historical IP.
+            calibration_note: "RBA: only 2.1% of ATO successes reused any previously seen victim IP (any age). Keep >= 14 days to stay decisive."
+          - metric: behavior.followed_by_known_context_success_10m
+            operator: EQ
+            threshold: true
+            availability: rba_dataset
+            description: "The same IP and user agent logs in successfully within 10 minutes to an existing account whose history already contains this ASN and UA: a corrected typo by the real owner."
+        supporting_signals:
+          - network.ip_distinct_users_24h >= 10
+          - network.ip_failure_rate_24h_known_accounts high
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Manual Takeover Via Listed Proxy
+        text: Human operator using a rented listed proxy to log into a victim account with valid stolen credentials from a context new to that account.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_ACCOUNT_GRAPH
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_NETWORK_REPUTATION
+        falsification_criteria:
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 30
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP was used successfully by this account at least 30 days earlier; a manual takeover operator does not share the victim's long-standing personal IP.
+          - metric: network.ip_attempts_1h
+            operator: GTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 300
+            description: Three hundred or more attempts per hour from one IP exceed sustained manual typing capacity, refuting human operators.
+        supporting_signals:
+          - network.context_novelty_count >= 2
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Innocent User On Listed IP
+        text: Legitimate subscriber sharing a mobile CGNAT or reassigned IP that was listed because of other users' abuse, logging into their own account.
+        verdict_class: LEGIT
+        is_residual: false
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria:
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+          - metric: network.ip_failure_rate_24h_known_accounts
+            operator: GTE
+            threshold: 0.95
+            availability: rba_dataset
+            min_support: 50
+            description: At least 95% failed logins on existing accounts from this IP in 24h, excluding non-existent-account attempts, is incompatible with legitimate shared egress.
+            calibration_note: "RBA benign IPs with >=50 attempts: P90 failure rate ~0.80 (incl. unknown accounts). 0.85 on raw rate would wrongly kill H_shared for ~11k benign IPs."
+          - metric: graph.ua_asn_new_context_accounts_7d
+            operator: GTE
+            threshold: 5
+            availability: rba_dataset
+            min_support: 5
+            description: The same full user-agent plus ASN pair produced new-context successful logins on 5 or more distinct accounts within 7 days, a reused attacker profile, not one owner.
+            calibration_note: "RBA: 109/141 ATO events share one desktop macOS 10_14_6 UA string across different victims."
+        supporting_signals:
+          - network.asn_seen_for_user == true
+          - device.ua_seen_for_user == true
+          - device.type == mobile
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Unexplained Listed IP Activity
+        text: Activity on a listed IP that fits neither stuffing, manual takeover nor innocent sharing, for example a new abuse pattern behind the listing.
+        verdict_class: ESCALATE
+        is_residual: true
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria: []
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
+  TYPE_RBA_FAILED_LOGIN_BURST:
+    description: Repeated failed logins on one existing account within a short window (vertical attack vs. owner retrying).
+    rba_dataset_coverage: full
+    trigger: graph.account_exists == true AND behavior.user_failures_1h >= 3
+    hypotheses:
+      - id: H_botnet
+        title: Automated Vertical Brute Force
+        text: Automated tool guessing many passwords against a single existing account, often distributing attempts across several IPs to avoid per-IP limits.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_NETWORK_REPUTATION
+        falsification_criteria:
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 14
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP produced a successful login for this same account at least 14 days earlier; rotating stuffing infrastructure does not reuse the victim's own historical IP.
+            calibration_note: "RBA: only 2.1% of ATO successes reused any previously seen victim IP (any age). Keep >= 14 days to stay decisive."
+          - metric: behavior.followed_by_known_context_success_10m
+            operator: EQ
+            threshold: true
+            availability: rba_dataset
+            description: "The same IP and user agent logs in successfully within 10 minutes to an existing account whose history already contains this ASN and UA: a corrected typo by the real owner."
+        supporting_signals:
+          - behavior.user_distinct_ip_failures_1h high
+          - behavior.min_inter_attempt_ms_user_10m low
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Targeted Manual Guessing
+        text: Person who knows the victim manually guessing personal passwords or answers for one specific account at human typing speed.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria:
+          - metric: behavior.min_inter_attempt_ms_user_10m
+            operator: LTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 3
+            description: Consecutive password submissions for one account under 300 ms apart cannot be typed by a human.
+            calibration_note: RBA timestamps contain synthetic randomness; validate on production telemetry.
+          - metric: network.ip_prior_success_days_for_user
+            operator: GTE
+            threshold: 30
+            availability: rba_dataset
+            min_support: 1
+            description: This exact IP was used successfully by this account at least 30 days earlier; a manual takeover operator does not share the victim's long-standing personal IP.
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Owner Forgot Password
+        text: Legitimate owner retrying after forgetting a password, caps lock, keyboard layout change, or a password manager still holding an old password.
+        verdict_class: LEGIT
+        is_residual: false
+        associated_slots:
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_NETWORK_REPUTATION
+        falsification_criteria:
+          - metric: behavior.min_inter_attempt_ms_user_10m
+            operator: LTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 3
+            description: Consecutive password submissions for one account under 300 ms apart cannot be typed by a human.
+            calibration_note: RBA timestamps contain synthetic randomness; validate on production telemetry.
+          - metric: behavior.user_distinct_ip_failures_1h
+            operator: GTE
+            threshold: 5
+            availability: rba_dataset
+            description: Failures on one account arriving from 5 or more distinct IPs within an hour cannot come from one owner retrying a forgotten password.
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+        supporting_signals:
+          - network.asn_seen_for_user == true
+          - device.ua_seen_for_user == true
+          - eventual success or password reset
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Unexplained Failure Burst
+        text: Failure burst explained by none of brute force, manual guessing or owner error, such as a broken client or an authentication backend fault.
+        verdict_class: ESCALATE
+        is_residual: true
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria: []
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)
+  TYPE_RBA_CLIENT_ANOMALY:
+    description: "Login whose user agent is declared bot, unknown, empty or unparseable (RBA: 1,526 unparseable UA rows kept by the authors)."
+    rba_dataset_coverage: full
+    trigger: device.type IN [bot, unknown] OR device.ua_parse_failed == true
+    hypotheses:
+      - id: H_botnet
+        title: Scripted Login Client
+        text: Malicious script or headless tool submitting logins with a declared bot, generic library or malformed user agent across multiple accounts.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_BEHAVIORAL_CADENCE
+        falsification_criteria:
+          - metric: device.ua_prior_success_days_for_user
+            operator: GTE
+            threshold: 30
+            availability: rba_dataset
+            min_support: 3
+            description: This exact user agent has logged into this same account successfully for at least 30 days, which fits an owned integration, not an attack tool.
+          - metric: behavior.followed_by_known_context_success_10m
+            operator: EQ
+            threshold: true
+            availability: rba_dataset
+            description: "The same IP and user agent logs in successfully within 10 minutes to an existing account whose history already contains this ASN and UA: a corrected typo by the real owner."
+        runbook: dynamic_proof_of_work + null_route_ip_cluster + block_headless
+      - id: H_sybil
+        title: Manual Operator With Spoofed Agent
+        text: Human operator deliberately sending a custom or malformed user agent to evade fingerprinting while manually taking over accounts.
+        verdict_class: FRAUD
+        is_residual: false
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria:
+          - metric: network.ip_attempts_1h
+            operator: GTE
+            threshold: 300
+            availability: rba_dataset
+            min_support: 300
+            description: Three hundred or more attempts per hour from one IP exceed sustained manual typing capacity, refuting human operators.
+          - metric: device.ua_prior_success_days_for_user
+            operator: GTE
+            threshold: 30
+            availability: rba_dataset
+            min_support: 3
+            description: Same unusual user agent used by this account for 30 or more days refutes a newly arrived manual attacker.
+        runbook: freeze_session_and_payout + force_password_reset + quarantine_fingerprint_cluster
+      - id: H_shared
+        title: Legitimate Integration Or Old Client
+        text: Legitimate mail client, sync app, accessibility tool, smart TV or outdated embedded browser of the owner sending an unusual user agent.
+        verdict_class: LEGIT
+        is_residual: false
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria:
+          - metric: network.ip_unknown_account_rate_24h
+            operator: GTE
+            threshold: 0.9
+            availability: rba_dataset
+            min_support: 20
+            description: At least 90% of attempts from this IP in 24h target non-existent accounts, a list-replay signature that no legitimate shared gateway produces.
+            calibration_note: Computed from the sentinel User ID -4324475583306591935 (non-existent accounts in RBA).
+          - metric: graph.ua_ip_distinct_accounts_24h
+            operator: GTE
+            threshold: 50
+            availability: rba_dataset
+            min_support: 50
+            description: The same unusual user agent from one IP touches 50 or more accounts in 24h, far beyond any personal integration.
+        supporting_signals:
+          - device.ua_seen_for_user == true
+          - high success ratio
+        runbook: allow + downgrade_alert + whitelist_shared_egress
+      - id: H_novel
+        title: Unexplained Client Signature
+        text: Previously unseen client signature behaviour that is neither scripted abuse, manual spoofing nor a legitimate integration.
+        verdict_class: ESCALATE
+        is_residual: true
+        associated_slots:
+          - SLOT_NETWORK_REPUTATION
+          - SLOT_DEVICE_FINGERPRINT
+          - SLOT_BEHAVIORAL_CADENCE
+          - SLOT_ACCOUNT_GRAPH
+        falsification_criteria: []
+        runbook: shadow_friction + secops_dossier + vectorized_waf_backtest(fpr<=0.0001)

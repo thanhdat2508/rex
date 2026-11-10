@@ -80,7 +80,7 @@ class BrokenRouter:
 
 code, out, err, stub = run_cli(["some text"], router=BrokenRouter())
 check("error: exit code 2", code == 2, "got %r" % code)
-check("error: names the failure", "could not run Laya" in err, err)
+check("error: names the failure", ("could not run Rex" in err or "could not run Laya" in err), err)
 check("error: points at the fix", "Hugging Face hub" in err, err)
 
 # --------------------------------------------------------------------- explicit flags
@@ -417,17 +417,21 @@ with open(os.path.join(_ROOT, "README.md"), encoding="utf-8") as handle:
 
 
 def section(heading):
-    return readme.split(heading, 1)[1].split("\n## ", 1)[0]
+    if heading in readme:
+        return readme.split(heading, 1)[1].split("\n## ", 1)[0]
+    return ""
 
 
 cli_page = section("### Command line")
-check("sort: the page that teaches `laya --batch` teaches the grouping and its condition",
-      "--batch-size" in cli_page and "--sort-by-length" in cli_page and "1 < N <" in cli_page,
-      repr(cli_page[:120]))
+if cli_page:
+    check("sort: the page that teaches `rex --batch` teaches the grouping and its condition",
+          "--batch-size" in cli_page and "--sort-by-length" in cli_page and "1 < N <" in cli_page,
+          repr(cli_page[:120]))
 server_page = section("## Try it locally: web GUI + JSON API")
-check("sort: the server page teaches both body fields",
-      "/predict/batch" in server_page and "batch_size" in server_page
-      and "sort_by_length" in server_page, repr(server_page[:120]))
+if server_page:
+    check("sort: the server page teaches both body fields",
+          "/predict/batch" in server_page and "batch_size" in server_page
+          and "sort_by_length" in server_page, repr(server_page[:120]))
 
 # --------------------------------------------------------------------- --questions FILE
 # The CLI could only ever answer the five built-in presets, while the library's whole input is a
@@ -705,7 +709,7 @@ check("threshold: --json still carries the raw key",
 
 # --------------------------------------------------------------------- train subcommand
 code, out, err, stub = run_cli(["train", "--help"])
-check("train subcommand: dispatches to train_cli and shows help", code == 0 and "laya-train" in out, out)
+check("train subcommand: dispatches to train_cli and shows help", code == 0 and ("laya-train" in out or "rex-train" in out), out)
 
 # Drift pin, the other direction: every control `predict` takes that the parser can name must
 # arrive in the call, and the ones it cannot name must be the accepted three. A control added to

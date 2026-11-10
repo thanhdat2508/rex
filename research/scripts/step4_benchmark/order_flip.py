@@ -60,7 +60,7 @@ def permute(qdef: Dict[str, Any], rng: random.Random) -> Dict[str, Any]:
 
 def measure(checkpoint: str, n: int, n_opts: int, permutations: int, seed: int,
             device: str) -> Dict[str, Any]:
-    import laya
+    import rex as laya
 
     agent = laya.load(checkpoint, device=device)
     cases, golds = build_cases(n, n_opts, seed)

@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 import rex
+laya = rex
 from rex import evals
 from rex.evals import (
     ChoiceAccuracy,
@@ -2134,7 +2135,7 @@ def _patch_router(monkeypatch, answers=None):
         def predict(self, state, questions, model=None):
             return {"model": model or "stub", "answers": (answers or RUN_ANSWERS)[state]}
 
-    monkeypatch.setattr(laya, "Router", FakeRouter)
+    monkeypatch.setattr(rex, "Router", FakeRouter)
     return built
 
 
@@ -2283,7 +2284,7 @@ def _fake_router(monkeypatch, recorded):
 
         loaded_revisions = {"english": SHA}
 
-    monkeypatch.setattr(laya, "Router", FakeRouter)
+    monkeypatch.setattr(rex, "Router", FakeRouter)
 
 
 def test_cli_forwards_the_pin_and_records_the_commit_that_answered(tmp_path, monkeypatch):
