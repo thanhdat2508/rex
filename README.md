@@ -1,6 +1,6 @@
 <div align="center">
 
-# Rex Decision Engine
+# Risk and Fraud detection Model
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
